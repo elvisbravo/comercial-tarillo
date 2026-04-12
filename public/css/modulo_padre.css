@@ -1,0 +1,13 @@
+.icons-flex {
+    padding: 5px !important;
+    display: flex;
+    column-gap: 8px;
+}
+
+.mt-8rem {
+    margin-top: .8rem;
+}
+
+.d-block {
+    display: block;
+}
