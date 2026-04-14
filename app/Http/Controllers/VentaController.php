@@ -554,7 +554,9 @@ class VentaController extends Controller
         $idsede = session('key')->sede_id;
         $idproducto = $request->idproducto;
 
-        $data = Precios::where('articulo_id', '=', $idproducto)->where('sucursal_id', '=', $idsede)->where('lista_id', '=', 3)->first();
+        //$data = Precios::where('articulo_id', '=', $idproducto)->where('sucursal_id', '=', $idsede)->where('lista_id', '=', 3)->first();
+
+        $data = Precios::where('articulo_id', '=', $idproducto)->where('lista_id', '=', 3)->first();
 
         return response()->json($data);
     }
