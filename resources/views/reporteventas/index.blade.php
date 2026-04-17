@@ -41,18 +41,33 @@
                                 </div>
                                 <div class="col">
                                     <label for=""> Tipo de Comprobante</label>
-                                    <select class="form-select" id="tipo_comprobante_id" aria-label="Default select example" name="tipo_comprobante">
-                                        
-                                    </select>
+                                    <div class="dropdown">
+                                        <button class="form-select text-start" type="button" id="dropdownComprobantes" data-bs-toggle="dropdown" aria-expanded="false" style="display: flex; justify-content: space-between; align-items: center; background-color: #fff;">
+                                            Cargando...
+                                        </button>
+                                        <ul class="dropdown-menu w-100 p-2" aria-labelledby="dropdownComprobantes" id="tipo_comprobante_id" style="max-height: 250px; overflow-y: auto;">
+                                            
+                                        </ul>
+                                    </div>
                                 </div>
 
                                 <div class="col">
                                     <label for=""> Sedes</label>
-                                    <select class="form-select" id="sede_id" aria-label="Default select example" name="sede_id">
-                                        @foreach($sedes as $sede)
-                                        <option value="{{$sede->id}}">{{$sede->nombre}}</option>
-                                        @endforeach
-                                    </select>
+                                    <div class="dropdown">
+                                        <button class="form-select text-start" type="button" id="dropdownSedes" data-bs-toggle="dropdown" aria-expanded="false" style="display: flex; justify-content: space-between; align-items: center; background-color: #fff;">
+                                            TODOS
+                                        </button>
+                                        <ul class="dropdown-menu w-100 p-2" aria-labelledby="dropdownSedes" id="sede_id_list" style="max-height: 250px; overflow-y: auto;">
+                                            @foreach($sedes as $sede)
+                                            <li>
+                                                <div class="form-check dropdown-item px-4 py-1">
+                                                    <input class="form-check-input check-sede" type="checkbox" name="sede_id[]" value="{{$sede->id}}" id="sede_{{$sede->id}}" {{ $sede->id == 1 ? 'checked' : '' }}>
+                                                    <label class="form-check-label w-100" style="cursor: pointer;" for="sede_{{$sede->id}}">{{$sede->nombre}}</label>
+                                                </div>
+                                            </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
                                 </div>
                                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                                     <button class="btn btn-info" type="submit" id="generar_reporte">GENERAR REPORTE</button>

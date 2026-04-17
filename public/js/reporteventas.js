@@ -11,20 +11,85 @@ window.addEventListener("load", function (event) {
 function tipo_comprobante() {
     $.get(urlgeeneral + "/reporteventas/tipocomprobantes", function (data) {
         let contenido = "";
-        //contenido += "<option value='' >--Seleccionar--</option >";
-        contenido += "<option value='0' id='todos'>TODOS</option >";
+        contenido += `
+            <li>
+                <div class="form-check dropdown-item px-4 py-1">
+                    <input class="form-check-input check-comprobante" type="checkbox" name="tipo_comprobante[]" value="0" id="comp_todos" checked>
+                    <label class="form-check-label w-100" style="cursor: pointer;" for="comp_todos">TODOS</label>
+                </div>
+            </li>
+        `;
         for (var i = 0; i < data.length; i++) {
-            contenido +=
-                "<option value='" +
-                data[i].id +
-                "' >" +
-                data[i].descripcion +
-                "</option >";
+            contenido += `
+            <li>
+                <div class="form-check dropdown-item px-4 py-1">
+                    <input class="form-check-input check-comprobante" type="checkbox" name="tipo_comprobante[]" value="${data[i].id}" id="comp_${data[i].id}">
+                    <label class="form-check-label w-100" style="cursor: pointer;" for="comp_${data[i].id}">${data[i].descripcion}</label>
+                </div>
+            </li>
+            `;
         }
 
         document.getElementById("tipo_comprobante_id").innerHTML = contenido;
+
+        // Evitar que el menú se cierre al hacer clic en los checkboxes
+        $('#tipo_comprobante_id').on('click', function (e) {
+            e.stopPropagation();
+        });
+
+        // Lógica de los checks (Si marca 'TODOS', desmarca los demás y viceversa)
+        $('.check-comprobante').on('change', function() {
+            if ($(this).val() == "0" && $(this).is(':checked')) {
+                $('.check-comprobante').not(this).prop('checked', false);
+            } else if ($(this).val() != "0" && $(this).is(':checked')) {
+                $('#comp_todos').prop('checked', false);
+            }
+            
+            // Si ninguno queda seleccionado, marcamos TODOS por defecto
+            if ($('.check-comprobante:checked').length === 0) {
+                 $('#comp_todos').prop('checked', true);
+            }
+            
+            // Actualizar texto del botón desplegable
+            let selectedTxt = [];
+            $('.check-comprobante:checked').each(function() {
+                selectedTxt.push($(this).next('label').text());
+            });
+            $('#dropdownComprobantes').text(selectedTxt.join(', '));
+        });
+
+        $('#dropdownComprobantes').text('TODOS');
     });
 }
+
+// Lógica para Sedes (se carga directamente porque Blade la dibuja desde el servidor)
+window.addEventListener("load", function () {
+    // Evitar que se cierre el dropdown al hacer click en las opciones
+    $('#sede_id_list').on('click', function (e) {
+        e.stopPropagation();
+    });
+
+    // Lógica principal de los Sede Checkboxes
+    $('.check-sede').on('change', function() {
+        if ($(this).val() == "1" && $(this).is(':checked')) { // "1" es TODOS
+            $('.check-sede').not(this).prop('checked', false);
+        } else if ($(this).val() != "1" && $(this).is(':checked')) {
+            $('#sede_1').prop('checked', false);
+        }
+        
+        // Si no queda nada seleccionado, marcamos TODOS por defecto
+        if ($('.check-sede:checked').length === 0) {
+             $('#sede_1').prop('checked', true);
+        }
+        
+        // Actualizamos el boton principal
+        let selectedTxt = [];
+        $('.check-sede:checked').each(function() {
+            selectedTxt.push($(this).next('label').text());
+        });
+        $('#dropdownSedes').text(selectedTxt.join(', '));
+    });
+});
 
 const form = document.getElementById('formReporteVentas');
 

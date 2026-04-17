@@ -86,6 +86,8 @@ class VentaController extends Controller
             ->select('s.id', 's.name')
             ->where('s.almacen_id', '=', $idFirst)
             ->where('s.name', '!=', 'Transferencias')
+            ->orderByRaw("CASE WHEN s.name = 'Stock' THEN 1 ELSE 2 END")
+            ->orderBy('s.name', 'asc')
             ->get();
 
         $userId = session('key')->id;

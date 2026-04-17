@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Tipo_comprobantes;
 use App\Sede;
 use App\Venta;
@@ -19,103 +20,94 @@ class ReporteVentasController extends Controller
     {
         $this->middleware('auth');
     }
-    
 
 
-    public function index(){
+
+    public function index()
+    {
         $sedes = Sede::all();
         return view('reporteventas.index', compact('sedes'));
     }
 
-    public function tipocomprobantes(){
-        $tipo_comprobantes = DB::table('tipo_comprobantes')->whereIn('descripcion',['BOLETA DE VENTA ELECTRONICA', 'FACTURA ELECTRONICA', 'NOTA DE CREDITO ELECTRONICA'])->get();
+    public function tipocomprobantes()
+    {
+        $tipo_comprobantes = DB::table('tipo_comprobantes')->whereIn('descripcion', ['BOLETA DE VENTA ELECTRONICA', 'FACTURA ELECTRONICA', 'NOTA DE CREDITO ELECTRONICA', 'NOTA DE VENTA'])->get();
 
         return response()->json($tipo_comprobantes);
     }
 
-    public function sede(){
+    public function sede()
+    {
 
         $idsede = session('key')->sede_id;
         $user_id = session('key')->id;
 
-        $sede= DB::table('users')
-        ->join('sedes', 'users.sede_id', '=', 'sedes.id')
-        ->select('sedes.nombre', 'sedes.id')
-        ->where('users.sede_id','=',$idsede)
-        ->where('users.id', '=', $user_id)->get();
-        
+        $sede = DB::table('users')
+            ->join('sedes', 'users.sede_id', '=', 'sedes.id')
+            ->select('sedes.nombre', 'sedes.id')
+            ->where('users.sede_id', '=', $idsede)
+            ->where('users.id', '=', $user_id)->get();
+
         return response()->json($sede);
     }
 
-    public function consulta(Request $request){
-        $idsede = session('key')->sede_id;
-
+    public function consulta(Request $request)
+    {
         $desde = $request->desde;
         $hasta = $request->hasta;
-        $comprobante = $request->tipo_comprobante;
-        $sede = $request->sede_id;
+        // Checkboxes array validation
+        $comprobante = $request->tipo_comprobante ?? [0];
+        $sede = $request->sede_id ?? [1];
 
         $servicios = new FuncionesController;
-
         $envio = $servicios->tipo_envio_sunat();
 
-        if ($comprobante == 0) {
+        $query = DB::table('ventas')
+            ->join('clientes', 'ventas.cliente_id', '=', 'clientes.id')
+            ->join('tipo_comprobantes', 'ventas.tipo_comprobante_id', '=', 'tipo_comprobantes.id')
+            ->select(
+                'clientes.nomb_per',
+                'clientes.pate_per',
+                'clientes.mate_per',
+                'clientes.razon_social',
+                'clientes.documento',
+                'tipo_comprobantes.descripcion as comprobante',
+                'ventas.id',
+                DB::raw("to_char(ventas.fecha, 'DD-MM-YYYY') as fecha"),
+                'ventas.hora',
+                'ventas.serie_comprobante',
+                'ventas.numero_comprobante',
+                'ventas.monto',
+                'ventas.sede_id',
+                'ventas.venta_estado',
+                'ventas.aceptado_sunat',
+                'ventas.mensaje_sunat',
+                'ventas.tipo_comprobante_id',
+                'ventas.estado_nota',
+                'ventas.serie_nota_credito',
+                'ventas.numero_nota_credito',
+                DB::raw("to_char(ventas.fecha_eliminacion, 'DD-MM-YYYY') as fecha_eliminacion")
+            )
+            ->where('ventas.tipo_envio', '=', $envio)
+            ->whereBetween('ventas.fecha', [$desde, $hasta]);
 
-            if($sede == 1) {
-                $ventas = DB::table('ventas')
-                ->join('clientes', 'ventas.cliente_id', '=', 'clientes.id')
-                ->join('tipo_comprobantes', 'ventas.tipo_comprobante_id', '=', 'tipo_comprobantes.id')
-                ->select('clientes.nomb_per', 'clientes.pate_per', 'clientes.mate_per','clientes.razon_social', 'clientes.documento', 'tipo_comprobantes.descripcion as comprobante', 'ventas.id', DB::raw("to_char(ventas.fecha, 'DD-MM-YYYY') as fecha"), 'ventas.hora', 'ventas.serie_comprobante', 'ventas.numero_comprobante', 'ventas.monto', 'ventas.sede_id', 'ventas.venta_estado', 'ventas.aceptado_sunat', 'ventas.mensaje_sunat','ventas.tipo_comprobante_id', 'ventas.estado_nota','ventas.serie_nota_credito','ventas.numero_nota_credito', DB::raw("to_char(ventas.fecha_eliminacion, 'DD-MM-YYYY') as fecha_eliminacion"))
-                ->where('ventas.tipo_envio', '=', $envio)
-                ->whereBetween('ventas.fecha', [$desde, $hasta])
-                ->whereIn('ventas.tipo_comprobante_id', [1,2,3])
-                ->orderBy('ventas.tipo_comprobante_id', 'asc')
-                ->orderBy('ventas.id', 'asc')
-                ->get();
-            } else {
-                $ventas = DB::table('ventas')
-                ->join('clientes', 'ventas.cliente_id', '=', 'clientes.id')
-                ->join('tipo_comprobantes', 'ventas.tipo_comprobante_id', '=', 'tipo_comprobantes.id')
-                ->select('clientes.nomb_per', 'clientes.pate_per', 'clientes.mate_per','clientes.razon_social', 'clientes.documento', 'tipo_comprobantes.descripcion as comprobante', 'ventas.id', DB::raw("to_char(ventas.fecha, 'DD-MM-YYYY') as fecha"), 'ventas.hora', 'ventas.serie_comprobante', 'ventas.numero_comprobante', 'ventas.monto', 'ventas.sede_id', 'ventas.venta_estado', 'ventas.aceptado_sunat', 'ventas.mensaje_sunat','ventas.tipo_comprobante_id', 'ventas.estado_nota','ventas.serie_nota_credito','ventas.numero_nota_credito', DB::raw("to_char(ventas.fecha_eliminacion, 'DD-MM-YYYY') as fecha_eliminacion"))
-                ->where('ventas.tipo_envio', '=', $envio)
-                ->where('ventas.sede_id', '=', $sede)
-                ->whereBetween('ventas.fecha', [$desde, $hasta])
-                ->whereIn('ventas.tipo_comprobante_id', [1,2,3])
-                ->orderBy('ventas.tipo_comprobante_id', 'asc')
-                ->orderBy('ventas.id', 'asc')
-                ->get();
-            }
-
-            
-        } else {
-            if($sede == 1) {
-                $ventas = DB::table('ventas')
-                ->join('clientes', 'ventas.cliente_id', '=', 'clientes.id')
-                ->join('tipo_comprobantes', 'ventas.tipo_comprobante_id', '=', 'tipo_comprobantes.id')
-                ->select('clientes.nomb_per', 'clientes.pate_per', 'clientes.mate_per','clientes.razon_social', 'clientes.documento', 'tipo_comprobantes.descripcion as comprobante', 'ventas.id', DB::raw("to_char(ventas.fecha, 'DD-MM-YYYY') as fecha"), 'ventas.hora', 'ventas.serie_comprobante', 'ventas.numero_comprobante', 'ventas.monto', 'ventas.sede_id', 'ventas.venta_estado', 'ventas.aceptado_sunat', 'ventas.mensaje_sunat','ventas.tipo_comprobante_id', 'ventas.estado_nota','ventas.serie_nota_credito','ventas.numero_nota_credito')
-                ->where('ventas.tipo_envio', '=', $envio)
-                ->where('ventas.tipo_comprobante_id', $comprobante)
-                ->whereBetween('ventas.fecha', [$desde, $hasta])
-                ->orderBy('ventas.id', 'asc')
-                ->get();
-            } else {
-                $ventas = DB::table('ventas')
-                ->join('clientes', 'ventas.cliente_id', '=', 'clientes.id')
-                ->join('tipo_comprobantes', 'ventas.tipo_comprobante_id', '=', 'tipo_comprobantes.id')
-                ->select('clientes.nomb_per', 'clientes.pate_per', 'clientes.mate_per','clientes.razon_social', 'clientes.documento', 'tipo_comprobantes.descripcion as comprobante', 'ventas.id', DB::raw("to_char(ventas.fecha, 'DD-MM-YYYY') as fecha"), 'ventas.hora', 'ventas.serie_comprobante', 'ventas.numero_comprobante', 'ventas.monto', 'ventas.sede_id', 'ventas.venta_estado', 'ventas.aceptado_sunat', 'ventas.mensaje_sunat','ventas.tipo_comprobante_id', 'ventas.estado_nota','ventas.serie_nota_credito','ventas.numero_nota_credito')
-                ->where('ventas.tipo_envio', '=', $envio)
-                ->where('ventas.sede_id', '=', $sede)
-                ->where('ventas.tipo_comprobante_id', $comprobante)
-                ->whereBetween('ventas.fecha', [$desde, $hasta])
-                ->orderBy('ventas.id', 'asc')
-                ->get();
-            }
-            
+        // Si "1" (TODOS) no está en el array, filtramos por las sedes solicitadas explícitamente
+        if (!in_array(1, $sede)) {
+            $query->whereIn('ventas.sede_id', $sede);
         }
 
-        
+        // Verificamos si en el array de seleccionados viene el 0 (TODOS los comprobantes)
+        if (in_array(0, $comprobante)) {
+            $query->whereIn('ventas.tipo_comprobante_id', [1, 2, 3, 5]);
+        } else {
+            $query->whereIn('ventas.tipo_comprobante_id', $comprobante);
+        }
+
+        // Aplicamos el orden y ejecutamos la consulta final
+        $ventas = $query->orderBy('ventas.tipo_comprobante_id', 'asc')
+            ->orderBy('ventas.id', 'asc')
+            ->get();
 
         return response()->json($ventas);
-
     }
 }
