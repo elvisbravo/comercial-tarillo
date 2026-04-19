@@ -58,7 +58,7 @@
                         </div>
                     @endif
                     <!--<form>-->
-                    {!! Form::open(array('route' => 'productos.store','method'=>'POST','autocomplete'=>'off','files'=>'true')) !!}
+                    {!! Form::open(array('route' => 'productos.store','method'=>'POST','autocomplete'=>'off','files'=>'true', 'onsubmit' => "document.getElementById('btnCrearProducto').disabled = true; document.getElementById('btnCrearProducto').innerHTML = 'Procesando...';")) !!}
                     <div class="row">
                               <p style="color:red">Todos los campos marcados con (*) son obligatorios</p>
 
@@ -244,7 +244,7 @@
 
                                     </div>
                                     <div class="col-lg-3">
-                                             <button type="submit" class="btn btn-primary submit">CREAR</button>
+                                             <button type="submit" id="btnCrearProducto" class="btn btn-primary submit">CREAR</button>
                                             <a href="{{ route('productos.index') }}" class="btn btn-danger">CANCELAR</a>
                                     </div>
 

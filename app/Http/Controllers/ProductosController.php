@@ -309,8 +309,8 @@ class ProductosController extends Controller
         //
         $this->validate($request, [
             'nomb_pro' => 'required',
-            'codigo_barras' => 'unique:productos'
-             ]);
+            'codigo_barras' => 'nullable|unique:productos'
+        ]);
 
            $name = session('key')->name;
 
@@ -330,10 +330,13 @@ class ProductosController extends Controller
             if($request->hasFile("img")):
 
                 $file = $request->file("img");
-                $nombre = $file->getClientOriginalName();
-                $ruta= public_path("img/productos");
-                $productos->img=$nombre;
-                $file->move($ruta,$nombre);
+                $extension = $file->getClientOriginalExtension();
+                $baseNombre = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                // Insert 4 random numbers explicitly formatted with an underscore
+                $nombre = $baseNombre . '_' . rand(1000, 9999) . '.' . $extension;
+                $ruta = public_path("img/productos");
+                $productos->img = $nombre;
+                $file->move($ruta, $nombre);
 
             endif;
 

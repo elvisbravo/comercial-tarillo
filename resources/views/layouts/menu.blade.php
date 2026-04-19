@@ -40,7 +40,7 @@
                         <span data-key="t-apps">Compras</span>
                     </a>
                     <ul class="sub-menu" aria-expanded="false">
-                    <input type="hidden" id="url_raiz_proyecto" value="{{ url('/') }}" />
+                        <input type="hidden" id="url_raiz_proyecto" value="{{ url('/') }}" />
                         <li>
                             <a href="{{ route('proveedores.index') }}">
                                 <span data-key="t-calendar">Proveedores</span>
@@ -69,8 +69,8 @@
                         <span data-key="t-components">Ventas</span>
                     </a>
                     <ul class="sub-menu" aria-expanded="false">
-                    <li><a href="{{ route('lista-precios.index') }}" data-key="t-alerts">Lista Precios</a></li>
-                    <li><a href="{{ route('precios.index') }}" data-key="t-alerts">Precios</a></li>
+                        <li><a href="{{ route('lista-precios.index') }}" data-key="t-alerts">Lista Precios</a></li>
+                        <li><a href="{{ route('precios.index') }}" data-key="t-alerts">Precios</a></li>
                         <li><a href="{{ route('clientes.index') }}" data-key="t-alerts">Clientes</a></li>
                         <li><a href="{{ route('ventas.index') }}" data-key="t-buttons">Punto de Venta</a></li>
                         <li><a href=" {{ route('vendedores.index') }}" data-key="t-buttons">Vendedores</a></li>
@@ -85,15 +85,15 @@
                         <span data-key="t-authentication">Creditos</span>
                     </a>
                     <ul class="sub-menu" aria-expanded="false">
-                    <li><a href="{{url('candados-creditos')}}" data-key="t-buttons">Candado Credito</a></li>
-                      <li><a href="{{url('creditos')}}" data-key="t-buttons">Generar Credito</a></li>
-                      <li><a href="{{ route('amortizacion.index') }}" data-key="t-recover-password">Amortizaciones</a></li>
-                      <li><a href="{{route('creditos-pendientes.index')}}" data-key="t-recover-password">Consulta Credito</a></li>
-                      <li><a href="{{route('consulta-amortizaciones.index')}}" data-key="t-lock-screen">Consulta de Amortizaciones</a></li>
-                      <li><a href="{{route('creditos-reprogramacion.index')}}" data-key="t-lock-screen">Reprogramar Credito</a></li>
-                      <li><a href="{{route('anular-credito.index')}}" data-key="t-lock-screen">Anular Credito</a></li>
-                      <li><a href="{{route('anular-amortizaciones.index')}}" data-key="t-lock-screen">Anular Amortizaciones</a></li>
-                      <li><a href="{{route('impresion-planilla.index')}}" data-key="t-lock-screen">Impresión Planilla Descuento</a></li>
+                        <li><a href="{{url('candados-creditos')}}" data-key="t-buttons">Candado Credito</a></li>
+                        <li><a href="{{url('creditos')}}" data-key="t-buttons">Generar Credito</a></li>
+                        <li><a href="{{ route('amortizacion.index') }}" data-key="t-recover-password">Amortizaciones</a></li>
+                        <li><a href="{{route('creditos-pendientes.index')}}" data-key="t-recover-password">Consulta Credito</a></li>
+                        <li><a href="{{route('consulta-amortizaciones.index')}}" data-key="t-lock-screen">Consulta de Amortizaciones</a></li>
+                        <li><a href="{{route('creditos-reprogramacion.index')}}" data-key="t-lock-screen">Reprogramar Credito</a></li>
+                        <li><a href="{{route('anular-credito.index')}}" data-key="t-lock-screen">Anular Credito</a></li>
+                        <li><a href="{{route('anular-amortizaciones.index')}}" data-key="t-lock-screen">Anular Amortizaciones</a></li>
+                        <li><a href="{{route('impresion-planilla.index')}}" data-key="t-lock-screen">Impresión Planilla Descuento</a></li>
 
                     </ul>
                 </li>
@@ -132,7 +132,7 @@
                         <li><a href="{{ route('traslados.index') }}" data-key="t-coming-soon">Traslados</a></li>
                         <li><a href="{{ route('recepcion-mercaderia.index') }}" data-key="t-coming-soon">Control de Traslados</a></li>
                         <li><a href="{{ route('transportistas.index') }}" data-key="t-coming-soon">Transportistas</a></li>
-                        
+
                     </ul>
                 </li>
 
@@ -146,6 +146,8 @@
                         <li><a href="{{ route('reportecompras.index') }}" data-key="t-lightbox">Reporte de Compras</a></li>
                         <li><a href="{{ route('reporteinventarios.index') }}" data-key="t-lightbox">Reporte de Inventario</a></li>
                         <li><a href="{{ route('reporteallventas.index') }}" data-key="t-notifications">Reporte All Ventas</a>
+                        </li>
+                        <li><a href="{{ route('reportecuotas.index') }}" data-key="t-notifications">Reporte Cuotas Vencidas</a>
                         </li>
                     </ul>
                 </li>
@@ -171,10 +173,10 @@
                         <li><a href="{{url('roles')}}" data-key="t-lightbox">Roles</a></li>
                         <li><a href="{{url('users')}}" data-key="t-range-slider">Usuario</a></li>
 
-                        </li>
-                    </ul>
                 </li>
-                @endcan
+            </ul>
+            </li>
+            @endcan
 
 
 

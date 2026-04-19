@@ -12,7 +12,7 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 
-class InventarioExport implements FromCollection,WithHeadings,WithTitle,ShouldAutoSize
+class InventarioExport implements FromCollection,WithHeadings,WithTitle,ShouldAutoSize,WithStyles
 {
     /**
     * @return \Illuminate\Support\Collection
@@ -38,9 +38,10 @@ class InventarioExport implements FromCollection,WithHeadings,WithTitle,ShouldAu
         ->leftjoin('marcas as m','p.marca_id','=','m.id')
         ->leftjoin('colores as co','p.color_id','=','co.id')
         ->select('p.id','a.nombre as ubicacion', 'sl.name as nombrestock', 'p.nomb_pro', 'm.descripcion as marca','c.categoria' ,
+        'sub.subcategoria',
         'u.descripcion as unidad',
          DB::raw('SUM(dp.stock) as stock'), 'p.costo')
-        ->groupBy('p.id','p.nomb_pro','p.costo','c.categoria','c.id','u.descripcion',
+        ->groupBy('p.id','p.nomb_pro','p.costo','c.categoria','sub.subcategoria','c.id','u.descripcion',
         'm.descripcion', 'a.nombre', 'sl.name')
         //->where('a.sede_id','=', $idsede)
         ->where('p.estado','=','1')
@@ -63,6 +64,7 @@ class InventarioExport implements FromCollection,WithHeadings,WithTitle,ShouldAu
                 'NOMBRE PRODUCTO',
                 'MARCA',
                 'CATEGORÍA',
+                'SUB_CATEGORÍA',
                 'UNIDAD DE MEDIDA',
                 'CANTIDAD INVENTARIADA',
                 'COSTO PRODUCTO',
@@ -78,12 +80,6 @@ class InventarioExport implements FromCollection,WithHeadings,WithTitle,ShouldAu
         return [
             // Style the first row as bold text.
             1    => ['font' => ['bold' => true]],
-
-            // Styling a specific cell by coordinate.
-            'B2' => ['font' => ['italic' => true]],
-
-            // Styling an entire column.
-            'C'  => ['font' => ['size' => 16]],
         ];
     }
 

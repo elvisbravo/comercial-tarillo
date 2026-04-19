@@ -79,6 +79,10 @@ Clientes
                         <form method="GET" action="{{ route('clientes.index') }}">
                             <div class="row mb-2">
                                 <div class="col-md-6 ms-auto d-flex">
+                                    <select name="estado" class="form-select me-2" onchange="this.form.submit()">
+                                        <option value="1" {{ $estado == '1' ? 'selected' : '' }}>Activos</option>
+                                        <option value="0" {{ $estado == '0' ? 'selected' : '' }}>Inactivos</option>
+                                    </select>
                                     <input type="text" name="buscar" class="form-control me-2"
                                         placeholder="Buscar cliente..."
                                         value="{{ $buscar }}">
@@ -95,7 +99,6 @@ Clientes
                                     <th>N° Documento</th>
                                     <th>Dirección Fiscal</th>
                                     <th>Telefono</th>
-                                    <th>Estado</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -111,11 +114,6 @@ Clientes
                                     <td style='padding:1px;text-align:center'>{{$c->documento}}</td>
                                     <td style='padding:1px;text-align:center'>{{$c->dire_per}}</td>
                                     <td style='padding:1px;text-align:center'>{{$c->telefono}}</td>
-                                    @if($c->estado_per==1)
-                                    <td style='padding:1px;text-align:center'>Activo</td>
-                                    @else
-                                    <td style='padding:1px;text-align:center'>Inactivo</td>
-                                    @endif
                                     <td style='padding:1px;text-align:center'>
 
 
@@ -134,8 +132,8 @@ Clientes
                             </tbody>
                         </table>
 
-                        <div class="mt-3">
-                            {{ $clientes->appends(['buscar' => $buscar])->links() }}
+                        <div class="mt-3 d-flex justify-content-end">
+                            {{ $clientes->appends(['buscar' => $buscar, 'estado' => $estado])->links() }}
                         </div>
 
                     </div>

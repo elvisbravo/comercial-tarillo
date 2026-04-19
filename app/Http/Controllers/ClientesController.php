@@ -29,13 +29,17 @@ class ClientesController extends Controller
     public function index(Request $request)
     {
         $buscar = $request->get('buscar');
+        $estado = $request->get('estado', '1');
 
-        $clientes = Clientes::when($buscar, function ($query, $buscar) {
-            return $query->where('nomb_per', 'ilike', "%$buscar%")
-                ->orWhere('documento', 'like', "%$buscar%");
-        })->paginate(10);
+        $clientes = Clientes::where('estado_per', '=', $estado)
+            ->when($buscar, function ($query, $buscar) {
+                return $query->where(function($q) use ($buscar) {
+                    $q->where('nomb_per', 'ilike', "%$buscar%")
+                      ->orWhere('documento', 'like', "%$buscar%");
+                });
+            })->paginate(10);
 
-        return view('clientes.index', compact('clientes', 'buscar'));
+        return view('clientes.index', compact('clientes', 'buscar', 'estado'));
     }
 
     public function create()
@@ -295,9 +299,24 @@ class ClientesController extends Controller
 
     public function eliminar($id)
     {
+        $cuotas_pendientes = DB::table('creditos as c')
+            ->join('cuotas as cu', 'c.id', '=', 'cu.credito_id')
+            ->where('c.cliente_id', '=', $id)
+            ->where('cu.esta_cuo', '=', 'PENDIENTE')
+            ->count();
+
+        if ($cuotas_pendientes > 0) {
+            return response()->json([
+                'status' => 'error', 
+                'mensaje' => 'El cliente no puede ser anulado porque tiene cuota(s) pendiente(s) por pagar.'
+            ]);
+        }
+
         $clientes = Clientes::findOrFail($id);
         $clientes->estado_per = '0';
         $clientes->save();
+
+        return response()->json(['status' => 'ok']);
     }
 
     public function getImagesAddress($id)

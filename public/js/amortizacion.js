@@ -163,7 +163,9 @@ $("#amortizar").on("click",function(){
                         title: 'Ok...',
                         text: 'Cuota cobrada Correctamente',
                         footer: ''
-                    })
+                    }).then(function() {
+                        location.reload();
+                    });
 
                     //location.href =urlgeeneral+"/compras";
 

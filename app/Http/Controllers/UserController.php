@@ -25,16 +25,19 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        $buscar = $request->get('buscar');
 
+        $query = User::orderBy('id', 'DESC')->where('estado', '!=', 0);
 
+        if (!empty($buscar)) {
+            $query->where('name', 'LIKE', '%' . $buscar . '%');
+        }
 
-       $datos = User::orderBy('id','DESC')->paginate(5);
+        $datos = $query->paginate(5);
+        $datos->appends(['buscar' => $buscar]); // Para que la paginación mantenga el filtro
 
-       //print_r("");exit();
-
-        return view('users.index',compact('datos'))
+        return view('users.index', compact('datos', 'buscar'))
             ->with('i', ($request->input('page', 1) - 1) * 5);
-
     }
 
     /**
@@ -70,6 +73,8 @@ class UserController extends Controller
 
         $input = $request->all();
         $input['password'] = Hash::make($input['password']);
+        $input['estado'] = 1;
+        
         if($request->hasFile("img")){
 
             $file = $request->file("img");
@@ -198,9 +203,13 @@ class UserController extends Controller
      */
     public function destroy($id)
     {
-        User::find($id)->delete();
+        $user = User::find($id);
+        if ($user) {
+            $user->estado = 0;
+            $user->save();
+        }
         return redirect()->route('users.index')
-                        ->with('success','User deleted successfully');
+                        ->with('success','Usuario dado de baja exitosamente');
 
     }
 }
