@@ -33,289 +33,209 @@ class HomeController extends Controller
      */
     public function index(Request $request)
     {
+        $usuarioSesion = $request->session()->get('key');
+        $anioActual    = date("Y");
 
-        $usuario = $request->session()->get('key');
-        $anioActual = date("Y");
+        // sede_id SIEMPRE desde la sesión (puede estar modificado por selección de admin)
+        $sedeId = $usuarioSesion->sede_id;
 
-        $usuario = User::find($usuario->id);
-        $sedeDelUsuario = $usuario->sede;
+        // Re-fetch solo para datos de perfil (nombre, imagen, etc.)
+        $usuario        = User::find($usuarioSesion->id);
+        $sedeDelUsuario = $usuarioSesion->sede ?? $usuario->sede;
 
         //OBTENER EL TOTAL DE LAS VENTAS AL CONTADO
-        $totalVentasContado=$this->total_ventas_contado($usuario->sede_id);
+        $totalVentasContado = $this->total_ventas_contado($sedeId);
 
         //OBTENER EL TOTAL DE VENTAS AL CREDITO
-        $totalVentasCredito=$this->total_ventas_credito($usuario->sede_id);
+        $totalVentasCredito = $this->total_ventas_credito($sedeId);
 
         //DEVOLVER EL TOTAL DE CREDITOS ACTIVOS
-        $totalCreditoActivo=$this->total_credito_activo($usuario->sede_id);
+        $totalCreditoActivo = $this->total_credito_activo($sedeId);
 
         //DEVOLVER EL TOTAL AMORITZADO
-        $totalamortizado=$this->total_amortizado($usuario->sede_id);
+        $totalamortizado = $this->total_amortizado($sedeId);
 
-
-
-
-       //return response()->json($ventasPorMesYAnio);
-
-
-        return view('home',compact('sedeDelUsuario','totalVentasContado','totalVentasCredito','totalCreditoActivo','totalamortizado','anioActual'));
+        return view('home', compact('sedeDelUsuario','totalVentasContado','totalVentasCredito','totalCreditoActivo','totalamortizado','anioActual'));
     }
 
 
 
     public function total_ventas_contado($id_sede){
-
-        $totalVentasContado = Venta::where('tipo_pago_id', '1')
-        ->where('sede_id','=',$id_sede)
-        ->sum('monto');
-
-        return $totalVentasContado;
-
-
+        $query = Venta::where('tipo_pago_id', '1');
+        if ($id_sede != 1) {
+            $query->where('sede_id', '=', $id_sede);
+        }
+        return $query->sum('monto');
     }
 
     public function total_ventas_credito($id_sede){
-
-        $totalVentasCredito = Venta::where('tipo_pago_id', '2')
-        ->where('sede_id','=',$id_sede)
-        ->sum('monto');
-
-        return $totalVentasCredito;
-
+        $query = Venta::where('tipo_pago_id', '2');
+        if ($id_sede != 1) {
+            $query->where('sede_id', '=', $id_sede);
+        }
+        return $query->sum('monto');
     }
 
-
     public function total_credito_activo($id_sede){
-
-        $totalCreditoActivo=Creditos::where('esta_cre','=','1')
-        ->where('sede_id','=',$id_sede)
-        ->sum('mont_cre');
-
-
-        return $totalCreditoActivo;
-
-
+        $query = Creditos::where('esta_cre', '=', '1');
+        if ($id_sede != 1) {
+            $query->where('sede_id', '=', $id_sede);
+        }
+        return $query->sum('mont_cre');
     }
 
     public function total_amortizado($id_sede){
-
-        $totalamortizado=Recibos::where('esta_rec','=','EMITIDO')
-        ->where('sede_id','=',$id_sede)
-        ->sum('mont_rec');
-
-        return $totalamortizado;
-
-
+        $query = Recibos::where('esta_rec', '=', 'EMITIDO');
+        if ($id_sede != 1) {
+            $query->where('sede_id', '=', $id_sede);
+        }
+        return $query->sum('mont_rec');
     }
 
     //TRAER LAS VENTAS POR AÑO
-
     public function ventasPorMesYAnio(Request $request){
+        $usuario   = $request->session()->get('key');
+        $anioActual = date("Y");
 
-
-        $usuario = $request->session()->get('key');
-
-          // Obtener el año actual
-         $anioActual = date("Y");
-
-
-
-        $ventasPorMesYAnio = Venta::select(
+        $query = Venta::select(
             DB::raw('EXTRACT(YEAR FROM fecha) as anio'),
             DB::raw('EXTRACT(MONTH FROM fecha) as mes'),
             DB::raw('SUM(monto) as total')
         )
-        ->where('sede_id', $usuario->sede_id)
-        ->where(DB::raw('EXTRACT(YEAR FROM fecha)'), '=', $anioActual)
-        ->groupBy('anio', 'mes')
-        ->orderBy('anio', 'asc')
-        ->orderBy('mes', 'asc')
-        ->get();
+        ->where(DB::raw('EXTRACT(YEAR FROM fecha)'), '=', $anioActual);
 
-        // Mapear los números de mes a los nombres correspondientes
+        if ($usuario->sede_id != 1) {
+            $query->where('sede_id', $usuario->sede_id);
+        }
+
+        $ventasPorMesYAnio = $query->groupBy('anio', 'mes')
+            ->orderBy('anio', 'asc')
+            ->orderBy('mes', 'asc')
+            ->get();
+
         $ventasPorMesYAnio = $this->ConversionMes($ventasPorMesYAnio);
-
         return response()->json($ventasPorMesYAnio);
-
-
-
     }
 
-   //TRAER LA DATA TANTO VENTA AL CREDITO Y AL CONTADO
-   public function VentasContadoCredito(Request $request){
+    //TRAER LA DATA TANTO VENTA AL CREDITO Y AL CONTADO
+    public function VentasContadoCredito(Request $request){
+        $usuario    = $request->session()->get('key');
+        $anioActual = date("Y");
 
-            $usuario = $request->session()->get('key');
+        $baseQuery = Venta::select(
+            DB::raw('EXTRACT(YEAR FROM fecha) as anio'),
+            DB::raw('EXTRACT(MONTH FROM fecha) as mes'),
+            DB::raw('SUM(monto) as total')
+        )->where(DB::raw('EXTRACT(YEAR FROM fecha)'), '=', $anioActual);
 
-            // Obtener el año actual
-            $anioActual = date("Y");
+        $qContado = clone $baseQuery;
+        $qCredito = clone $baseQuery;
 
-            // Obtener ventas al contado
-            $ventasContado = Venta::select(
-                DB::raw('EXTRACT(YEAR FROM fecha) as anio'),
-                DB::raw('EXTRACT(MONTH FROM fecha) as mes'),
-                DB::raw('SUM(monto) as total')
-            )
-            ->where('sede_id', $usuario->sede_id)
-            ->where('tipo_pago_id', 1) // Tipo de pago al contado
-            ->where(DB::raw('EXTRACT(YEAR FROM fecha)'), '=', $anioActual)
-            ->groupBy('anio', 'mes')
-            ->orderBy('anio', 'asc')
-            ->orderBy('mes', 'asc')
-            ->get();
+        if ($usuario->sede_id != 1) {
+            $qContado->where('sede_id', $usuario->sede_id);
+            $qCredito->where('sede_id', $usuario->sede_id);
+        }
 
-            // Obtener ventas al crédito
-            $ventasCredito = Venta::select(
-                DB::raw('EXTRACT(YEAR FROM fecha) as anio'),
-                DB::raw('EXTRACT(MONTH FROM fecha) as mes'),
-                DB::raw('SUM(monto) as total')
-            )
-            ->where('sede_id', $usuario->sede_id)
-            ->where('tipo_pago_id', 2) // Tipo de pago al crédito
-            ->where(DB::raw('EXTRACT(YEAR FROM fecha)'), '=', $anioActual)
-            ->groupBy('anio', 'mes')
-            ->orderBy('anio', 'asc')
-            ->orderBy('mes', 'asc')
-            ->get();
+        $ventasContado = $qContado->where('tipo_pago_id', 1)
+            ->groupBy('anio', 'mes')->orderBy('anio', 'asc')->orderBy('mes', 'asc')->get();
 
-            // Llamar a la función ConversionMes para convertir los meses a texto en cada conjunto de datos
-            $ventasContado = $this->ConversionMes($ventasContado);
-            $ventasCredito = $this->ConversionMes($ventasCredito);
+        $ventasCredito = $qCredito->where('tipo_pago_id', 2)
+            ->groupBy('anio', 'mes')->orderBy('anio', 'asc')->orderBy('mes', 'asc')->get();
 
-            // Combinar los resultados en un solo conjunto de datos
-            $ventasPorMesYAnio = [
-                'contado' => $ventasContado,
-                'credito' => $ventasCredito,
-            ];
+        $ventasContado = $this->ConversionMes($ventasContado);
+        $ventasCredito = $this->ConversionMes($ventasCredito);
 
-            return response()->json($ventasPorMesYAnio);
-
-
-   }
-
-
-
+        return response()->json(['contado' => $ventasContado, 'credito' => $ventasCredito]);
+    }
 
     //PASAR LA DATA DE MESES A TEXTO
     public function ConversionMes($data) {
         $meses = [
-            1 => 'Enero',
-            2 => 'Febrero',
-            3 => 'Marzo',
-            4 => 'Abril',
-            5 => 'Mayo',
-            6 => 'Junio',
-            7 => 'Julio',
-            8 => 'Agosto',
-            9 => 'Septiembre',
-            10 => 'Octubre',
-            11 => 'Noviembre',
-            12 => 'Diciembre',
+            1 => 'Enero',    2 => 'Febrero',   3 => 'Marzo',
+            4 => 'Abril',    5 => 'Mayo',       6 => 'Junio',
+            7 => 'Julio',    8 => 'Agosto',     9 => 'Septiembre',
+            10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
         ];
-
-        // Transformar los números de mes a nombres
         foreach ($data as $venta) {
-            $mes = (int)$venta->mes;
-            $venta->mes = $meses[$mes];
+            $venta->mes = $meses[(int)$venta->mes];
         }
-
         return $data;
     }
 
+    //FUNCIÓN PARA PODER TRAER LOS 5 PRODUCTOS MÁS VENDIDOS
+    public function top5ProductosMasVendidos(){
+        $topProductos = DB::table('detalle_venta')
+            ->select('producto_id', DB::raw('SUM(cantidad) as total_unidades_vendidas'))
+            ->groupBy('producto_id')
+            ->orderByDesc('total_unidades_vendidas')
+            ->limit(5)
+            ->get();
 
-   //FUNCIÓN PARA PODER TRAER LOS 5 PRODUCTOS MÁS VENDIDOS
-   public function top5ProductosMasVendidos(){
+        $topProductosIds = $topProductos->pluck('producto_id')->toArray();
 
-    $topProductos = DB::table('detalle_venta')
-        ->select('producto_id', DB::raw('SUM(cantidad) as total_unidades_vendidas'))
-        ->groupBy('producto_id')
-        ->orderByDesc('total_unidades_vendidas')
-        ->limit(5)
-        ->get();
+        $productosMasVendidos = DB::table('productos')
+            ->join('detalle_venta', 'productos.id', '=', 'detalle_venta.producto_id')
+            ->whereIn('productos.id', $topProductosIds)
+            ->select('productos.nomb_pro as nombre_producto', DB::raw('SUM(detalle_venta.cantidad) as total_unidades_vendidas'))
+            ->groupBy('productos.id', 'productos.nomb_pro')
+            ->get();
 
-         // Obtener los datos de los productos más vendidos
-    $topProductosIds = $topProductos->pluck('producto_id')->toArray();
+        return response()->json($productosMasVendidos);
+    }
 
-     // Consultar los detalles de los productos más vendidos
-     $productosMasVendidos = DB::table('productos')
-        ->join('detalle_venta', 'productos.id', '=', 'detalle_venta.producto_id')
-        ->whereIn('productos.id', $topProductosIds)
-        ->select('productos.nomb_pro as nombre_producto', DB::raw('SUM(detalle_venta.cantidad) as total_unidades_vendidas'))
-        ->groupBy('productos.id', 'productos.nomb_pro')
-        ->get();
-
-       // Aquí puedes devolver la información como prefieras
-    return response()->json($productosMasVendidos);
-
-
-
-
-
-   }
-
-   //FUNCIONES DEL TOP 10 DE CLIENTES MÁS DEUDORES
-   public function top10ClientesMasDeudores(Request $request){
-
-      $usuario = $request->session()->get('key');
-
-      $topClientes = Creditos::select('cliente_id', DB::raw('SUM(mont_cre) as total_deuda'))
-        ->where('esta_cre', '=', 1)
-        ->where('sede_id', '=', $usuario->sede_id)
-        ->groupBy('cliente_id')
-        ->orderByDesc('total_deuda')
-        ->limit(10)
-        ->get();
-
-           // Obtener los IDs de los clientes más deudores
-        $topClientesIds = $topClientes->pluck('cliente_id')->toArray();
-
-        //CONSULTAR LOS DETALLES DE LA DATA
-        $clientesMasDeudores = DB::table('clientes')
-        ->join('creditos', 'clientes.id', '=', 'creditos.cliente_id')
-        ->whereIn('clientes.id', $topClientesIds)
-        ->select('clientes.razon_social as nombre_cliente', DB::raw('SUM(creditos.mont_cre) as total_deuda'))
-        ->groupBy('clientes.id', 'clientes.razon_social')
-        ->get();
-
-
-
-        return response()->json($clientesMasDeudores);
-
-
-   }
-
-   public function top10ClientesMasCompraron(Request $request)
-   {
-
+    //FUNCIONES DEL TOP 10 DE CLIENTES MÁS DEUDORES
+    public function top10ClientesMasDeudores(Request $request){
         $usuario = $request->session()->get('key');
 
-        $topClientes = Venta::select('cliente_id', DB::raw('SUM(monto) as total_compras'))
-        ->where('sede_id', '=', $usuario->sede_id)
-        ->where('tipo_pago_id', 1)
-        ->groupBy('cliente_id')
-        ->orderByDesc('total_compras')
-        ->limit(10)
-        ->pluck('cliente_id')
-        ->toArray();
+        $query = Creditos::select('cliente_id', DB::raw('SUM(mont_cre) as total_deuda'))
+            ->where('esta_cre', '=', 1);
+
+        if ($usuario->sede_id != 1) {
+            $query->where('sede_id', '=', $usuario->sede_id);
+        }
+
+        $topClientes    = $query->groupBy('cliente_id')->orderByDesc('total_deuda')->limit(10)->get();
+        $topClientesIds = $topClientes->pluck('cliente_id')->toArray();
+
+        $clientesMasDeudores = DB::table('clientes')
+            ->join('creditos', 'clientes.id', '=', 'creditos.cliente_id')
+            ->whereIn('clientes.id', $topClientesIds)
+            ->select('clientes.razon_social as nombre_cliente', DB::raw('SUM(creditos.mont_cre) as total_deuda'))
+            ->groupBy('clientes.id', 'clientes.razon_social')
+            ->get();
+
+        return response()->json($clientesMasDeudores);
+    }
+
+    public function top10ClientesMasCompraron(Request $request)
+    {
+        $usuario = $request->session()->get('key');
+
+        $query = Venta::select('cliente_id', DB::raw('SUM(monto) as total_compras'))
+            ->where('tipo_pago_id', 1);
+
+        if ($usuario->sede_id != 1) {
+            $query->where('sede_id', '=', $usuario->sede_id);
+        }
+
+        $topClientes = $query->groupBy('cliente_id')
+            ->orderByDesc('total_compras')
+            ->limit(10)
+            ->pluck('cliente_id')
+            ->toArray();
 
         $clientesMasCompraron = DB::table('clientes')
-        ->whereIn('clientes.id', $topClientes)
-        ->where('clientes.razon_social','<>',null)
-        ->select('clientes.razon_social as nombre_cliente', DB::raw('SUM(ventas.monto) as total_compras'))
-        ->join('ventas', 'clientes.id', '=', 'ventas.cliente_id')
-        ->groupBy('clientes.id', 'razon_social')
-        ->orderByDesc('total_compras')
-        ->get();
-
+            ->whereIn('clientes.id', $topClientes)
+            ->where('clientes.razon_social', '<>', null)
+            ->select('clientes.razon_social as nombre_cliente', DB::raw('SUM(ventas.monto) as total_compras'))
+            ->join('ventas', 'clientes.id', '=', 'ventas.cliente_id')
+            ->groupBy('clientes.id', 'razon_social')
+            ->orderByDesc('total_compras')
+            ->get();
 
         return response()->json($clientesMasCompraron);
-
-
-
-   }
+    }
 
    //FUNCION PARA PODER DEVOLVER LOS MEJORES COBRADORES
-
-
-
 
 }

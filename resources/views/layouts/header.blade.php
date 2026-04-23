@@ -28,7 +28,26 @@
             </button>
 
             <!-- App Search-->
-            <h4 style="color: darkblue">Usuario:  {{ Auth::user()->name }}</h4>
+            @php
+                $_sesionKey  = session('key');
+                $_sedeNombre = null;
+                if ($_sesionKey) {
+                    if (!empty($_sesionKey->sede) && !empty($_sesionKey->sede->nombre)) {
+                        $_sedeNombre = $_sesionKey->sede->nombre;
+                    } else {
+                        $_sedeObj = \App\Sede::find($_sesionKey->sede_id);
+                        if ($_sedeObj) {
+                            $_sedeNombre = $_sedeObj->nombre;
+                        }
+                    }
+                }
+            @endphp
+            <h4 class="mb-0 ms-3 d-flex align-items-center align-self-center gap-2" style="color: darkblue;">
+                Usuario: {{ Auth::user()->name }}
+                @if($_sedeNombre)
+                    <span class="badge bg-primary fs-6 fw-normal">📍 {{ $_sedeNombre }}</span>
+                @endif
+            </h4>
 
 
 
@@ -154,6 +173,13 @@
                     <!-- item-->
                     <a class="dropdown-item" href="{{url('users')}}"><i
                             class="mdi mdi-face-profile font-size-16 align-middle me-1"></i> Perfil</a>
+
+                    @if(Auth::user()->sede_id == 1)
+                        <a class="dropdown-item" href="{{ route('sedes.index') }}">
+                            <i class="mdi mdi-swap-horizontal font-size-16 align-middle me-1 text-primary"></i>
+                            Cambiar de Sede
+                        </a>
+                    @endif
 
                     <div class="dropdown-divider"></div>
 

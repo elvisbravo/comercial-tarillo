@@ -38,6 +38,7 @@ Route::post('sedes/update_estado', 'SedeController@update_estado');
 Route::get('sedes/correlativos/{id}', 'SedeController@correlativos');
 Route::post('sedes/select_comprobante', 'SedeController@select_comprobante');
 Route::post('sedes/guardar_correlativos', 'SedeController@guardar_correlativos');
+Route::post('sedes/seleccionar_sede', 'SedeController@seleccionar_sede');
 
 //CONTROLADOR PARA ALMACENES
 Route::get('almacenes/render', 'AlmacenController@render');
@@ -443,6 +444,7 @@ Route::resource('modulo_padre', 'ModuloPadreController');
 //MODULO
 Route::get('modulo/index', 'ModuloController@index');
 Route::get('modulo/getListModule', 'ModuloController@getListModule');
+Route::get('modulo/getParentModules', 'ModuloController@getParentModules');
 Route::get('modulo/getModuleById/{id}', 'ModuloController@getModuleById');
 Route::post('modulo/create', 'ModuloController@create');
 Route::post('modulo/edit', 'ModuloController@edit');
@@ -467,3 +469,15 @@ Route::group(['middleware' => ['auth']], function () {
     Route::resource('roles', 'RoleController');
     Route::resource('users', 'UserController');
 });
+
+//ACCIONES
+Route::get('acciones/getList', 'AccionesController@getList');
+Route::get('acciones/getById/{id}', 'AccionesController@getById');
+Route::post('acciones/update', 'AccionesController@update');
+Route::resource('acciones', 'AccionesController');
+Route::resource('permisos', 'PermisosController');
+Route::get('permisos/getByRole/{id}', 'PermisosController@getPermissionsByRole');
+Route::post('permisos/save', 'PermisosController@save');
+Route::resource('configuracion-acciones', 'ConfiguracionAccionesController');
+Route::get('configuracion-acciones/getAssignments/{id}', 'ConfiguracionAccionesController@getAssignments');
+Route::post('configuracion-acciones/save', 'ConfiguracionAccionesController@saveAssignments');

@@ -2,60 +2,71 @@
 
 namespace App\Http\Controllers;
 
+use App\Modulo;
+use App\Acciones;
+use App\ModulosAcciones;
+use App\Permisos;
+use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
-use App\Permissions;
 
 class PermisosController extends Controller
 {
-    //
-
     public function __construct()
     {
-        //$this->middleware('auth');modulo-permisos
-        //$this->middleware('permission:modulo-permisos');
+        $this->middleware('auth');
     }
-
-
 
     public function index()
     {
+        $roles = Role::all();
+        // Obtener módulos padres y sub con sus acciones ya mapeadas
+        $parents = Modulo::where('padre_id', 0)->where('state', true)->orderBy('order')->get();
+        $submodules = Modulo::where('padre_id', '>', 0)->where('state', true)->orderBy('order')->get();
         
-        
-        return view('permisos.index');
+        // Cargar acciones configuradas para cada submódulo
+        foreach ($submodules as $sub) {
+            $sub->acciones_configuradas = ModulosAcciones::where('modulo_id', $sub->id)
+                ->join('acciones', 'modulos_acciones.accion_id', '=', 'acciones.id')
+                ->select('acciones.*')
+                ->get();
+        }
+
+        // Buscar la acción "Ver" o crearla si no existe (id sugerido 1)
+        $accion_ver = Acciones::where('nombre', 'ILIKE', 'Ver')->first();
+        if (!$accion_ver) {
+            // Si no existe, podemos usar un ID 0 ficticio o buscar una genérica
+            // Por ahora asumiremos que existe o es el identificador de acceso al módulo
+        }
+
+        return view('permisos.index', compact('roles', 'parents', 'submodules', 'accion_ver'));
     }
 
-    public function listapermisos(){
-
-        $permisos=Permissions::all();
-
-        return response()->json($permisos);
-
-
-    }
-
-    public function crear(Request $request)
+    public function getPermissionsByRole($rol_id)
     {
-        
-        $this->validate($request,[
-            'name'=>'required',
-            'guard_name'=>'required'
+        $permisos = Permisos::where('rol_id', $rol_id)->get();
+        return response()->json($permisos);
+    }
 
+    public function save(Request $request)
+    {
+        $this->validate($request, [
+            'rol_id' => 'required',
+            'permisos' => 'array'
         ]);
 
-        $permisos=Permissions::create($request->all());
+        // Transacción manual: eliminar previos del rol
+        Permisos::where('rol_id', $request->rol_id)->delete();
 
-     //alert()->success('Proceso Exitoso.','Guardado Con exito')->autoclose(3000);
+        if ($request->has('permisos')) {
+            foreach ($request->permisos as $p) {
+                Permisos::create([
+                    'rol_id' => $request->rol_id,
+                    'modulo_id' => $p['modulo_id'],
+                    'accion_id' => $p['accion_id']
+                ]);
+            }
+        }
+
         return response()->json('OK');
-
-
     }
-
-   
-
-
-
-
-
-
-
 }

@@ -30,18 +30,52 @@ class SedeController extends Controller
     {
         $usuario = $request->session()->get('key');
 
-        if($usuario->sede_id==1){
+        if ($usuario->sede_id == 1 || \App\User::find($usuario->id)->sede_id == 1) {
 
-            $sedes = Sede::where('id','!=',1)->get();
+            // Resetear la sesión al usuario original desde BD para limpiar la sede elegida
+            $usuarioOriginal = \App\User::find($usuario->id);
+            $request->session()->put('key', $usuarioOriginal);
+
+            $sedes = Sede::where('id', '!=', 1)->get();
             $comprobantes = Tipo_comprobantes::all();
 
-            return view('sedes.index',compact('sedes','comprobantes'));
+            return view('sedes.index', compact('sedes', 'comprobantes'));
 
-        }else{
+        } else {
 
             return redirect()->route('home');
         }
+    }
 
+    /**
+     * Actualiza la sede activa en sesión cuando el administrador selecciona una sede.
+     */
+    public function seleccionar_sede(Request $request)
+    {
+        $idsede  = $request->input('sede_id');
+        $usuario = $request->session()->get('key');
+
+        if (!$usuario) {
+            return response()->json(['error' => 'Sin sesión activa'], 401);
+        }
+
+        // Solo permitir si el usuario es administrador (sede original = 1)
+        if ($usuario->sede_id != 1) {
+            return response()->json(['error' => 'Sin permiso'], 403);
+        }
+
+        $sede = Sede::find($idsede);
+        if (!$sede) {
+            return response()->json(['error' => 'Sede no encontrada'], 404);
+        }
+
+        // Clonar el usuario de sesión y cambiar la sede activa
+        $usuarioClonado           = clone $usuario;
+        $usuarioClonado->sede_id  = $sede->id;
+        $usuarioClonado->sede     = $sede; // para que sedeDelUsuario funcione en el home
+        $request->session()->put('key', $usuarioClonado);
+
+        return response()->json(['ok' => true, 'sede' => $sede->nombre]);
     }
 
     /**

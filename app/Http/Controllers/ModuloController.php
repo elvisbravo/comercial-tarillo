@@ -7,31 +7,33 @@ use Illuminate\Http\Request;
 use App\Constantes;
 
 class ModuloController extends Controller{
-    private $dataView;
 
     public function __construct()
     {
         $this->middleware('auth');
-        $this->dataView = [
-            'functions' => Funcion::where('state', Constantes::STATUS_ACTIVE)->get()
-        ];
     }
 
     public function index()
     {
-        return view('modulo.index', $this->dataView);
+        return view('modulo.index');
     }
 
     public function getListModule()
     {
-        $modulo = Modulo::where('state', Constantes::STATUS_ACTIVE)->with('moduloPadre')->get();
+        $modulo = Modulo::where('state', true)->get();
         return response()->json($modulo);
     }
 
     public function getModuleById($id)
     {
-        $modulo = Modulo::with('moduloPadre')->with('moduloFuncion')->find($id);
+        $modulo = Modulo::find($id);
         return response()->json($modulo);
+    }
+
+    public function getParentModules()
+    {
+        $parents = Modulo::where('padre_id', 0)->where('state', true)->get();
+        return response()->json($parents);
     }
 
     public function create(Request $request)
@@ -39,24 +41,20 @@ class ModuloController extends Controller{
         $this->validate($request,[
             'name'=>'required',
             'url'=>'required',
+            'icon'=>'required',
             'order'=>'required',
-            'idmodulo_padre' => 'required',
-            'idsFunctions' => 'required'
+            'padre_id' => 'required'
         ]);
-        $idsFunctions = explode(',', $request->input('idsFunctions'));
+
         $modulo = new Modulo();
         $modulo->name = $request->name;
         $modulo->url = $request->url;
+        $modulo->icon = $request->icon;
         $modulo->order = $request->order;
-        $modulo->idmodulo_padre = $request->idmodulo_padre;
+        $modulo->padre_id = $request->padre_id;
+        $modulo->state = true;
         $modulo->save();
-        $moduloId = $modulo->id;
-        foreach ($idsFunctions as $idFunction) {
-            $funcion_modulo = new Funcion_Modulo();
-            $funcion_modulo->idmodulo = $moduloId; 
-            $funcion_modulo->idfuncion = $idFunction; 
-            $funcion_modulo->save();
-        }
+
         return response()->json('OK');
     }
 
@@ -65,30 +63,19 @@ class ModuloController extends Controller{
         $this->validate($request,[
             'name'=>'required',
             'url'=>'required',
+            'icon'=>'required',
             'order'=>'required',
-            'idmodulo_padre' => 'required'
+            'padre_id' => 'required'
         ]);
-        $idsFunctions = explode(',', $request->input('idsFunctions'));
+
         $modulo = Modulo::find($request->id);
         $modulo->name=$request->name;
         $modulo->url=$request->url;
+        $modulo->icon=$request->icon;
         $modulo->order=$request->order;
-        $modulo->idmodulo_padre=$request->idmodulo_padre;
+        $modulo->padre_id=$request->padre_id;
         $modulo->save();
-        Funcion_Modulo::where('idmodulo', $request->id)->update(['state' => Constantes::STATUS_INACTIVE]);
-        foreach ($idsFunctions as $idFunction){
-            $existingFuncionModulo = Funcion_Modulo::where('idmodulo', $request->id)
-            ->where('idfuncion', $idFunction)
-            ->first();
-            if ($existingFuncionModulo) {
-                $existingFuncionModulo->update(['state' => Constantes::STATUS_ACTIVE]);
-            }else{
-                $funcion_modulo = Funcion_Modulo::create([
-                    'idmodulo' => $request->id,
-                    'idfuncion' => $idFunction
-                ]);
-            }
-        }   
+
         return response()->json('OK');
     }
 
@@ -96,7 +83,7 @@ class ModuloController extends Controller{
     {
         $modulo = Modulo::find($id);
         if ($modulo) {
-            $modulo->state = Constantes::STATUS_INACTIVE;
+            $modulo->state = false;
             $modulo->save();
             return response()->json('Ok');
         } else {

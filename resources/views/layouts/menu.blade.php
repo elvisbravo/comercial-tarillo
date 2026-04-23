@@ -157,9 +157,11 @@
                         <span data-key="t-ui-elements">Seguridad</span>
                     </a>
                     <ul class="sub-menu" aria-expanded="false">
-                        <li><a href="{{ route('modulo_padre.index') }}" data-key="t-lightbox">Modulo padre</a></li>
                         <li><a href="{{ route('modulo.index') }}" data-key="t-lightbox">Modulo</a></li>
                         <li><a href="{{ route('funcion.index') }}" data-key="t-lightbox">Función</a></li>
+                        <li><a href="{{ route('acciones.index') }}" data-key="t-lightbox">Acciones</a></li>
+                        <li><a href="{{ route('configuracion-acciones.index') }}" data-key="t-lightbox">Configuracion Acciones</a></li>
+                        <li><a href="{{ route('permisos.index') }}" data-key="t-lightbox">Permisos</a></li>
                     </ul>
                 </li>
                 @can('Modulo Usuarios')

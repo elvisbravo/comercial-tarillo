@@ -5,18 +5,15 @@ namespace App;
 use Illuminate\Database\Eloquent\Model;
 use App\Constantes;
 
-class Modulo extends Model
+class Permisos extends Model
 {
-    protected $table = 'modulo';
+    protected $table = 'permisos';
     protected $primarykey = 'id';
     public $timestamps = false;
 
     protected $fillable = [
-        'name',
-        'url',
-        'icon',
-        'order',
-        'state',
-        'padre_id'
+        'rol_id',
+        'modulo_id',
+        'accion_id'
     ];
 }

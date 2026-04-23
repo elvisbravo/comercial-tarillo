@@ -217,6 +217,33 @@ function render_correlativos(idsede){
 
 function ingresar_sede(e){
     const idsede = e.target.getAttribute('data-id');
+    const csrf   = document.querySelector('meta[name="csrf-token"]').content;
 
-    window.location.href = urlgeneral+"/home";
+    const formData = new FormData();
+    formData.append('sede_id', idsede);
+    formData.append('_token', csrf);
+
+    fetch(urlgeneral + '/sedes/seleccionar_sede', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.ok) {
+            window.location.href = urlgeneral + '/home';
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.error || 'No se pudo seleccionar la sede.'
+            });
+        }
+    })
+    .catch(() => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error de conexión al seleccionar la sede.'
+        });
+    });
 }

@@ -77,11 +77,12 @@ Módulo
                         <thead>
                             <tr>
                                 <th width="5%">#</th>
-                                <th width="25%">Nombre</th>
-                                <th width="25%">Modulo padre</th>
+                                <th width="15%">Nombre</th>
+                                <th width="15%">Icono</th>
+                                <th width="15%">Modulo padre</th>
                                 <th width="20%">Url</th>
                                 <th width="10%">Orden</th>
-                                <th width="15%">Acciones</th>
+                                <th width="20%">Acciones</th>
                             </tr>
                         </thead>
 
@@ -112,6 +113,11 @@ Módulo
                         id="name" autocomplete="off">
                 </div>
                 <div class="form-group mt-8rem">
+                    <label for="">Icono <strong style="color:red">(*)</strong></label>
+                    <input type="text" class="form-control obligatorio limpiar" placeholder="Icono del módulo (ej: fas fa-home)"
+                        id="icon" autocomplete="off">
+                </div>
+                <div class="form-group mt-8rem">
                     <label for="">Módulo padre <strong style="color:red">(*)</strong></label>
                     <select name="" id="idmodulo_padre" class="form-control limpiar">
                     </select>
@@ -125,15 +131,6 @@ Módulo
                     <label for="">Order<strong style="color:red">(*)</strong></label>
                     <input type="number" class="form-control obligatorio limpiar"
                         placeholder="Orden en que será mostrado" id="order" autocomplete="off">
-                </div>
-                <div class="form-group mt-8rem">
-                    <label for="choices-multiple-remove-button">Funciones<strong style="color:red">(*)</strong></label>
-                    <select class="form-control" name="choices-multiple-remove-button"
-                        id="idsFunctions" placeholder="This is a placeholder" multiple="">
-                        @foreach ($functions as $function)
-                            <option value="{{ $function->id }}">{{ $function->name }}</option>
-                        @endforeach
-                    </select>
                 </div>
                 <!--<div class="mb-3"><label for="choices-multiple-default"
                         class="form-label font-size-13 text-muted">Default</label>

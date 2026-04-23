@@ -1,164 +1,203 @@
 @extends('layouts.main')
-@section('contenido')
 
 @section('title')
-
-        Permisos
-
+Gestión de Permisos
 @endsection
 
-@section('style')
-<!-- Sweet Alert-->
-<link href="{{asset('js/sweetalert2.min.css')}}" rel="stylesheet" type="text/css" />
-
-<!-- DataTables -->
-<link rel="stylesheet" href="{{asset('assets/vendors/datatables.net-bs4/dataTables.bootstrap4.css')}}">
+@section('css')
+<style>
+    .role-item { cursor: pointer; transition: all 0.3s; padding: 12px 20px; border-bottom: 1px solid #f1f1f1; }
+    .role-item:hover { background-color: #f8f9fa; }
+    .role-item.active { background-color: #3b5de7; color: white; border-bottom-color: #3b5de7; }
+    .module-card { border: 1px solid #e9ecef; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+    .module-header { background-color: #f8f9fa; padding: 10px 15px; border-bottom: 1px solid #e9ecef; }
+    .submodule-row { padding: 10px 15px; border-bottom: 1px solid #f1f1f1; display: flex; align-items: start; flex-direction: column; }
+    .actions-container { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 8px; padding-left: 25px; }
+    .perm-check { margin-bottom: 0; cursor: pointer; }
+    #panel-permisos { display: none; }
+    .ver-check-container { margin-bottom: 5px; font-weight: 600; border-bottom: 1px dashed #ddd; width: 100%; padding-bottom: 5px; }
+</style>
+<link href="{{asset('assets/libs/sweetalert2/sweetalert2.min.css')}}" rel="stylesheet" type="text/css" />
 @endsection
 
-
-    <div class="loader" style="position: fixed;
-        left: 0px;
-        top: 0px;
-        width: 100%;
-        height: 100%;
-        z-index: 9999;
-        background: url('{{asset('img/loader-meta.gif')}}') 50% 50% no-repeat rgb(249,249,249);
-        opacity: .8;">
-
-        <div class="col-md-12" id="myDIV">
-            <div class="panel panel-default">
-                <div class="panel-heading">Ball Pulse</div>
-                <div class="panel-body loader-demo" style="margin-top:200px;">
-                    <h1 style="color: #186A3B;font-family: 'Jomhuria', cursive;text-align:center"></h1>
-                    <div class="ball-pulse">
-                        <div></div>
-                        <div></div>
-                        <div></div>
-                    </div>
-                </div>
+@section('contenido')
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+                <h4 class="mb-sm-0 font-size-18">Asignación de Permisos por Rol</h4>
             </div>
         </div>
     </div>
 
-
-
-    <div class="page-content">
-
-            <div class="container-fluid">
-
-            <!-- start page title -->
-                            <div class="row">
-                                <div class="col-12">
-                                    <div class="page-title-box d-sm-flex align-items-center justify-content-between">
-                                        <h4 class="mb-sm-0 font-size-18">Listado Permisos</h4>
-
-                                        <div class="page-title-right">
-                                            <ol class="breadcrumb m-0">
-                                                <li class="breadcrumb-item"><a href="javascript: void(0);">Tables</a></li>
-                                                <li class="breadcrumb-item active">DataTables</li>
-                                            </ol>
-                                        </div>
-
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- end page title -->
-                            <div class="row">
-                                <div class="col-12">
-                                    <div class="card">
-                                        <div class="card-header">
-
-                                            <button type="button" class="btn btn-success waves-effect btn-label waves-light"  onclick="abrimodal(0)" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="bx bx-plus label-icon"></i> Agregar</button>
-
-                                            </p>
-                                        </div>
-
-                                        <div class="card-body">
-
-                                        <!-- Static Backdrop modal Button -->
-
-                                        <div class="table-responsive">
-                                        <table id="datatable" class="table table-bordered dt-responsive  nowrap w-100">
-                                                <thead>
-                                                <tr>
-                                                    <th>#</th>
-                                                    <th>Nombre del servicio</th>
-                                                    <th>Name Guard</th>
-                                                </tr>
-                                                </thead>
-
-
-                                                <tbody id="listapermisos">
-
-                                                </tbody>
-                                            </table>
-                                            </div>
-
-
-
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-            </div>
-
-            </div>
-
-        <!-- Static Backdrop Modal -->
-        <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered" role="document">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                    <h5 class="modal-title" id="staticBackdropLabel">Formulario</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                        <div class="modal-body">
-                            <input type="hidden" name="name" id="guard_name" value="web" />
-                            <div class="form-group">
-                                <label for="">Permiso</label>
-                                <input type="text" class="form-control obligatorio limpiar" placeholder="Nombre del Sector" id="permiso">
-
-                            </div>
-
+    <div class="row">
+        <!-- Panel Izquierdo: Roles -->
+        <div class="col-md-3">
+            <div class="card overflow-hidden">
+                <div class="card-header bg-primary bg-opacity-10">
+                    <h5 class="card-title mb-0">Seleccionar Rol</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="roles-list">
+                        @foreach($roles as $role)
+                        <div class="role-item" data-id="{{ $role->id }}" onclick="cargarPermisos({{ $role->id }}, '{{ $role->name }}', this)">
+                            <i class="fas fa-user-tag me-2"></i> {{ $role->name }}
                         </div>
-                        <div class="modal-footer">
-                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
-                        <button type="button" class="btn btn-primary" id="guardar">Guardar</button>
-
-                    </div>
+                        @endforeach
                     </div>
                 </div>
+            </div>
         </div>
 
+        <!-- Panel Derecho: Módulos y Acciones -->
+        <div class="col-md-9">
+            <div id="placeholder-permisos" class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-shield-alt fa-4x text-light mb-3"></i>
+                    <h5 class="text-muted">Selecciona un rol de la izquierda para configurar sus accesos</h5>
+                </div>
+            </div>
 
+            <div id="panel-permisos">
+                <div class="card mb-3 border-primary border-start border-4">
+                    <div class="card-body py-2 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Permisos para: <span id="nombre-rol-seleccionado" class="text-primary font-weight-bold"></span></h5>
+                        <button class="btn btn-primary" onclick="guardarPermisos()">
+                            <i class="fas fa-save me-1"></i> Guardar Todo
+                        </button>
+                    </div>
+                </div>
 
+                <input type="hidden" id="rol_id_actual">
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+                @foreach($parents as $parent)
+                <div class="module-card">
+                    <div class="module-header d-flex justify-content-between align-items-center">
+                        <div><i class="{{ $parent->icon }} me-1 text-primary"></i> <strong>{{ $parent->name }}</strong></div>
+                    </div>
+                    <div class="module-body bg-white">
+                        @php $hasSubs = false; @endphp
+                        @foreach($submodules as $sub)
+                            @if($sub->padre_id == $parent->id)
+                                @php $hasSubs = true; @endphp
+                                <div class="submodule-row p-3">
+                                    <div class="d-flex align-items-center w-100 mb-2">
+                                        <div class="form-check perm-check me-3" style="min-width: 200px;">
+                                            <input class="form-check-input check-permiso" type="checkbox" 
+                                                id="perm_v_{{ $sub->id }}" 
+                                                data-modulo="{{ $sub->id }}" 
+                                                data-accion="0">
+                                            <label class="form-check-label text-dark fw-bold" for="perm_v_{{ $sub->id }}">
+                                                <i class="{{ $sub->icon }} me-1 text-secondary small"></i>
+                                                {{ $sub->name }} (Ver)
+                                            </label>
+                                        </div>
+                                        
+                                        <div class="actions-container d-flex gap-3 flex-wrap border-start ps-3">
+                                            @foreach($sub->acciones_configuradas as $acc)
+                                                {{-- Evitar mostrar "Ver" si ya está configurado como acción para no duplicar --}}
+                                                @if(strtolower($acc->nombre) != 'ver')
+                                                <div class="form-check perm-check">
+                                                    <input class="form-check-input check-permiso" type="checkbox" 
+                                                        id="perm_{{ $sub->id }}_{{ $acc->id }}" 
+                                                        data-modulo="{{ $sub->id }}" 
+                                                        data-accion="{{ $acc->id }}" disabled>
+                                                    <label class="form-check-label small" for="perm_{{ $sub->id }}_{{ $acc->id }}">
+                                                        {{ $acc->nombre }}
+                                                    </label>
+                                                </div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                        @endforeach
+                        
+                        @if(!$hasSubs)
+                            <div class="p-3 text-center text-muted small">Módulo sin submódulos configurados</div>
+                        @endif
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('js')
+<script src="{{ asset('assets/libs/sweetalert2/sweetalert2.min.js') }}"></script>
+<script>
+const urlGeneral = $("#url_raiz_proyecto").val();
 
-<!-- Sweet Alerts js -->
-<script src="{{asset('js/sweetalert2.min.js')}}"></script>
-<!-- Required datatable js -->
-<script src="{{asset('assets/vendors/datatables.net/jquery.dataTables.js')}}"></script>
-  <script src="{{asset('assets/vendors/datatables.net-bs4/dataTables.bootstrap4.js')}}"></script>
+$(document).on("change", ".check-permiso[data-accion='0']", function() {
+    let moduloId = $(this).data('modulo');
+    let isChecked = $(this).is(':checked');
+    
+    // Buscar todos los otros checks del mismo módulo
+    let otherChecks = $(`.check-permiso[data-modulo="${moduloId}"][data-accion!="0"]`);
+    
+    if (isChecked) {
+        otherChecks.prop('disabled', false);
+    } else {
+        otherChecks.prop('disabled', true).prop('checked', false);
+    }
+});
 
-     <script src="{{asset('js/permisos.js')}}">
-     </script>
+function cargarPermisos(rolId, nombreRol, elemento) {
+    // UI feedback
+    $(".role-item").removeClass("active");
+    $(elemento).addClass("active");
+    $("#nombre-rol-seleccionado").text(nombreRol);
+    $("#rol_id_actual").val(rolId);
+    
+    // Reset checks and disable secondary actions
+    $(".check-permiso").prop('checked', false);
+    $(".check-permiso[data-accion!='0']").prop('disabled', true);
+    
+    // Fetch permissions
+    $("#placeholder-permisos").hide();
+    $("#panel-permisos").fadeIn();
+    
+    $.get(urlGeneral + "/permisos/getByRole/" + rolId, function(data) {
+        data.forEach(p => {
+            let selector = `.check-permiso[data-modulo="${p.modulo_id}"][data-accion="${p.accion_id}"]`;
+            $(selector).prop('checked', true);
+            
+            // Si es el permiso de "Ver", habilitar los demás del mismo módulo
+            if (p.accion_id == 0) {
+                $(`.check-permiso[data-modulo="${p.modulo_id}"][data-accion!="0"]`).prop('disabled', false);
+            }
+        });
+    });
+}
 
+function guardarPermisos() {
+    let rolId = $("#rol_id_actual").val();
+    if (!rolId) return;
 
+    let permisos = [];
+    $(".check-permiso:checked").each(function() {
+        permisos.push({
+            modulo_id: $(this).data('modulo'),
+            accion_id: $(this).data('accion')
+        });
+    });
+
+    Swal.fire({
+        title: 'Guardando permisos...',
+        didOpen: () => { Swal.showLoading() },
+        allowOutsideClick: false
+    });
+
+    $.post(urlGeneral + "/permisos/save", {
+        rol_id: rolId,
+        permisos: permisos,
+        _token: $('meta[name="csrf-token"]').attr('content')
+    }, function(data) {
+        Swal.fire("Éxito", "Los permisos han sido actualizados correctamente", "success");
+    });
+}
+</script>
 @endsection
