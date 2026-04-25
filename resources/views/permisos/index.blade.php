@@ -223,6 +223,11 @@ Gestión de Permisos
                     $(`.check-permiso[data-modulo="${p.modulo_id}"][data-accion!="${idAccionVer}"]`).prop('disabled', false);
                 }
             });
+
+            // Si el rol es administrador, marcar todo por defecto
+            if (nombreRol.toLowerCase().trim() === 'administrador') {
+                $(".check-permiso").prop('checked', true).prop('disabled', false);
+            }
         });
     }
 

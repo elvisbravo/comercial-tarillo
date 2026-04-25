@@ -14,7 +14,8 @@ class Permisos extends Model
     protected $fillable = [
         'rol_id',
         'modulo_id',
-        'accion_id'
+        'accion_id',
+        'sede_id'
     ];
 
     public function modulo()

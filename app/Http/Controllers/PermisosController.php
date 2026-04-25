@@ -45,7 +45,10 @@ class PermisosController extends Controller
 
     public function getPermissionsByRole($rol_id)
     {
-        $permisos = Permisos::where('rol_id', $rol_id)->get();
+        $idsede = session('key')->sede_id;
+        $permisos = Permisos::where('rol_id', $rol_id)
+            ->where('sede_id', $idsede)
+            ->get();
         return response()->json($permisos);
     }
 
@@ -56,15 +59,20 @@ class PermisosController extends Controller
             'permisos' => 'array'
         ]);
 
-        // Transacción manual: eliminar previos del rol
-        Permisos::where('rol_id', $request->rol_id)->delete();
+        $idsede = session('key')->sede_id;
+
+        // Transacción manual: eliminar previos del rol para la sede actual
+        Permisos::where('rol_id', $request->rol_id)
+            ->where('sede_id', $idsede)
+            ->delete();
 
         if ($request->has('permisos')) {
             foreach ($request->permisos as $p) {
                 Permisos::create([
                     'rol_id' => $request->rol_id,
                     'modulo_id' => $p['modulo_id'],
-                    'accion_id' => $p['accion_id']
+                    'accion_id' => $p['accion_id'],
+                    'sede_id' => $idsede
                 ]);
             }
         }
