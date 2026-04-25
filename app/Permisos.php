@@ -16,4 +16,14 @@ class Permisos extends Model
         'modulo_id',
         'accion_id'
     ];
+
+    public function modulo()
+    {
+        return $this->belongsTo(Modulo::class, 'modulo_id');
+    }
+
+    public function accion()
+    {
+        return $this->belongsTo(Acciones::class, 'accion_id');
+    }
 }

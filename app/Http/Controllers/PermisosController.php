@@ -31,11 +31,13 @@ class PermisosController extends Controller
                 ->get();
         }
 
-        // Buscar la acción "Ver" o crearla si no existe (id sugerido 1)
+        // Buscar la acción "Ver" o crearla si no existe
         $accion_ver = Acciones::where('nombre', 'ILIKE', 'Ver')->first();
         if (!$accion_ver) {
-            // Si no existe, podemos usar un ID 0 ficticio o buscar una genérica
-            // Por ahora asumiremos que existe o es el identificador de acceso al módulo
+            $accion_ver = Acciones::create([
+                'nombre' => 'Ver',
+                'estado' => true
+            ]);
         }
 
         return view('permisos.index', compact('roles', 'parents', 'submodules', 'accion_ver'));
