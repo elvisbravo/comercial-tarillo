@@ -469,16 +469,20 @@ Route::group(['middleware' => ['auth']], function () {
     Route::resource('roles', 'RoleController');
     Route::get('users/getList', 'UserController@getList');
     Route::resource('users', 'UserController');
-});
 
-//ACCIONES
-Route::get('acciones/getList', 'AccionesController@getList');
-Route::get('acciones/getById/{id}', 'AccionesController@getById');
-Route::post('acciones/update', 'AccionesController@update');
-Route::resource('acciones', 'AccionesController');
-Route::resource('permisos', 'PermisosController');
-Route::get('permisos/getByRole/{id}', 'PermisosController@getPermissionsByRole');
-Route::post('permisos/save', 'PermisosController@save');
-Route::resource('configuracion-acciones', 'ConfiguracionAccionesController');
-Route::get('configuracion-acciones/getAssignments/{id}', 'ConfiguracionAccionesController@getAssignments');
-Route::post('configuracion-acciones/save', 'ConfiguracionAccionesController@saveAssignments');
+    //ACCIONES
+    Route::get('acciones/getList', 'AccionesController@getList');
+    Route::get('acciones/getById/{id}', 'AccionesController@getById');
+    Route::post('acciones/update', 'AccionesController@update');
+    Route::resource('acciones', 'AccionesController');
+
+    // PERMISOS
+    Route::get('permisos/getByRole/{id}', 'PermisosController@getPermissionsByRole');
+    Route::post('permisos/save', 'PermisosController@save');
+    Route::resource('permisos', 'PermisosController');
+
+    // CONFIGURACION ACCIONES
+    Route::get('configuracion-acciones/getAssignments/{id}', 'ConfiguracionAccionesController@getAssignments');
+    Route::post('configuracion-acciones/save', 'ConfiguracionAccionesController@saveAssignments');
+    Route::resource('configuracion-acciones', 'ConfiguracionAccionesController');
+});

@@ -19,4 +19,9 @@ class Modulo extends Model
         'state',
         'padre_id'
     ];
+
+    public function submodulos()
+    {
+        return $this->hasMany(Modulo::class, 'padre_id')->where('state', true)->orderBy('order', 'asc');
+    }
 }

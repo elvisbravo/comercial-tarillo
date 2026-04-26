@@ -57,7 +57,7 @@
 
             <div class="page-content">
                 <div class="container-fluid">
-
+                    <input type="hidden" id="url_raiz_proyecto" value="{{ url('/') }}" />
                     @yield('contenido')
 
                 </div> <!-- container-fluid -->
