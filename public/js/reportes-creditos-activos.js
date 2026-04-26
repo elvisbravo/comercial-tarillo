@@ -60,56 +60,46 @@ $("#buscardata").on('click',function(){
 
     //alert(estado_id);
 
-    $.get(urlgeeneral+"/creditos-pendientes/creditos/"+codigo+'/'+estado_id,function(data){
+    $.get(urlgeeneral + "/creditos-pendientes/creditos/" + codigo + '/' + estado_id, function (data) {
+        if ($.fn.DataTable.isDataTable('#datatable')) {
+            $('#datatable').DataTable().destroy();
+        }
 
-        if(data.length>0){
-
-            document.getElementById("estado").disabled=false;
-            let contenido="";
-            document.getElementById("lisatadocredtios").innerHTML = contenido;
+        if (data.length > 0) {
+            if (typeof canPrint !== 'undefined' && canPrint) {
+                document.getElementById("estado").disabled = false;
+            }
+            let contenido = "";
             for (var i = 0; i < data.length; i++) {
                 contenido += "<tr>";
-                contenido += "<td style='padding:1px;text-align:center'>" +  data[i].id  + "</td>";
+                contenido += "<td style='padding:1px;text-align:center'>" + data[i].id + "</td>";
                 contenido += "<td style='padding:1px;text-align:center'> " + data[i].documento + "</td>";
                 contenido += "<td style='padding:1px;text-align:center'> " + data[i].razon_social + "</td>";
                 contenido += "<td style='padding:1px;text-align:center'> " + data[i].fpag_cre + "</td>";
                 contenido += "<td style='padding:1px;text-align:center'> " + data[i].peri_cre + "</td>";
                 contenido += "<td style='padding:1px;text-align:center'> " + data[i].periodo_pago + "</td>";
                 contenido += "<td style='padding:1px;text-align:center'> " + data[i].impo_cre + "</td>";
-
-
                 contenido += "<td style='padding:1px;text-align:center'> " + data[i].saldo + "</td>";
 
-                if(data[i].esta_cre==1){
+                if (data[i].esta_cre == 1) {
                     contenido += "<td style='padding:1px;text-align:center'> <span class='badge  bg-success'>Activo </span></td>";
-
-                }else if(data[i].esta_cre==2){
+                } else if (data[i].esta_cre == 2) {
                     contenido += "<td style='padding:1px;text-align:center'> <span class='badge  bg-info'>PAGADO </span></td>";
-
-                }else{
+                } else {
                     contenido += "<td style='padding:1px;text-align:center'> <span class='badge bg-warning'>ANULADO </span></td>";
-
                 }
-                
-
 
                 contenido += "<td style='padding:1px;text-align:center'>";
-                //contenido +='<i class="fas fa-edit"></i>';
-                contenido +='<a href="#" onclick="abrimodal('+ data[i].id +')" type="button" class="btn btn-info " ><i class="fas fa-check"></i> </a>';
-                contenido +="</td>";
+                contenido += '<a href="#" onclick="abrimodal(' + data[i].id + ')" type="button" class="btn btn-info waves-effect waves-light" title="Ver Detalle"><i class="fas fa-check"></i> </a>';
+                contenido += "</td>";
                 contenido += "</tr>";
+            }
 
-
-              }
-
-              document.getElementById("lisatadocredtios").innerHTML = contenido;
-              $("#datatable").dataTable();
-
-
-        }else{
-
-            document.getElementById("estado").disabled=true;
-            document.getElementById("lisatadocredtios").innerHTML = '';
+            $('#lisatadocredtios').empty().html(contenido);
+            initDataTable("#datatable");
+        } else {
+            document.getElementById("estado").disabled = true;
+            $('#lisatadocredtios').empty();
 
             Swal.fire({
                 icon: 'error',
@@ -137,47 +127,36 @@ function abrimodal(id){
 
 
 
-    $.get(urlgeeneral+"/creditos-pendientes/cuotas/"+id,function(data){
+    $.get(urlgeeneral + "/creditos-pendientes/cuotas/" + id, function (data) {
+        if ($.fn.DataTable.isDataTable('#datatableg')) {
+            $('#datatableg').DataTable().destroy();
+        }
 
         $("#documentos").val(data[0].documento);
         $("#cliented").val(data[0].razon_social);
         $("#impo_cred").val(data[0].impo_cre);
         $("#periodo_pago").val(data[0].periodo_pago);
-        $("#id_credito").val(data[0].credito_id );
-        console.log(data[0].documento);
+        $("#id_credito").val(data[0].credito_id);
 
-
-
-        let contenido="";
-        document.getElementById("listaprediosxs").innerHTML = contenido;
+        let contenido = "";
         for (var i = 0; i < data.length; i++) {
-
             contenido += "<tr>";
-            contenido += "<td style='padding:1px;text-align:center'>" +  data[i].credito_id  + "</td>";
-            contenido += "<td style='padding:1px;text-align:center'>" +  data[i].numero_cuo  + "</td>";
-            contenido += "<td style='padding:1px;text-align:center'>" +  data[i].mont_cuo  + "</td>";
+            contenido += "<td style='padding:1px;text-align:center'>" + data[i].credito_id + "</td>";
+            contenido += "<td style='padding:1px;text-align:center'>" + data[i].numero_cuo + "</td>";
+            contenido += "<td style='padding:1px;text-align:center'>" + data[i].mont_cuo + "</td>";
             contenido += "<td style='padding:1px;text-align:center'>0.00</td>";
-            contenido += "<td style='padding:1px;text-align:center'>" +  data[i].saldo_cuo  + "</td>";
-            contenido += "<td style='padding:1px;text-align:center'>" +  data[i].fven_cuo  + "</td>";
-             if( data[i].esta_cuo=='COBRADA')
-            contenido += "<td style='padding:1px;text-align:center'> <span class='badge bg-success'>" +  data[i].esta_cuo  + " </span></td>";
-            else{
-                contenido += "<td style='padding:1px;text-align:center'> <span class='badge bg-danger'>" +  data[i].esta_cuo  + " </span></td>";
-
+            contenido += "<td style='padding:1px;text-align:center'>" + data[i].saldo_cuo + "</td>";
+            contenido += "<td style='padding:1px;text-align:center'>" + data[i].fven_cuo + "</td>";
+            if (data[i].esta_cuo == 'COBRADA')
+                contenido += "<td style='padding:1px;text-align:center'> <span class='badge bg-success'>" + data[i].esta_cuo + " </span></td>";
+            else {
+                contenido += "<td style='padding:1px;text-align:center'> <span class='badge bg-danger'>" + data[i].esta_cuo + " </span></td>";
             }
-
-
-
             contenido += "</tr>";
-
-
         }
 
-        document.getElementById("listaprediosxs").innerHTML = contenido;
-          $("#datatableg").dataTable();
-
-
-
+        $('#listaprediosxs').empty().html(contenido);
+        initDataTable("#datatableg");
     });
 }
 

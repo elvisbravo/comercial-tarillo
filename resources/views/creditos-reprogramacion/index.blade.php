@@ -10,6 +10,16 @@
 
     <!-- DataTables -->
     <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+    <style>
+        div.dataTables_wrapper div.dataTables_paginate {
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+        .pagination {
+            justify-content: flex-end !important;
+        }
+    </style>
 @endsection
 @section('contenido')
 
@@ -37,7 +47,7 @@
             </div>
         </div>
     </div>
-
+@if(App\Permisos::hasPermission('creditos-reprogramacion', 1))
     <div class="container-fluid">
                       <div class="row">
                                 <div class="col-12">
@@ -66,9 +76,11 @@
                                                 <div class="col-lg-6 col-xs-12">
 
                                                      
+                                                        @if(App\Permisos::hasPermission('creditos-reprogramacion', 2))
                                                         <button type="button" class="btn btn-success" id="guardar"><i class="fas fa-save"></i> Guardar</button>
-                                                        <button type="button" class="btn btn-warning" id="cuotas"><i class=" fas fa-cloud-download-alt"></i>Cuotas</button>
-                                                        <button type="button" class="btn btn-info" id="contrato"> <i class=" fas fa-cloud-download-alt"></i> Contrato</button>
+                                                        @endif
+                                                        <button type="button" class="btn btn-warning" id="cuotas" disabled><i class=" fas fa-cloud-download-alt"></i> Cuotas</button>
+                                                        <button type="button" class="btn btn-info" id="contrato" disabled> <i class=" fas fa-cloud-download-alt"></i> Contrato</button>
 
 
 
@@ -260,8 +272,8 @@
                                                 
 
 
-                                          </div>
-                                       </div>
+                                           </div>
+                                        </div>
                                     </div>
 
 
@@ -273,6 +285,15 @@
 
 
     </div>
+@else
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-danger text-center">No tienes permiso para ver este módulo.</div>
+            </div>
+        </div>
+    </div>
+@endif/div>
 
     <!--  Extra Large modal example -->
 <div class="modal fade bs-example-modal-xl" tabindex="-1" role="dialog" aria-labelledby="myExtraLargeModalLabel" aria-hidden="true">

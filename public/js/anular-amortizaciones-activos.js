@@ -13,35 +13,33 @@ $(".align-middle").on("click",function(){
 
 
 
-    $.get(urlgeeneral+"/anular-amortizaciones/recibo/"+id,function(data){
+    $.get(urlgeeneral + "/anular-amortizaciones/recibo/" + id, function (data) {
+        if ($.fn.DataTable.isDataTable('#datatable')) {
+            $('#datatable').DataTable().destroy();
+        }
 
-        //console.log(data[0].amortizaciones);
+        let contenido = "";
+        for (var i = 0; i < data.length; i++) {
+            contenido += "<tr>";
+            contenido += "<td style='padding:1px;text-align:center'>" + data[i].id + "</td>";
+            contenido += "<td style='padding:1px;text-align:center'> " + data[i].num_recibo + "</td>";
+            contenido += "<td style='padding:1px;text-align:center'> " + data[i].mont_rec + "</td>";
+            contenido += "<td style='padding:1px;text-align:center'> " + data[i].fech_rec + "</td>";
+            contenido += "<td style='padding:1px;text-align:center'> " + data[i].esta_rec + "</td>";
+            contenido += "<td style='padding:1px;text-align:center'> " + data[i].usuario + "</td>";
+            contenido += "<td style='padding:1px;text-align:center'>";
 
-     let contenido="";
-     for (var i = 0; i < data.length; i++) {
-         contenido += "<tr>";
-         contenido += "<td style='padding:1px;text-align:center'>" +  data[i].id  + "</td>";
-         contenido += "<td style='padding:1px;text-align:center'> " + data[i].num_recibo + "</td>";
-         contenido += "<td style='padding:1px;text-align:center'> " + data[i].mont_rec + "</td>";
-         contenido += "<td style='padding:1px;text-align:center'> " + data[i].fech_rec + "</td>";
-         contenido += "<td style='padding:1px;text-align:center'> " + data[i].esta_rec + "</td>";
-         contenido += "<td style='padding:1px;text-align:center'> " + data[i].usuario + "</td>";
-         contenido += "<td style='padding:1px;text-align:center'>";
-         //contenido +='<i class="fas fa-edit"></i>';
-         contenido +='<a href="#" onclick="abrimodal('+ data[i].id +')" type="button" class="btn btn-danger" ><i class="fas fa-trash-alt"></i> </a>';
-         contenido +="</td>";
-         contenido += "</tr>";
-         //datosgeneral(data[i].amortizaciones);
+            if (typeof canDelete !== 'undefined' && canDelete) {
+                contenido += '<a href="#" onclick="abrimodal(' + data[i].id + ')" type="button" class="btn btn-danger waves-effect waves-light" title="Anular Amortización"><i class="fas fa-trash-alt"></i> </a>';
+            }
 
+            contenido += "</td>";
+            contenido += "</tr>";
+        }
 
-       }
-
-       document.getElementById("lisatadocredtios").innerHTML = contenido;
-       $("#datatable").dataTable();
-
-
-
-  });
+        $('#lisatadocredtios').empty().html(contenido);
+        initDataTable("#datatable");
+    });
 
 
 

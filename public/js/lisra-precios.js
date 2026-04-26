@@ -21,48 +21,47 @@ window.addEventListener("load", function (event) {
 }
 
 
-function llenarmarca(data){
-
-    let contenido="";
-    for (var i = 0; i < data.length; i++) {
-      contenido += "<tr>";
-      contenido += "<td style='padding:1px;text-align:center'>" +  parseInt(i+1,10) + "</td>";
-      contenido += "<td style='padding:1px;text-align:center'> " + data[i].descripcion + "</td>";
-      contenido += "<td style='padding:1px;text-align:center'> " + data[i].vigencia + "</td>";
-         if(data[i].fecha_inicial==null){
-
-            contenido += "<td style='padding:1px;text-align:center'> </td>";
-
-         }else{
-            contenido += "<td style='padding:1px;text-align:center'> " + data[i].fecha_inicial + "</td>";
-
-         }
-
-         if(data[i].fecha_final==null){
-            contenido += "<td style='padding:1px;text-align:center'> </td>";
-
-         }else{
-
-            contenido += "<td style='padding:1px;text-align:center'> " + data[i].fecha_final + "</td>";
-
-         }
-
-
-      contenido += "<td style='padding:1px;text-align:center'>";
-      //contenido +='<i class="fas fa-edit"></i>';
-      contenido +=' <button type="button" onclick="abrimodal('+ data[i].id +')" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i> Editar</button>'
-      contenido +='<button type="button" onclick="eliminarsector('+ data[i].id +')" class="btn btn-danger eliminar"><i class="fas fa-trash-alt"></i> Eliminar</button>'
-      contenido +="</td>";
-      contenido += "</tr>";
-
-
+function llenarmarca(data) {
+    if ($.fn.DataTable.isDataTable('#datatable')) {
+        $('#datatable').DataTable().destroy();
     }
 
-    document.getElementById("listadecolores").innerHTML = contenido;
-    $("#datatable").dataTable();
+    let contenido = "";
+    for (var i = 0; i < data.length; i++) {
+        contenido += "<tr>";
+        contenido += "<td style='padding:1px;text-align:center'>" + parseInt(i + 1, 10) + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].descripcion + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].vigencia + "</td>";
+        
+        if (data[i].fecha_inicial == null) {
+            contenido += "<td style='padding:1px;text-align:center'> </td>";
+        } else {
+            contenido += "<td style='padding:1px;text-align:center'> " + data[i].fecha_inicial + "</td>";
+        }
 
+        if (data[i].fecha_final == null) {
+            contenido += "<td style='padding:1px;text-align:center'> </td>";
+        } else {
+            contenido += "<td style='padding:1px;text-align:center'> " + data[i].fecha_final + "</td>";
+        }
 
-  }
+        contenido += "<td style='padding:1px;text-align:center'>";
+        
+        if (typeof canEdit !== 'undefined' && canEdit) {
+            contenido += ' <button type="button" onclick="abrimodal(' + data[i].id + ')" class="btn btn-info waves-effect waves-light" data-bs-toggle="modal" data-bs-target="#staticBackdrop" title="Editar"><i class="fas fa-edit"></i> </button>';
+        }
+
+        if (typeof canDelete !== 'undefined' && canDelete) {
+            contenido += ' <button type="button" onclick="eliminarsector(' + data[i].id + ')" class="btn btn-danger waves-effect waves-light eliminar" title="Eliminar"><i class="fas fa-trash-alt"></i> </button>';
+        }
+
+        contenido += "</td>";
+        contenido += "</tr>";
+    }
+
+    $('#listadecolores').empty().html(contenido);
+    initDataTable("#datatable");
+}
 
 
 

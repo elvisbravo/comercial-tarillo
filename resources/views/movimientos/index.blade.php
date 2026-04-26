@@ -9,6 +9,12 @@
     <link href="{{ asset('assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
     <!-- DataTables -->
     <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+    <style>
+        .pagination {
+            justify-content: flex-end !important;
+        }
+    </style>
 @endsection
 @section('contenido')
 
@@ -24,7 +30,9 @@
         <div class="col-md-12 grid-margin stretch-card">
             <div class="card">
                 <div class="card-body">
+                    @if(App\Permisos::hasPermission('movimientos', 2))
                     <a href="{{route('movimientos.create')}}" class="btn btn-primary mb-3" id="btnadd">Nuevo Movimiento</a>
+                    @endif
 
                     <div class="table-responsive">
                         <table id="dataTableExample" class="table">

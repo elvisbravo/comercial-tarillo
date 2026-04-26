@@ -11,6 +11,16 @@
     <!-- DataTables -->
     <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
     <link href="{{ asset('assets/libs/datatables.net-buttons-bs4/css/buttons.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+    <style>
+        div.dataTables_wrapper div.dataTables_paginate {
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+        .pagination {
+            justify-content: flex-end !important;
+        }
+    </style>
 @endsection
 @section('contenido')
 
@@ -162,6 +172,10 @@
     <script src="{{ asset('assets/libs/datatables.net-buttons/js/buttons.html5.min.js') }}"></script>
     <script src="{{ asset('assets/libs/datatables.net-buttons/js/buttons.print.min.js') }}"></script>
     <script src="{{ asset('assets/libs/datatables.net-buttons/js/buttons.colVis.min.js') }}"></script>
+
+    <script>
+        const canPrint = {{ App\Permisos::hasPermission('reporteventas', 7) ? 'true' : 'false' }};
+    </script>
 
     <script src="{{ asset('js/reporteventas.js') }}">
     </script>

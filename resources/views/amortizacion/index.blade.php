@@ -9,6 +9,16 @@ Lista Creditos
 <link href="{{ asset('assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
 <!-- DataTables -->
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+<style>
+    div.dataTables_wrapper div.dataTables_paginate {
+        display: flex !important;
+        justify-content: flex-end !important;
+    }
+    .pagination {
+        justify-content: flex-end !important;
+    }
+</style>
 @endsection
 @section('contenido')
 
@@ -141,6 +151,11 @@ Lista Creditos
 
 <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+
+<script>
+    const canViewDetail = {{ App\Permisos::hasPermission('amortizacion', 6) ? 'true' : 'false' }};
+    const canCreate = {{ App\Permisos::hasPermission('amortizacion', 2) ? 'true' : 'false' }};
+</script>
 
 <script src="{{ asset('js/amortizacion-index.js') }}"></script>
 

@@ -10,6 +10,16 @@
     <link href="{{ asset('assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
     <!-- DataTables -->
     <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+    <style>
+        div.dataTables_wrapper div.dataTables_paginate {
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+        .pagination {
+            justify-content: flex-end !important;
+        }
+    </style>
 @endsection
 @section('contenido')
 
@@ -51,7 +61,9 @@
         <div class="col-md-12 grid-margin stretch-card">
             <div class="card">
                 <div class="card-body">
+                    @if(App\Permisos::hasPermission('traslados', 2))
                     <a href="{{ route('traslados.create') }}" class="btn btn-primary mb-3">Nuevo Traslado</a>
+                    @endif
 
                     <div class="table-responsive">
                         <table id="dataTableExample" class="table">

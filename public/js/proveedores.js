@@ -24,54 +24,54 @@ $("#actualizar").hide();
       });
  }
 
- function llenardatos(data){
-
-    let contenido="";
-    for (var i = 0; i < data.length; i++) {
-      contenido += "<tr>";
-      contenido += "<td style='padding:1px;text-align:center'>" +  parseInt(i+1,10) + "</td>";
-      contenido += "<td style='padding:1px;text-align:center'> " + data[i].razon_social + "</td>";
-      contenido += "<td style='padding:1px;text-align:center'> " + data[i].ruc + "</td>";
-      contenido += "<td style='padding:1px;text-align:center'> " + data[i].nombre_comercial + "</td>";
-      contenido += "<td style='padding:1px;text-align:center'> " + data[i].telefono + "</td>";
-      contenido += "<td style='padding:1px;text-align:center'> " + data[i].direccion + "</td>";
-      if(data[i].estado==0){
-        contenido += "<td style='padding:1px;text-align:center'> <i class='fas fa-sync'></i> Inactivo</td>";
-
-      }else{
-
-        contenido += "<td style='padding:1px;text-align:center'> Activo</td>";
-
-      }
-
-
-      contenido += "<td style='padding:1px;text-align:center'>";
-      //contenido +='<i class="fas fa-edit"></i>';
-      contenido +='<a href="proveedores/'+data[i].id+'" type="button" class="btn btn-success "><i class="fas fa-eye"></i> </a>';
-      contenido +=' <button type="button" onclick="abrimodal('+ data[i].id +')" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i> </button>'
-
-      if(data[i].estado==0){
-
-        contenido +='<button type="button" onclick="activar('+ data[i].id +')" class="btn btn-warning "><i class="fas fa-sync activar"></i> </button>';
-
-      }else{
-
-        contenido +='<button type="button" onclick="eliminar('+ data[i].id +')" class="btn btn-danger "><i class="fas fa-trash-alt eliminar"></i> </button>';
-
-      }
-
-
-      contenido +="</td>";
-      contenido += "</tr>";
-
-
+ function llenardatos(data) {
+    if ($.fn.DataTable.isDataTable('#datatable')) {
+        $('#datatable').DataTable().destroy();
     }
 
-    document.getElementById("listadoproveedores").innerHTML = contenido;
-    $("#datatable").dataTable();
+    let contenido = "";
+    for (var i = 0; i < data.length; i++) {
+        contenido += "<tr>";
+        contenido += "<td style='padding:1px;text-align:center'>" + parseInt(i + 1, 10) + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].razon_social + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].ruc + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].nombre_comercial + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + (data[i].telefono || '') + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + (data[i].direccion || '') + "</td>";
+        
+        if (data[i].estado == 0) {
+            contenido += "<td style='padding:1px;text-align:center'><span class='badge badge-soft-danger font-size-12'><i class='fas fa-times-circle me-1'></i> Inactivo</span></td>";
+        } else {
+            contenido += "<td style='padding:1px;text-align:center'><span class='badge badge-soft-success font-size-12'><i class='fas fa-check-circle me-1'></i> Activo</span></td>";
+        }
 
+        contenido += "<td style='padding:1px;text-align:center'>";
+        
+        if (typeof canViewDetail !== 'undefined' && canViewDetail) {
+            contenido += '<a href="proveedores/' + data[i].id + '" type="button" class="btn btn-success waves-effect waves-light" title="Ver Detalle"><i class="fas fa-eye"></i> </a>';
+        }
 
- }
+        if (typeof canEdit !== 'undefined' && canEdit) {
+            contenido += ' <button type="button" onclick="abrimodal(' + data[i].id + ')" class="btn btn-info waves-effect waves-light" data-bs-toggle="modal" data-bs-target="#staticBackdrop" title="Editar"><i class="fas fa-edit"></i> </button>';
+        }
+
+        if (data[i].estado == 0) {
+            if (typeof canDelete !== 'undefined' && canDelete) {
+                contenido += ' <button type="button" onclick="activar(' + data[i].id + ')" class="btn btn-warning waves-effect waves-light" title="Activar"><i class="fas fa-sync activar"></i> </button>';
+            }
+        } else {
+            if (typeof canDelete !== 'undefined' && canDelete) {
+                contenido += ' <button type="button" onclick="eliminar(' + data[i].id + ')" class="btn btn-danger waves-effect waves-light" title="Desactivar"><i class="fas fa-trash-alt eliminar"></i> </button>';
+            }
+        }
+
+        contenido += "</td>";
+        contenido += "</tr>";
+    }
+
+    $('#listadoproveedores').empty().html(contenido);
+    initDataTable("#datatable");
+}
 
  //METODO PARA BUSCAR EL DOCUMENTO DEL PROVEEDOR
 
@@ -166,13 +166,28 @@ $("#actualizar").hide();
 
                 Swal.fire({
                     icon: 'success',
-                    title: 'Oops...',
+                    title: '¡Éxito!',
                     text: 'Creado Correctamente',
                     footer: ''
                   })
 
                   $('#staticBackdrop').modal('hide');
 
+              },
+              error: function (xhr) {
+                if (xhr.status === 422) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error de Validación',
+                        text: 'El RUC/DNI ya se encuentra registrado.',
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Ocurrió un error inesperado al procesar la solicitud.',
+                    });
+                }
               }
           });
 
@@ -228,7 +243,7 @@ $("#actualizar").on("click",function(){
                 todosproveedores();
                 Swal.fire({
                     icon: 'success',
-                    title: 'Oops...',
+                    title: '¡Éxito!',
                     text: 'Proveedor Modificado Correctamente',
                     footer: ''
                 })
@@ -236,6 +251,21 @@ $("#actualizar").on("click",function(){
                 $('#staticBackdrop').modal('hide');
 
 
+            },
+            error: function (xhr) {
+                if (xhr.status === 422) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error de Validación',
+                        text: 'El RUC/DNI ya se encuentra registrado.',
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Ocurrió un error inesperado al procesar la solicitud.',
+                    });
+                }
             }
         });
 

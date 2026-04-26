@@ -9,6 +9,16 @@
 
 <!-- DataTables -->
 <link href="{{asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css')}}" rel="stylesheet" type="text/css" />
+
+<style>
+    div.dataTables_wrapper div.dataTables_paginate {
+        display: flex !important;
+        justify-content: flex-end !important;
+    }
+    .pagination {
+        justify-content: flex-end !important;
+    }
+</style>
 @endsection
 @section('contenido')
 
@@ -37,7 +47,9 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
+                        @if(App\Permisos::hasPermission('roles', 2))
                         <a href="{{ route('roles.create') }}" class="btn btn-success waves-effect btn-label waves-light" id="btnadd"><i class="bx bx-plus label-icon"></i> Agregar</a>
+                        @endif
                     </div>
                     <div class="card-body">
                     @if ($message = Session::get('success'))
@@ -65,15 +77,17 @@
                              <td>{{ ++$i }}</td>
                              <td>{{ $role->name }}</td>
                              <td>
-                                <a class="btn btn-info" href="{{ route('roles.show',$role->id) }}">Show</a>
+                                <a class="btn btn-info" href="{{ route('roles.show',$role->id) }}">Ver</a>
+                                
+                                @if(App\Permisos::hasPermission('roles', 3))
+                                <a class="btn btn-primary" href="{{ route('roles.edit',$role->id) }}">Editar</a>
+                                @endif
 
-                                        <a class="btn btn-primary" href="{{ route('roles.edit',$role->id) }}">Edit</a>
-
-
-                                        {!! Form::open(['method' => 'DELETE','route' => ['roles.destroy', $role->id],'style'=>'display:inline']) !!}
-                                            {!! Form::submit('Delete', ['class' => 'btn btn-danger']) !!}
-                                        {!! Form::close() !!}
-
+                                @if(App\Permisos::hasPermission('roles', 4))
+                                {!! Form::open(['method' => 'DELETE','route' => ['roles.destroy', $role->id],'style'=>'display:inline']) !!}
+                                    {!! Form::submit('Eliminar', ['class' => 'btn btn-danger']) !!}
+                                {!! Form::close() !!}
+                                @endif
                            </td>
 
                             </tr>
@@ -106,4 +120,15 @@
 
 
 
+@endsection
+
+@section('js')
+<script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
+<script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ asset('js/utils.js') }}"></script>
+<script>
+    $(document).ready(function() {
+        initDataTable("#datatable");
+    });
+</script>
 @endsection

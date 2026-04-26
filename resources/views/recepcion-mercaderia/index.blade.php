@@ -10,6 +10,16 @@
     <link href="{{ asset('assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
     <!-- DataTables -->
     <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+    <style>
+        div.dataTables_wrapper div.dataTables_paginate {
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+        .pagination {
+            justify-content: flex-end !important;
+        }
+    </style>
 @endsection
 @section('contenido')
 
@@ -97,6 +107,10 @@
     <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.6.2/js/buttons.flash.min.js"></script>
     <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.6.2/js/buttons.html5.min.js"></script>
     
+    <script>
+        const canDelete = {{ App\Permisos::hasPermission('recepcion-mercaderia', 4) ? 'true' : 'false' }};
+        const canDetail = {{ App\Permisos::hasPermission('recepcion-mercaderia', 6) ? 'true' : 'false' }};
+    </script>
 
     <script src="{{ asset('js/guia_remision-pendientes.js') }}">
     </script>

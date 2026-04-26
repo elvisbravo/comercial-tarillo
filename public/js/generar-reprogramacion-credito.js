@@ -50,6 +50,9 @@ $.get(urlgeeneral+"/creditos-pendientes/listadoclientes",function(data){
   }
 
   document.getElementById("listaclientes").innerHTML = contenido;
+  if ($.fn.DataTable.isDataTable('#datatables')) {
+    $('#datatables').DataTable().destroy();
+  }
   $("#datatables").DataTable();
 
 
@@ -58,7 +61,8 @@ $.get(urlgeeneral+"/creditos-pendientes/listadoclientes",function(data){
 
 //METODO PARA ASIGAR LOS DATOS
 function seleccionar(id){
-
+  document.getElementById('cuotas').disabled=true;
+  document.getElementById('contrato').disabled=true;
   $("#documento").val($("#documento"+id).text());
   $("#nombresdata").val($("#nombre"+id).text());
 
@@ -106,7 +110,10 @@ function seleccionar(id){
            }
 
            document.getElementById("listacreditos_pendientes").innerHTML = contenido;
-           $("#datatable").dataTable();
+           if ($.fn.DataTable.isDataTable('#datatableg')) {
+             $('#datatableg').DataTable().destroy();
+           }
+           $("#datatableg").dataTable();
 
 
      }else{

@@ -10,6 +10,16 @@
 
     <!-- DataTables -->
     <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+    <style>
+        div.dataTables_wrapper div.dataTables_paginate {
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+        .pagination {
+            justify-content: flex-end !important;
+        }
+    </style>
 @endsection
 @section('contenido')
 
@@ -64,10 +74,9 @@
                                     <div class="col-12">
                                         <div class="card">
                                             <div class="card-header">
-
-                                            <!--<button type="button" class="btn btn-primary waves-effect btn-label waves-light"  onclick="abrimodal(0)" data-bs-toggle="modal" data-bs-target="#staticBackdrop"> <i class="btn-icon-prepend" data-feather="plus"></i> Crear Precios</button>-->
-                                            <a href="{{url('precios/create')}}" type="button" class="btn btn-primary"  > <i class="btn-icon-prepend" data-feather="plus"></i>Nuevo</a>
-
+                                            @if(App\Permisos::hasPermission('precios', 2))
+                                            <a href="{{url('precios/create')}}" type="button" class="btn btn-primary"  > <i class="btn-icon-prepend" data-feather="plus"></i> Nuevo</a>
+                                            @endif
                                             </div>
 
                                             <div class="card-body">
@@ -129,6 +138,11 @@
     <!-- Required datatable js -->
     <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
     <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+
+    <script>
+        const canEdit = {{ App\Permisos::hasPermission('precios', 3) ? 'true' : 'false' }};
+        const canDelete = {{ App\Permisos::hasPermission('precios', 4) ? 'true' : 'false' }};
+    </script>
 
     <script src="{{ asset('js/precios.js') }}">
     </script>

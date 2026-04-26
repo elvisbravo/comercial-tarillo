@@ -64,9 +64,9 @@
                                     <div class="col-12">
                                         <div class="card">
                                             <div class="card-header">
-
+                                            @if(App\Permisos::hasPermission('stock-location', 2))
                                             <button type="button" class="btn btn-primary"  onclick="abrimodal(0)" data-bs-toggle="modal" data-bs-target="#staticBackdrop"> <i class="btn-icon-prepend" data-feather="plus"></i></button>
-
+                                            @endif
                                             </div>
 
                                             <div class="card-body">
@@ -86,19 +86,19 @@
                                                                     <div class="text-muted">
                                                                          @foreach($ubicaciones as $ub)
                                                                             <ul>
-                                                                                @if($ub->almacen_id==$al->id)
-                                                                                   ==> {{ $ub->name}}  <a href="#" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><button class="btn btn-info" onclick="abrimodal({{$ub->id}});"><i class="fas fa-edit"></i></button>  </a>
-
-                                                                                   @if($ub->estado=='1')
-                                                                                   <button type="button"  onclick="eliminar({{$ub->id}})" class="btn btn-danger "><i class="fas fa-trash-alt"></i></button>
-                                                                                   @else
-                                                                                   <button type="button"  onclick="activar({{$ub->id}})" class="btn btn-warning "><i class="fas fa-sync activar"></i></button>
-
+                                                                                 @if($ub->almacen_id==$al->id)
+                                                                                   ==> {{ $ub->name}}  
+                                                                                   @if(App\Permisos::hasPermission('stock-location', 3))
+                                                                                   <a href="#" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><button class="btn btn-info" onclick="abrimodal({{$ub->id}});"><i class="fas fa-edit"></i></button>  </a>
                                                                                    @endif
-                                                                         
 
-
-                                                                         
+                                                                                   @if(App\Permisos::hasPermission('stock-location', 4))
+                                                                                       @if($ub->estado=='1')
+                                                                                       <button type="button"  onclick="eliminar({{$ub->id}})" class="btn btn-danger "><i class="fas fa-trash-alt"></i></button>
+                                                                                       @else
+                                                                                       <button type="button"  onclick="activar({{$ub->id}})" class="btn btn-warning "><i class="fas fa-sync activar"></i></button>
+                                                                                       @endif
+                                                                                   @endif
                                                                                 @endif
                                                                             </ul>
                                                                            @endforeach

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use DB;
-use PDF;
 
 class ReporteCuotasController extends Controller
 {
@@ -13,48 +12,54 @@ class ReporteCuotasController extends Controller
         $this->middleware('auth');
     }
 
+    /**
+     * Solo retorna la vista con los sectores para el filtro.
+     * Los datos se cargan via AJAX con getData().
+     */
     public function index(Request $request)
+    {
+        $sectores = DB::table('sectores')->where('estado', '=', 'ACTIVO')->get();
+
+        return view('reportecuotas.index', compact('sectores'));
+    }
+
+    /**
+     * Endpoint AJAX: devuelve los creditos con cuotas vencidas en JSON.
+     */
+    public function getData(Request $request)
     {
         $hoy = date('Y-m-d');
         $idsede = session('key')->sede_id;
 
-        $buscar = $request->get('buscar', '');
+        $buscar               = $request->get('buscar', '');
         $sectoresSeleccionados = $request->get('sectores', []);
 
-        $sectores = DB::table('sectores')->where('estado', '=', 'ACTIVO')->get();
-
-        $query = DB::table('cuotas as cu')
-            ->join('creditos as c', 'cu.credito_id', '=', 'c.id')
+        // Creditos con al menos una cuota PENDIENTE y vencida, agrupados por credito
+        $query = DB::table('creditos as c')
             ->join('clientes as cl', 'c.cliente_id', '=', 'cl.id')
-            ->leftJoin('amortizaciones as am', 'am.cuota_id', '=', 'cu.id')
-            ->leftJoin('recibos as r', 'r.id', '=', 'am.recibo_id')
-            ->leftJoin('movimientos as m', 'm.id', '=', 'r.id_movimiento')
-            ->leftJoin('forma_pagos as fp', 'fp.id', '=', 'm.forma_pago_id')
             ->leftJoin('sectores as sc', 'cl.id_sector', '=', 'sc.id')
+            ->join('cuotas as cu_venc', function ($j) use ($hoy) {
+                $j->on('cu_venc.credito_id', '=', 'c.id')
+                  ->where('cu_venc.esta_cuo', '=', 'PENDIENTE')
+                  ->where('cu_venc.fven_cuo', '<', $hoy);
+            })
             ->select(
-                'cl.id as cliente_id',
-                'cl.razon_social',
-                'cl.pate_per',
-                'cl.mate_per',
-                'cl.razon_social',
-                'cl.documento',
-                'cl.dire_per',
-                'sc.nomb_sec as sector_cliente',
                 'c.id as credito_id',
-                'c.id_venta',
-                'fp.descripcion as metodo_pago',
-                'cu.numero_cuo',
-                'cu.mont_cuo',
-                'cu.saldo_cuo',
-                'cu.fven_cuo as fecha_amortizacion'
+                'cl.razon_social',
+                'cl.dire_per',
+                'cl.telefono',
+                'sc.nomb_sec as sector',
+                DB::raw('SUM(cu_venc.mont_cuo) as monto_total'),
+                DB::raw('SUM(cu_venc.saldo_cuo) as saldo_total'),
+                DB::raw('MIN(cu_venc.numero_cuo) as primera_cuota_vencida'),
+                DB::raw('MIN(cu_venc.fven_cuo) as proxima_fecha')
             )
             ->where('c.esta_cre', '=', '1')
-            ->where('cu.esta_cuo', '=', 'PENDIENTE')
-            ->where('cu.fven_cuo', '<', $hoy)
-            ->where('c.sede_id', '=', $idsede);
+            ->where('c.sede_id', '=', $idsede)
+            ->groupBy('c.id', 'cl.razon_social', 'cl.dire_per', 'cl.telefono', 'sc.nomb_sec');
 
         if (!empty($buscar)) {
-            $query->where(function($q) use ($buscar) {
+            $query->where(function ($q) use ($buscar) {
                 $q->where('cl.razon_social', 'like', '%' . $buscar . '%')
                   ->orWhere('cl.documento', 'like', '%' . $buscar . '%');
             });
@@ -64,40 +69,44 @@ class ReporteCuotasController extends Controller
             $query->whereIn('cl.id_sector', $sectoresSeleccionados);
         }
 
-        $cuotasVencidas = $query->orderBy('cl.razon_social', 'asc')
-            ->orderBy('c.id', 'asc')
-            ->orderBy('cu.numero_cuo', 'asc')
-            ->get();
+        $creditos = $query->orderBy('cl.razon_social', 'asc')->get();
 
         $datos = [];
+        foreach ($creditos as $cred) {
+            $total_cuotas = DB::table('cuotas')
+                ->where('credito_id', $cred->credito_id)
+                ->count();
 
-        foreach ($cuotasVencidas as $cuota) {
+            $cuotas_pagadas = DB::table('cuotas')
+                ->where('credito_id', $cred->credito_id)
+                ->where('esta_cuo', 'PAGADO')
+                ->count();
 
-            // Obtener productos
-            $productos = DB::table('detalle_venta as dv')
-                ->join('productos as p', 'dv.producto_id', '=', 'p.id')
-                ->where('dv.venta_id', '=', $cuota->id_venta)
-                ->select('p.nomb_pro')
-                ->pluck('nomb_pro')
-                ->toArray();
-
-            $nombres_productos = implode(', ', $productos);
+            $ultima_pago = DB::table('amortizaciones as am')
+                ->join('cuotas as cu', 'am.cuota_id', '=', 'cu.id')
+                ->where('cu.credito_id', $cred->credito_id)
+                ->max('am.created_at');
 
             $datos[] = [
-                'credito_id' => $cuota->credito_id,
-                'documento' => $cuota->documento,
-                'cliente' => $cuota->razon_social,
-                'direccion' => $cuota->dire_per,
-                'sector' => $cuota->sector_cliente,
-                'productos' => $nombres_productos,
-                'numero_cuo' => $cuota->numero_cuo,
-                'mont_cuo' => $cuota->mont_cuo,
-                'saldo_cuo' => $cuota->saldo_cuo,
-                'fecha_amortizacion' => $cuota->fecha_amortizacion,
-                'metodo_pago' => $cuota->metodo_pago
+                'credito_id'     => $cred->credito_id,
+                'cliente'        => $cred->razon_social,
+                'direccion'      => $cred->dire_per,
+                'sector'         => $cred->sector ?? 'S/N',
+                'telefono'       => $cred->telefono ?? '-',
+                'monto_total'    => $cred->monto_total,
+                'saldo_total'    => $cred->saldo_total,
+                'cuotas_pagadas' => $cuotas_pagadas,
+                'total_cuotas'   => $total_cuotas,
+                'proxima_fecha'  => $cred->proxima_fecha,
+                'ultima_pago'    => $ultima_pago ? date('d/m/Y', strtotime($ultima_pago)) : '-',
             ];
         }
 
-        return view('reportecuotas.index', compact('datos', 'hoy', 'sectores', 'buscar', 'sectoresSeleccionados'));
+        return response()->json([
+            'datos'       => $datos,
+            'total_saldo' => array_sum(array_column($datos, 'saldo_total')),
+            'total_monto' => array_sum(array_column($datos, 'monto_total')),
+            'count'       => count($datos),
+        ]);
     }
 }

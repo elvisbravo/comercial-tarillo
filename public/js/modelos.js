@@ -23,27 +23,32 @@ window.addEventListener("load", function (event) {
 
 }
 
-function llenarmodelos(data){
+function llenarmodelos(data) {
+    if ($.fn.DataTable.isDataTable('#datatable')) {
+        $('#datatable').DataTable().destroy();
+    }
 
-  let contenido="";
-  for (var i = 0; i < data.length; i++) {
-    contenido += "<tr>";
-    contenido += "<td style='padding:1px;text-align:center'>" +  parseInt(i+1,10) + "</td>";
-    contenido += "<td style='padding:1px;text-align:center'> " + data[i].descripcion + "</td>";
-    contenido += "<td style='padding:1px;text-align:center'>";
-    //contenido +='<i class="fas fa-edit"></i>';
-    contenido +=' <button type="button" onclick="abrimodal('+ data[i].id +')" class="btn btn-info waves-effect btn-label waves-light" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i> Editar</button>'
-    contenido +='<button type="button" onclick="eliminarsector('+ data[i].id +')" class="btn btn-danger waves-effect btn-label waves-light eliminar"><i class="fas fa-trash-alt"></i> Eliminar</button>'
-    contenido +="</td>";
-    contenido += "</tr>";
+    let contenido = "";
+    for (var i = 0; i < data.length; i++) {
+        contenido += "<tr>";
+        contenido += "<td style='padding:1px;text-align:center'>" + parseInt(i + 1, 10) + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].descripcion + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'>";
 
+        if (typeof canEdit !== 'undefined' && canEdit) {
+            contenido += ' <button type="button" onclick="abrimodal(' + data[i].id + ')" class="btn btn-info waves-effect btn-label waves-light" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i> Editar</button>';
+        }
 
-  }
+        if (typeof canDelete !== 'undefined' && canDelete) {
+            contenido += ' <button type="button" onclick="eliminarsector(' + data[i].id + ')" class="btn btn-danger waves-effect btn-label waves-light eliminar"><i class="fas fa-trash-alt"></i> Eliminar</button>';
+        }
 
-  document.getElementById("listadecolores").innerHTML = contenido;
-  $("#datatable").dataTable();
+        contenido += "</td>";
+        contenido += "</tr>";
+    }
 
-
+    $('#listadecolores').empty().html(contenido);
+    initDataTable("#datatable");
 }
 
 

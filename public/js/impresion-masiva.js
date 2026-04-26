@@ -32,26 +32,23 @@ $("#buscar").on("click",function(){
 
      }else{
 
-        $.get(urlgeeneral+"/impresion-planilla/cuotas_pendientes/"+id_sector+"/"+fecha,function(data){
-
-            let contenido="";
-            for (var i = 0; i < data.length; i++) {
-              contenido += "<tr>";
-              contenido += "<td style='padding:1px;text-align:center'>" +  data[i].documento + "</td>";
-              contenido += "<td style='padding:1px;text-align:center'> " + data[i].razon_social + "</td>";
-              contenido += "<td style='padding:1px;text-align:center'> " + data[i].nomb_sec + "</td>";
-              contenido += "<td style='padding:1px;text-align:center'> " + data[i].saldo + "</td>";
-
-              contenido += "</tr>";
-
-
+        $.get(urlgeeneral + "/impresion-planilla/cuotas_pendientes/" + id_sector + "/" + fecha, function (data) {
+            if ($.fn.DataTable.isDataTable('#datatable')) {
+                $('#datatable').DataTable().destroy();
             }
 
-            document.getElementById("lisatadocredtios").innerHTML = contenido;
-            $("#datatable").dataTable();
+            let contenido = "";
+            for (var i = 0; i < data.length; i++) {
+                contenido += "<tr>";
+                contenido += "<td style='padding:1px;text-align:center'>" + data[i].documento + "</td>";
+                contenido += "<td style='padding:1px;text-align:center'> " + data[i].razon_social + "</td>";
+                contenido += "<td style='padding:1px;text-align:center'> " + data[i].nomb_sec + "</td>";
+                contenido += "<td style='padding:1px;text-align:center'> " + data[i].saldo + "</td>";
+                contenido += "</tr>";
+            }
 
-
-
+            $('#lisatadocredtios').empty().html(contenido);
+            initDataTable("#datatable");
         });
 
 

@@ -52,25 +52,81 @@ class VentaController extends Controller
     }
 
 
-    public function index(Request $request)
+    public function index()
     {
-        $servicios = new FuncionesController;
+        return view('ventas.index');
+    }
+
+    public function listado(Request $request)
+    {
+        $draw = $request->get('draw');
+        $start = $request->get('start');
+        $length = $request->get('length');
+        $search = $request->get('search')['value'];
 
         $idsede = session('key')->sede_id;
-        $user_id = session('key')->id;
-
+        $servicios = new FuncionesController;
         $envio = $servicios->tipo_envio_sunat();
 
-        $ventas = DB::table('ventas')
+        $query = DB::table('ventas')
             ->join('clientes', 'ventas.cliente_id', '=', 'clientes.id')
             ->join('tipo_comprobantes', 'ventas.tipo_comprobante_id', '=', 'tipo_comprobantes.id')
-            ->select('clientes.nomb_per', 'clientes.pate_per', 'clientes.mate_per', 'clientes.documento', 'tipo_comprobantes.descripcion as comprobante', 'ventas.id', DB::raw("to_char(ventas.fecha, 'DD-MM-YYYY') as fecha"), 'ventas.hora', 'ventas.serie_comprobante', 'ventas.numero_comprobante', 'ventas.monto', 'ventas.sede_id', 'ventas.venta_estado', 'ventas.aceptado_sunat', 'ventas.mensaje_sunat', 'ventas.tipo_comprobante_id', 'ventas.estado_nota', 'ventas.serie_nota_credito', 'ventas.numero_nota_credito')
+            ->select(
+                'clientes.nomb_per', 
+                'clientes.pate_per', 
+                'clientes.mate_per', 
+                'clientes.documento', 
+                'tipo_comprobantes.descripcion as comprobante', 
+                'ventas.id', 
+                DB::raw("to_char(ventas.fecha, 'DD-MM-YYYY') as fecha_formateada"),
+                'ventas.fecha',
+                'ventas.hora', 
+                'ventas.serie_comprobante', 
+                'ventas.numero_comprobante', 
+                'ventas.monto', 
+                'ventas.sede_id', 
+                'ventas.venta_estado', 
+                'ventas.aceptado_sunat', 
+                'ventas.mensaje_sunat', 
+                'ventas.tipo_comprobante_id', 
+                'ventas.estado_nota', 
+                'ventas.serie_nota_credito', 
+                'ventas.numero_nota_credito'
+            )
             ->where('ventas.tipo_envio', '=', $envio)
-            ->where('ventas.sede_id', '=', $idsede)
-            ->orderBy('ventas.id', 'desc')
-            ->paginate(10);
+            ->where('ventas.sede_id', '=', $idsede);
 
-        return view('ventas.index', compact('ventas'))->with('i', ($request->input('page', 1) - 1) * 10);
+        $totalRecords = $query->count();
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('clientes.razon_social', 'ilike', "%$search%")
+                  ->orWhere('clientes.documento', 'like', "%$search%")
+                  ->orWhere('clientes.nomb_per', 'ilike', "%$search%")
+                  ->orWhere('ventas.serie_comprobante', 'like', "%$search%")
+                  ->orWhere('ventas.numero_comprobante', 'like', "%$search%");
+            });
+        }
+
+        $filteredRecords = $query->count();
+
+        // Ordenamiento
+        $orderColumnIndex = $request->get('order')[0]['column'];
+        $orderDir = $request->get('order')[0]['dir'];
+        $columnsOrder = ['ventas.id', 'ventas.fecha', 'ventas.serie_comprobante', 'clientes.razon_social', 'ventas.monto', 'ventas.aceptado_sunat'];
+        $orderColumn = $columnsOrder[$orderColumnIndex] ?? 'ventas.id';
+
+        $data = $query->orderBy($orderColumn, $orderDir)
+                      ->offset($start)
+                      ->limit($length)
+                      ->get();
+
+        return response()->json([
+            'draw' => intval($draw),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $filteredRecords,
+            'data' => $data
+        ]);
     }
 
     public function pos()

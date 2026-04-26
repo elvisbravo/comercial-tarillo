@@ -114,9 +114,11 @@ Gestión de Permisos
                 <div class="card mb-3 border-primary border-start border-4">
                     <div class="card-body py-2 d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Permisos para: <span id="nombre-rol-seleccionado" class="text-primary font-weight-bold"></span></h5>
+                        @if(App\Permisos::hasPermission('permisos', 2))
                         <button class="btn btn-primary" onclick="guardarPermisos()">
                             <i class="fas fa-save me-1"></i> Guardar Todo
                         </button>
+                        @endif
                     </div>
                 </div>
 
@@ -138,7 +140,8 @@ Gestión de Permisos
                                     <input class="form-check-input check-permiso" type="checkbox"
                                         id="perm_v_{{ $sub->id }}"
                                         data-modulo="{{ $sub->id }}"
-                                        data-accion="{{ $accion_ver->id }}">
+                                        data-accion="{{ $accion_ver->id }}"
+                                        {{ !App\Permisos::hasPermission('permisos', 2) ? 'disabled' : '' }}>
                                     <label class="form-check-label text-dark fw-bold" for="perm_v_{{ $sub->id }}">
                                         <i class="{{ $sub->icon }} me-1 text-secondary small"></i>
                                         {{ $sub->name }} (Ver)
@@ -183,6 +186,7 @@ Gestión de Permisos
 <script>
     const urlGeneral = $("#url_raiz_proyecto").val();
     const idAccionVer = {{ $accion_ver->id }};
+    const canCreate = {{ App\Permisos::hasPermission('permisos', 2) ? 'true' : 'false' }};
 
     $(document).on("change", `.check-permiso[data-accion='${idAccionVer}']`, function() {
         let moduloId = $(this).data('modulo');
@@ -219,14 +223,14 @@ Gestión de Permisos
                 $(selector).prop('checked', true);
 
                 // Si es el permiso de "Ver", habilitar los demás del mismo módulo
-                if (p.accion_id == idAccionVer) {
+                if (p.accion_id == idAccionVer && canCreate) {
                     $(`.check-permiso[data-modulo="${p.modulo_id}"][data-accion!="${idAccionVer}"]`).prop('disabled', false);
                 }
             });
 
-            // Si el rol es administrador, marcar todo por defecto
-            if (nombreRol.toLowerCase().trim() === 'administrador') {
-                $(".check-permiso").prop('checked', true).prop('disabled', false);
+            // Si no tiene permiso de crear, forzar que el Ver también se quede deshabilitado
+            if (!canCreate) {
+                $(".check-permiso").prop('disabled', true);
             }
         });
     }

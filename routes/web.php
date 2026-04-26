@@ -190,6 +190,7 @@ Route::post('precios/modificar', 'PreciosController@update');
 Route::resource('precios', 'PreciosController');
 
 //CONTROLADOR CLIENTE
+Route::get('clientes/listado/{estado}', 'ClientesController@listado');
 Route::get('clientes/sector', 'ClientesController@sector');
 Route::resource('clientes', 'ClientesController');
 Route::post('clientes/crear', 'ClientesController@crear');
@@ -281,6 +282,7 @@ Route::post('search-productos-tipo-venta', 'VentaController@search_productos');
 Route::get('render-productos-tipo-venta', 'VentaController@render_productos');
 Route::get('traer_candado/{id}', 'VentaController@traer_candado');
 //CONTROLADOR VENTAS
+Route::get('ventas/listado', 'VentaController@listado');
 Route::resource('ventas', 'VentaController');
 Route::get('enviar-comprobante/{id}', 'VentaController@enviar_comprobante');
 Route::post('generar-nota-credito', 'VentaController@generarNotaCredito');
@@ -460,13 +462,12 @@ Route::post('funcion/edit', 'FuncionController@edit');
 Route::delete('funcion/delete/{id}', 'FuncionController@delete');
 Route::resource('funcion', 'FuncionController');
 
+Route::get('reportecuotas/getData', 'ReporteCuotasController@getData');
 Route::get('reportecuotas', 'ReporteCuotasController@index')->name('reportecuotas.index');
 
 Route::group(['middleware' => ['auth']], function () {
-
-
-
     Route::resource('roles', 'RoleController');
+    Route::get('users/getList', 'UserController@getList');
     Route::resource('users', 'UserController');
 });
 

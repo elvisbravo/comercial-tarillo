@@ -73,31 +73,36 @@ btn_consultar.addEventListener('click', (e) => {
 
 
 
- function llenarcolores(data){
-
-    let contenido="";
-    for (var i = 0; i < data.length; i++) {
-      contenido += "<tr>";
-      contenido += "<td style='padding:1px;text-align:center'>" +  parseInt(i+1,10) + "</td>";
-      contenido += "<td style='padding:1px;text-align:center'> " + data[i].nombre + "</td>";
-      contenido += "<td style='padding:1px;text-align:center'> " + data[i].numero_documento + "</td>";
-      contenido += "<td style='padding:1px;text-align:center'> " + data[i].categoria_licencia + "</td>";
-      contenido += "<td style='padding:1px;text-align:center'> " + data[i].num_licencia + "</td>";
-      contenido += "<td style='padding:1px;text-align:center'>";
-      //contenido +='<i class="fas fa-edit"></i>';
-      contenido +=' <button type="button" onclick="abrimodal('+ data[i].id +')" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i> </button>'
-      contenido +='<button type="button" onclick="eliminarsector('+ data[i].id +')" class="btn btn-danger  eliminar"><i class="fas fa-trash-alt"></i> </button>'
-      contenido +="</td>";
-      contenido += "</tr>";
-  
-  
+function llenarcolores(data) {
+    if ($.fn.DataTable.isDataTable('#datatable')) {
+        $('#datatable').DataTable().destroy();
     }
-  
+
+    let contenido = "";
+    for (var i = 0; i < data.length; i++) {
+        contenido += "<tr>";
+        contenido += "<td style='padding:1px;text-align:center'>" + parseInt(i + 1, 10) + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].nombre + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].numero_documento + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].categoria_licencia + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].num_licencia + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'>";
+
+        if (typeof canEdit !== 'undefined' && canEdit) {
+            contenido += ' <button type="button" onclick="abrimodal(' + data[i].id + ')" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#staticBackdrop" title="Editar"><i class="fas fa-edit"></i> </button>';
+        }
+
+        if (typeof canDelete !== 'undefined' && canDelete) {
+            contenido += '<button type="button" onclick="eliminarsector(' + data[i].id + ')" class="btn btn-danger eliminar" title="Eliminar"><i class="fas fa-trash-alt"></i> </button>';
+        }
+
+        contenido += "</td>";
+        contenido += "</tr>";
+    }
+
     document.getElementById("listadoconductores").innerHTML = contenido;
-    $("#datatable").dataTable();
-  
-  
-  }
+    initDataTable("#datatable");
+}
   
 
   $("#guardar").on("click",function(){
@@ -247,55 +252,35 @@ function abrimodal(id){
 
 
   
-function eliminarsector(id){
-
-    const tabla = document.getElementById('datatable');
-  
-    tabla.addEventListener('click', (e) => {
-      if (e.target.classList.contains('eliminar') || e.target.classList.contains('bx')) {
-          Swal.fire({
-              title: '¿Desea eliminar el Conductor?',
-              text: "No podrás revertir esto!",
-              icon: 'warning',
-              showCancelButton: true,
-              confirmButtonColor: '#3085d6',
-              cancelButtonColor: '#d33',
-              confirmButtonText: 'Si, eliminar!',
-              cancelButtonText: 'Cancelar'
-            }).then((result) => {
-              if (result.isConfirmed) {
-              //Metodo para eleminar
-              var csrf = document.querySelector('meta[name="csrf-token"]').content;
-                $.ajax({
-                  type: "POST",
-                  url: urlgeeneral+"/conductor/eliminar/"+id,
-                  data: {"_method": "delete",'_token': csrf},
-  
-                  success: function (data) {
-  
+function eliminarsector(id) {
+    Swal.fire({
+        title: '¿Desea eliminar el Conductor?',
+        text: "No podrás revertir esto!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Si, eliminar!',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            var csrf = document.querySelector('meta[name="csrf-token"]').content;
+            $.ajax({
+                type: "POST",
+                url: urlgeeneral + "/conductor/eliminar/" + id,
+                data: { "_method": "delete", '_token': csrf },
+                success: function (data) {
                     listadoconductores();
-  
                     Swal.fire(
-                      'Eliminado!',
-                      'El color ha sido eliminado.',
-                      'success'
-                    )
-  
-  
-                  }
-  
-              });
-  
-  
-  
-  
-  
-              }
-            })
-      }
-  })
-  
-  }
+                        'Eliminado!',
+                        'El conductor ha sido eliminado.',
+                        'success'
+                    );
+                }
+            });
+        }
+    })
+}
 
 
 

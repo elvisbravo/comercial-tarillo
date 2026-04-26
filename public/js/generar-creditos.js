@@ -33,7 +33,8 @@ function fechaactual(){
  //METODO PARA BUSCAR LA VENTA AL CREDITO
 
  $("#factura").on("click",function(){
-
+    document.getElementById('cuotas').disabled=true;
+    document.getElementById('contrato').disabled=true;
     $("#staticBackdrop").modal("show");
     $.get(urlgeeneral+"/creditos/ventas_credito",function(data){
 
@@ -54,7 +55,7 @@ function fechaactual(){
             }
 
             document.getElementById("listaventas").innerHTML = contenido;
-            $("#datatabledos").dataTable();
+            initDataTable("#datatabledos");
 
         }else{
 

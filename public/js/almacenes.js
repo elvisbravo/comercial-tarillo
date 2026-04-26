@@ -56,36 +56,48 @@ tabla.addEventListener('click', (e) => {
 
 renderAlmacenes();
 
-function renderAlmacenes(){
-    fetch(urlgeneral+"/almacenes/render")
-    .then(res => res.json())
-    .then(data => {
-        let html = "";
+function renderAlmacenes() {
+    fetch(urlgeneral + "/almacenes/render")
+        .then(res => res.json())
+        .then(data => {
+            let html = "";
 
-        data.forEach((almacen,index) => {
-            html += `
+            data.forEach((almacen, index) => {
+                html += `
                 <tr>
-                    <td>${index+1}</td>
+                    <td>${index + 1}</td>
                     <td>${almacen.nombre}</td>
                     <td>${almacen.abreviatura}</td>
                     <td>${almacen.direccion}</td>
-                    <td>
+                    <td>`;
+
+                if (typeof canEdit !== 'undefined' && canEdit) {
+                    html += `
                         <button type="button" class="btn btn-info btn-sm editar" data-id="${almacen.id}" data-name="${almacen.nombre}" abreviatura="${almacen.abreviatura}" data-address="${almacen.direccion}">
-                            Editar
-                        </button>
+                            <i class="fas fa-edit editar" data-id="${almacen.id}" data-name="${almacen.nombre}" abreviatura="${almacen.abreviatura}" data-address="${almacen.direccion}"></i>
+                        </button>`;
+                }
+
+                if (typeof canDelete !== 'undefined' && canDelete) {
+                    html += `
                         <button type="button" class="btn btn-danger btn-sm eliminar" data-id="${almacen.id}" data-name="${almacen.nombre}" abreviatura="${almacen.abreviatura}" data-address="${almacen.direccion}">
-                            Eliminar
-                        </button>
+                            <i class="fas fa-trash eliminar" data-id="${almacen.id}" data-name="${almacen.nombre}" abreviatura="${almacen.abreviatura}" data-address="${almacen.direccion}"></i>
+                        </button>`;
+                }
+
+                html += `
                     </td>
                 </tr>
             `;
-        });
+            });
 
-        $("#dataTableExample").DataTable().destroy();
-        tabla.innerHTML = html;
-        $("#dataTableExample").DataTable();
+            if ($.fn.DataTable.isDataTable('#dataTableExample')) {
+                $('#dataTableExample').DataTable().destroy();
+            }
+            tabla.innerHTML = html;
+            initDataTable("#dataTableExample");
 
-    })
+        })
 }
 
 function editar_almacen(e){

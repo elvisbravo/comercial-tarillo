@@ -10,6 +10,16 @@
 
     <!-- DataTables -->
     <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+    <style>
+        div.dataTables_wrapper div.dataTables_paginate {
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+        .pagination {
+            justify-content: flex-end !important;
+        }
+    </style>
 @endsection
 @section('contenido')
 
@@ -39,6 +49,7 @@
     </div>
 
     
+@if(App\Permisos::hasPermission('creditos-pendientes', 1))
     <div class="container-fluid">
                       <div class="row">
                                 <div class="col-12">
@@ -103,7 +114,9 @@
 
                                                               <div class="col-lg-4 col-xs-12">
                                                               <br>
+                                                                  @if(App\Permisos::hasPermission('creditos-pendientes', 7))
                                                                   <button class="btn btn-primary" id="estado">Imprimir Estado de cuenta</button>
+                                                                  @endif
 
                                                               </div>
 
@@ -153,6 +166,15 @@
 
 
     </div>
+@else
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-danger text-center">No tienes permiso para ver este módulo.</div>
+            </div>
+        </div>
+    </div>
+@endif
 
 
 
@@ -264,8 +286,10 @@
 
                                                          </div>
 
+                                                         @if(App\Permisos::hasPermission('creditos-pendientes', 7))
                                                          <button class="btn btn-primary"  id="imprimir_contrato">Imprimir Contrato</button>
                                                          <button class="btn btn-info"  id="imprimir_cuotas">Imprimir Cuotas</button>
+                                                         @endif
 
 
 
@@ -294,6 +318,10 @@
     <!-- Required datatable js -->
     <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
     <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+
+    <script>
+        const canPrint = {{ App\Permisos::hasPermission('creditos-pendientes', 7) ? 'true' : 'false' }};
+    </script>
 
     <script src="{{ asset('js/reportes-creditos-activos.js') }}">
     </script>

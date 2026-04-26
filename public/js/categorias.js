@@ -39,15 +39,17 @@ function llenacategorias(data){
 
       }
     contenido += "<td style='padding:1px;text-align:center'>";
-    //contenido +='<i class="fas fa-edit"></i>';
-    contenido +=' <button type="button" onclick="abrimodal('+ data[i].id +')" class="btn btn-info " data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i></button>';
-    if(data[i].estado==0){
+    
+    if (typeof canEdit !== 'undefined' && canEdit) {
+      contenido +=' <button type="button" onclick="abrimodal('+ data[i].id +')" class="btn btn-info " data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i></button>';
+    }
 
-        contenido +='<button type="button" onclick="activar('+ data[i].id +')" class="btn btn-warning activar"><i class="fas fa-sync activar"></i> </button>';
-
-    }else{
-
-        contenido +='<button type="button" onclick="eliminarsector('+ data[i].id +')" class="btn btn-danger eliminar"><i class="fas fa-trash-alt eliminar"></i> </button>';
+    if (typeof canDelete !== 'undefined' && canDelete) {
+        if(data[i].estado==0){
+            contenido +=' <button type="button" onclick="activar('+ data[i].id +')" class="btn btn-warning activar"><i class="fas fa-sync activar"></i> </button>';
+        }else{
+            contenido +=' <button type="button" onclick="eliminarsector('+ data[i].id +')" class="btn btn-danger eliminar"><i class="fas fa-trash-alt eliminar"></i> </button>';
+        }
     }
 
     contenido +="</td>";
@@ -57,7 +59,7 @@ function llenacategorias(data){
   }
 
   document.getElementById("listadocategorias").innerHTML = contenido;
-  $("#datatable").dataTable();
+  initDataTable("#datatable");
 
 
 }

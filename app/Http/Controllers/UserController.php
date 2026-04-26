@@ -25,20 +25,23 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
-        $user = Auth::user();
-        $buscar = $request->get('buscar');
+        return view('users.index');
+    }
 
-        $query = User::orderBy('id', 'DESC')->where('estado', '!=', 0);
-
-        if (!empty($buscar)) {
-            $query->where('name', 'LIKE', '%' . $buscar . '%');
+    public function getList()
+    {
+        $users = User::orderBy('id', 'DESC')->where('estado', '!=', 0)->get();
+        $data = [];
+        foreach($users as $user) {
+            $data[] = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'img' => $user->img,
+                'roles' => $user->getRoleNames()
+            ];
         }
-
-        $datos = $query->paginate(5);
-        $datos->appends(['buscar' => $buscar]); // Para que la paginación mantenga el filtro
-
-        return view('users.index', compact('datos', 'buscar'))
-            ->with('i', ($request->input('page', 1) - 1) * 5);
+        return response()->json($data);
     }
 
     /**

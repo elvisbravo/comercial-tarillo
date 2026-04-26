@@ -23,27 +23,32 @@ window.addEventListener("load", function (event) {
 
 }
 
-function llenarmarca(data){
+function llenarmarca(data) {
+    if ($.fn.DataTable.isDataTable('#datatable')) {
+        $('#datatable').DataTable().destroy();
+    }
 
-  let contenido="";
-  for (var i = 0; i < data.length; i++) {
-    contenido += "<tr>";
-    contenido += "<td style='padding:1px;text-align:center'>" +  parseInt(i+1,10) + "</td>";
-    contenido += "<td style='padding:1px;text-align:center'> " + data[i].nomb_sec + "</td>";
-    contenido += "<td style='padding:1px;text-align:center'>";
-    //contenido +='<i class="fas fa-edit"></i>';
-    contenido +=' <button type="button" onclick="abrimodal('+ data[i].id +')" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i></button>'
-    contenido +='<button type="button" onclick="eliminarsector('+ data[i].id +')" class="btn btn-danger eliminar"><i class="fas fa-trash-alt"></i></button>'
-    contenido +="</td>";
-    contenido += "</tr>";
+    let contenido = "";
+    for (var i = 0; i < data.length; i++) {
+        contenido += "<tr>";
+        contenido += "<td style='padding:1px;text-align:center'>" + parseInt(i + 1, 10) + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].nomb_sec + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'>";
+        
+        if (typeof canEdit !== 'undefined' && canEdit) {
+            contenido += ' <button type="button" onclick="abrimodal(' + data[i].id + ')" class="btn btn-info waves-effect waves-light" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i></button>';
+        }
 
+        if (typeof canDelete !== 'undefined' && canDelete) {
+            contenido += ' <button type="button" onclick="eliminarsector(' + data[i].id + ')" class="btn btn-danger waves-effect waves-light eliminar"><i class="fas fa-trash-alt"></i></button>';
+        }
 
-  }
+        contenido += "</td>";
+        contenido += "</tr>";
+    }
 
-  document.getElementById("listadecolores").innerHTML = contenido;
-  $("#datatable").dataTable();
-
-
+    $('#listadecolores').empty().html(contenido);
+    initDataTable("#datatable");
 }
 
 

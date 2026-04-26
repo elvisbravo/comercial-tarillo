@@ -10,6 +10,16 @@
 
     <!-- DataTables -->
     <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+    <style>
+        div.dataTables_wrapper div.dataTables_paginate {
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+        .pagination {
+            justify-content: flex-end !important;
+        }
+    </style>
 @endsection
 @section('contenido')
 
@@ -65,6 +75,7 @@
                                             <td>ABIERTO</td>
                                         @endif
                                         <td>
+                                            @if(App\Permisos::hasPermission('historico-caja', 6))
                                             <div class="dropdown">
                                                 <button class="btn btn-link font-size-16 shadow-none py-0 text-muted dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                                     <i class="bx bx-list-ul"></i>
@@ -75,6 +86,7 @@
                                                 </ul>
                                                
                                             </div>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach

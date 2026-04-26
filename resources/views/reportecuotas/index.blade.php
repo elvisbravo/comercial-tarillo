@@ -16,124 +16,144 @@ Reporte Cuotas Vencidas
         color: #fff;
     }
 
-    /* Print styles */
     @media print {
         * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }
-        body * {
-            visibility: hidden !important;
-        }
-        .container-fluid, .container-fluid * {
-            visibility: visible !important;
-        }
-        .container-fluid {
+        body * { visibility: hidden !important; }
+        #print-area, #print-area * { visibility: visible !important; }
+        #print-area {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
+            padding: 10px !important;
         }
-        
-        #form-filters, #form-filters *, .loader, .loader *, button, button *, .btn, .btn *, .page-title-box, .page-title-box * {
-            display: none !important;
-            visibility: hidden !important;
-        }
-        .print-header {
-            display: block !important;
-            margin-bottom: 20px;
-        }
-        .main-content {
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-        .card { 
-            border: 1px solid #ddd !important; 
-            box-shadow: none !important; 
-            page-break-inside: avoid;
-        }
-        /* Force two columns per row in print */
-        .col-md-6 { 
-            width: 50% !important; 
-            float: left !important; 
-        }
-        .row::after {
-            content: "";
-            clear: both;
-            display: table;
-        }
+        #form-filters, .page-title-box, .loader, .btn, nav { display: none !important; }
+        .print-header { display: block !important; }
+        table { font-size: 10px !important; }
+        th, td { padding: 3px 4px !important; }
     }
-    
-    .print-header {
+
+    .print-header { display: none; }
+
+    #reporte-table th {
+        background-color: #3b5de7;
+        color: #fff;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    #reporte-table td {
+        font-size: 12px;
+        vertical-align: middle;
+    }
+    .badge-cuotas {
+        font-size: 11px;
+        padding: 3px 7px;
+        border-radius: 10px;
+        background: #e9ecef;
+        color: #495057;
+        font-weight: 600;
+    }
+
+    /* Loading overlay */
+    #loading-overlay {
         display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(255,255,255,0.82);
+        z-index: 9998;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
     }
+    #loading-overlay.active { display: flex; }
+    .loading-spinner {
+        width: 52px;
+        height: 52px;
+        border: 5px solid #dee2e6;
+        border-top-color: #3b5de7;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    .loading-text {
+        font-size: 16px;
+        font-weight: 600;
+        color: #3b5de7;
+        letter-spacing: 0.5px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Resultado stats */
+    #result-stats { display: none; }
 </style>
 @endsection
 
 @section('contenido')
-<div class="loader" style="position: fixed; left: 0px; top: 0px; width: 100%; height: 100%; z-index: 9999; background: url('{{asset('img/loader-meta.gif')}}') 50% 50% no-repeat rgb(249,249,249); opacity: .8;"></div>
+
+{{-- Loading overlay --}}
+<div id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Cargando datos&hellip;</div>
+</div>
 
 <div class="container-fluid">
-    @php
-        $agrupados = collect($datos)->groupBy('credito_id');
-    @endphp
 
-    <div class="print-header">
-        <h3 style="color: #000; margin-bottom: 5px; text-transform: uppercase;">Reporte de Cuotas Vencidas al {{ date('d/m/Y', strtotime($hoy)) }}</h3>
-        <p style="margin: 0; font-size: 16px;">
-            <strong style="color: #175bb8;">Total encontrados: {{ $agrupados->count() }}</strong> &nbsp;|&nbsp; 
-            <strong style="color: #dc3545;">Total de Deuda: S/ {{ number_format(collect($datos)->sum('saldo_cuo'), 2) }}</strong>
-        </p>
-        @if(!empty($sectoresSeleccionados))
-            @php
-                $nombresSectores = collect($sectores)->whereIn('id', $sectoresSeleccionados)->pluck('nomb_sec')->implode(', ');
-            @endphp
-            <p style="margin-top: 5px; margin-bottom: 0px; font-size: 14px; color: #555;">
-                <strong>Sectores mostrados:</strong> {{ $nombresSectores }}
-            </p>
-        @endif
-        <hr style="border-top: 2px solid #000; margin-top: 10px;">
+    {{-- Cabecera para impresion --}}
+    <div class="print-header" id="print-header">
+        <h4 style="margin-bottom:4px; text-transform:uppercase;">Reporte de Cuotas Vencidas</h4>
+        <p style="margin:0; font-size:13px;" id="print-summary"></p>
+        <hr style="border-top:2px solid #000; margin:6px 0;">
     </div>
 
+    {{-- Titulo --}}
     <div class="row">
         <div class="col-12">
             <div class="page-title-box d-sm-flex align-items-center justify-content-between">
                 <h4 class="mb-sm-0 font-size-18">
-                    Reporte de Cuotas Vencidas al {{ date('d/m/Y', strtotime($hoy)) }}
-                    <span class="badge bg-primary ms-2 font-size-14">Total encontrados: {{ $agrupados->count() }}</span>
-                    <span class="badge bg-danger ms-2 font-size-14">Total de Deuda: S/ {{ number_format(collect($datos)->sum('saldo_cuo'), 2) }}</span>
+                    Reporte de Cuotas Vencidas
+                    <span class="badge bg-primary ms-2" id="badge-count" style="display:none;"></span>
+                    <span class="badge bg-danger ms-2" id="badge-saldo" style="display:none;"></span>
                 </h4>
             </div>
         </div>
     </div>
 
-    <!-- Buscador y Select -->
-    <div class="row mb-4">
+    {{-- Filtros --}}
+    <div class="row mb-3" id="form-filters">
         <div class="col-12">
             <div class="card shadow-sm mb-0">
-                <div class="card-body">
-                    <form action="{{ route('reportecuotas.index') }}" method="GET" id="form-filters">
+                <div class="card-body py-3">
+                    <form id="filtro-form">
                         <div class="row align-items-end">
-                            <div class="col-md-5 mb-3 mb-md-0">
-                                <label for="buscar" class="form-label fw-bold">Buscar Cliente / Documento</label>
+                            <div class="col-md-5 mb-2 mb-md-0">
+                                <label class="form-label fw-bold mb-1">Buscar Cliente / Documento</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-search"></i></span>
-                                    <input type="text" class="form-control" id="buscar" name="buscar" value="{{ $buscar }}" placeholder="Razón social o número de documento...">
+                                    <input type="text" class="form-control" id="buscar"
+                                        placeholder="Raz&oacute;n social o documento...">
                                 </div>
                             </div>
-                            <div class="col-md-5 mb-3 mb-md-0">
-                                <label for="sectores" class="form-label fw-bold">Sector(es)</label>
-                                <select class="form-control select2" id="sectores" name="sectores[]" multiple="multiple" data-placeholder="Seleccione los sectores...">
+                            <div class="col-md-5 mb-2 mb-md-0">
+                                <label class="form-label fw-bold mb-1">Sector(es)</label>
+                                <select class="form-control select2" id="sectores" multiple
+                                    data-placeholder="Seleccione sectores...">
                                     @foreach($sectores as $sector)
-                                        <option value="{{ $sector->id }}" {{ in_array($sector->id, $sectoresSeleccionados) ? 'selected' : '' }}>
-                                            {{ $sector->nomb_sec }}
-                                        </option>
+                                    <option value="{{ $sector->id }}">{{ $sector->nomb_sec }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="col-md-2">
-                                <button type="submit" class="btn btn-primary w-100 mb-2"><i class="fas fa-filter me-2"></i>Filtrar</button>
-                                <button type="button" onclick="window.print()" class="btn btn-danger w-100"><i class="fas fa-file-pdf me-2"></i>Exportar PDF</button>
+                                <button type="submit" class="btn btn-primary w-100 mb-2">
+                                    <i class="fas fa-filter me-1"></i> Filtrar
+                                </button>
+                                @if(App\Permisos::hasPermission('reportecuotas', 7))
+                                <button type="button" onclick="window.print()" class="btn btn-danger w-100" id="btn-print" style="display:none;">
+                                    <i class="fas fa-file-pdf me-1"></i> Exportar PDF
+                                </button>
+                                @endif
                             </div>
                         </div>
                     </form>
@@ -142,72 +162,165 @@ Reporte Cuotas Vencidas
         </div>
     </div>
 
-    <div class="row">
-        @foreach($agrupados as $credito_id => $cuotas)
-        @php
-        $primer_cuota = $cuotas->first();
-        @endphp
-        <div class="col-md-6 mb-4">
-            <div class="card h-100 border shadow-sm">
-                <div class="card-body">
-                    <div class="row mb-3">
-                        <div class="col-sm-7">
-                            <h5 class="card-title text-primary"><i class="fas fa-user-circle me-2"></i>{{ $primer_cuota['cliente'] }}</h5>
-                            <h6 class="card-subtitle text-muted mt-2"><i class="fas fa-id-card me-2"></i>Doc: {{ $primer_cuota['documento'] }}</h6>
-                        </div>
-                        <div class="col-sm-5 text-sm-end">
-                            <h6 class="card-subtitle text-muted mb-2"><i class="fas fa-map-marker-alt me-2"></i>{{ $primer_cuota['sector'] ?? 'N/A' }}</h6>
-                            <h6 class="card-subtitle text-muted" style="line-height: 1.4;"><i class="fas fa-home me-2"></i>{{ $primer_cuota['direccion'] ?? 'N/A' }}</h6>
-                        </div>
-                    </div>
-                    <p class="card-text mb-3">
-                        <span class="badge bg-info"><i class="fas fa-box-open me-1"></i>Productos</span><br>
-                        <small class="text-secondary">{{ $primer_cuota['productos'] }}</small>
-                    </p>
-
-                    <h6 class="fw-bold mt-4 mb-2"><i class="fas fa-calendar-alt me-2"></i>Cronograma de Pagos Vencidos</h6>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover table-bordered mb-0 align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="text-center">N° Cuota</th>
-                                    <th class="text-center">Vencimiento</th>
-                                    <th class="text-end">Monto</th>
-                                    <th class="text-end">Saldo</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($cuotas as $cuota)
-                                <tr>
-                                    <td class="text-center">{{ $cuota['numero_cuo'] }}</td>
-                                    <td class="text-center">{{ date('d-m-Y', strtotime($cuota['fecha_amortizacion'])) }}</td>
-                                    <td class="text-end">S/ {{ number_format($cuota['mont_cuo'], 2) }}</td>
-                                    <td class="text-end text-danger fw-bold">S/ {{ number_format($cuota['saldo_cuo'], 2) }}</td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+    {{-- Tabla --}}
+    <div id="print-area">
+        <div class="card shadow-sm" id="card-tabla" style="display:none;">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table id="reporte-table" class="table table-bordered table-hover table-sm mb-0 align-middle w-100">
+                        <thead>
+                            <tr>
+                                <th class="text-center">#</th>
+                                <th>N&deg; Cr&eacute;dito</th>
+                                <th>Cliente</th>
+                                <th>Direcci&oacute;n</th>
+                                <th>Sector</th>
+                                <th class="text-end">Monto</th>
+                                <th class="text-end">Saldo</th>
+                                <th class="text-center">Cuotas</th>
+                                <th class="text-center">&Uacute;lt. Pago</th>
+                                <th class="text-center">Pr&oacute;x. Vcto.</th>
+                                <th class="text-center">Celular</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-data">
+                        </tbody>
+                        <tfoot id="tfoot-totales" style="display:none;">
+                            <tr class="fw-bold" style="background:#f8f9fa;">
+                                <td colspan="5" class="text-end">TOTALES:</td>
+                                <td class="text-end" id="total-monto"></td>
+                                <td class="text-end text-danger" id="total-saldo"></td>
+                                <td colspan="4"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
         </div>
-        @endforeach
+
+        {{-- Estado vacio inicial --}}
+        <div id="estado-inicial" class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Aplica los filtros y presiona <strong>Filtrar</strong> para ver los resultados</h5>
+            </div>
+        </div>
     </div>
+
 </div>
 @endsection
 
 @section('js')
 <script src="{{ asset('assets/libs/select2/select2.min.js') }}"></script>
 <script>
-    $(document).ready(function() {
-        setTimeout(() => {
-            $(".loader").fadeOut("slow");
-        }, 300);
+    const urlGeneral = $("#url_raiz_proyecto").val();
 
-        $('.select2').select2({
-            width: '100%',
-            allowClear: true
-        });
+    $(document).ready(function() {
+        $('.select2').select2({ width: '100%', allowClear: true });
+        // Pequena pausa para que el navegador pinte la pagina antes de iniciar la carga
+        setTimeout(cargarDatos, 150);
     });
+
+    $('#filtro-form').on('submit', function(e) {
+        e.preventDefault();
+        cargarDatos();
+    });
+
+    function cargarDatos() {
+        const buscar   = $('#buscar').val();
+        const sectores = $('#sectores').val();
+
+        // Mostrar loading
+        $('#loading-overlay').addClass('active');
+        $('#card-tabla').hide();
+        $('#estado-inicial').hide();
+
+        $.ajax({
+            url: urlGeneral + '/reportecuotas/getData',
+            method: 'GET',
+            data: {
+                buscar: buscar,
+                'sectores[]': sectores
+            },
+            success: function(res) {
+                renderTabla(res);
+            },
+            error: function() {
+                Swal.fire('Error', 'No se pudo cargar los datos. Intente nuevamente.', 'error');
+                $('#estado-inicial').show();
+            },
+            complete: function() {
+                $('#loading-overlay').removeClass('active');
+            }
+        });
+    }
+
+    function formatMoney(val) {
+        return 'S/ ' + parseFloat(val).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function renderTabla(res) {
+        const datos = res.datos;
+        let html = '';
+
+        if (datos.length === 0) {
+            html = `<tr>
+                        <td colspan="11" class="text-center text-muted py-4">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            No hay cuotas vencidas con los filtros seleccionados.
+                        </td>
+                    </tr>`;
+            $('#tfoot-totales').hide();
+            $('#btn-print').hide();
+        } else {
+            datos.forEach(function(row, i) {
+                const proxFecha = row.proxima_fecha
+                    ? `<span class="text-danger fw-bold">${formatFecha(row.proxima_fecha)}</span>`
+                    : '-';
+
+                html += `<tr>
+                    <td class="text-center text-muted">${i + 1}</td>
+                    <td class="text-center fw-bold text-primary">${row.credito_id}</td>
+                    <td>${row.cliente}</td>
+                    <td class="text-muted" style="max-width:160px; white-space:normal;">${row.direccion ?? '-'}</td>
+                    <td>${row.sector}</td>
+                    <td class="text-end">${formatMoney(row.monto_total)}</td>
+                    <td class="text-end fw-bold text-danger">${formatMoney(row.saldo_total)}</td>
+                    <td class="text-center"><span class="badge-cuotas">${row.cuotas_pagadas} / ${row.total_cuotas}</span></td>
+                    <td class="text-center text-muted small">${row.ultima_pago}</td>
+                    <td class="text-center small">${proxFecha}</td>
+                    <td class="text-center">${row.telefono}</td>
+                </tr>`;
+            });
+
+            // Totales
+            $('#total-monto').text(formatMoney(res.total_monto));
+            $('#total-saldo').text(formatMoney(res.total_saldo));
+            $('#tfoot-totales').show();
+
+            // Badges titulo
+            $('#badge-count').text(res.count + ' cr\u00e9ditos').show();
+            $('#badge-saldo').text('Deuda: ' + formatMoney(res.total_saldo)).show();
+
+            // Print summary
+            $('#print-summary').html(
+                `<strong>Total cr\u00e9ditos:</strong> ${res.count} &nbsp;|&nbsp;
+                 <strong style="color:#dc3545;">Saldo total: ${formatMoney(res.total_saldo)}</strong>`
+            );
+
+            $('#btn-print').show();
+        }
+
+        $('#tbody-data').html(html);
+        $('#card-tabla').show();
+        $('#estado-inicial').hide();
+    }
+
+    function formatFecha(dateStr) {
+        if (!dateStr) return '-';
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return dateStr;
+        return parts[2] + '/' + parts[1] + '/' + parts[0];
+    }
 </script>
 @endsection

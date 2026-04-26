@@ -53,8 +53,9 @@ class ProveedorController extends Controller
      */
     public function crear(Request $request)
     {
-
-
+        $request->validate([
+            'ruc' => 'required|unique:proveedors,ruc',
+        ]);
 
         $empresa=DB::table('empresas')
         ->select('id')

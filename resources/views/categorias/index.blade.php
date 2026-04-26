@@ -64,9 +64,9 @@
                                     <div class="col-12">
                                         <div class="card">
                                             <div class="card-header">
-
+                                            @if(App\Permisos::hasPermission('categorias', 2))
                                             <button type="button" class="btn btn-primary waves-effect btn-label waves-light"  onclick="abrimodal(0)" data-bs-toggle="modal" data-bs-target="#staticBackdrop"> <i class="btn-icon-prepend" data-feather="plus"></i> crear Nueva Categoria</button>
-                                            
+                                            @endif
                                             </div>
 
                                             <div class="card-body">
@@ -149,6 +149,11 @@
     <!-- Required datatable js -->
     <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
     <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+
+    <script>
+        const canEdit = {{ App\Permisos::hasPermission('categorias', 3) ? 'true' : 'false' }};
+        const canDelete = {{ App\Permisos::hasPermission('categorias', 4) ? 'true' : 'false' }};
+    </script>
 
     <script src="{{ asset('js/categorias.js') }}">
     </script>

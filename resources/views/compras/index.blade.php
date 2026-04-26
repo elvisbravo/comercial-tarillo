@@ -10,6 +10,16 @@
 
     <!-- DataTables -->
     <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+    <style>
+        div.dataTables_wrapper div.dataTables_paginate {
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+        .pagination {
+            justify-content: flex-end !important;
+        }
+    </style>
 @endsection
 @section('contenido')
 
@@ -62,9 +72,9 @@
                     <div class="col-12">
                         <div class="card">
                             <div class="card-header">
-
+                            @if(App\Permisos::hasPermission('compras', 2))
                             <a href="{{url('compras/create')}}" type="button" class="btn btn-primary "  > <i class="btn-icon-prepend" data-feather="plus"></i>Nuevo </a>
-
+                            @endif
                             </div>
 
                             <div class="card-body">
@@ -202,6 +212,11 @@
     <!-- Required datatable js -->
     <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
     <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+
+    <script>
+        const canDelete = {{ App\Permisos::hasPermission('compras', 4) ? 'true' : 'false' }};
+        const canViewDetail = {{ App\Permisos::hasPermission('compras', 6) ? 'true' : 'false' }};
+    </script>
 
     <script src="{{ asset('js/compraslista.js') }}">
     </script>

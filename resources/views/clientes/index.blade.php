@@ -10,6 +10,16 @@ Clientes
 
 <!-- DataTables -->
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+<style>
+    div.dataTables_wrapper div.dataTables_paginate {
+        display: flex !important;
+        justify-content: flex-end !important;
+    }
+    .pagination {
+        justify-content: flex-end !important;
+    }
+</style>
 @endsection
 @section('contenido')
 
@@ -64,10 +74,9 @@ Clientes
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-
-
+                    @if(App\Permisos::hasPermission('clientes', 2))
                     <a href="{{url('clientes/create')}}" class="btn btn-primary "> <i class="btn-icon-prepend" data-feather="plus"></i> Nuevo</a>
-
+                    @endif
                 </div>
 
                 <div class="card-body">
@@ -76,21 +85,17 @@ Clientes
                     <i data-feather="star"></i>
 
                     <div class="table-responsive">
-                        <form method="GET" action="{{ route('clientes.index') }}">
-                            <div class="row mb-2">
-                                <div class="col-md-6 ms-auto d-flex">
-                                    <select name="estado" class="form-select me-2" onchange="this.form.submit()">
-                                        <option value="1" {{ $estado == '1' ? 'selected' : '' }}>Activos</option>
-                                        <option value="0" {{ $estado == '0' ? 'selected' : '' }}>Inactivos</option>
-                                    </select>
-                                    <input type="text" name="buscar" class="form-control me-2"
-                                        placeholder="Buscar cliente..."
-                                        value="{{ $buscar }}">
-                                    <button class="btn btn-primary">Buscar</button>
-                                </div>
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label for="estado_filter">Filtrar por Estado:</label>
+                                <select id="estado_filter" class="form-select">
+                                    <option value="1">Activos</option>
+                                    <option value="0">Inactivos</option>
+                                </select>
                             </div>
-                        </form>
-                        <table id="datatables" class="table table-bordered dt-responsive  nowrap w-100">
+                        </div>
+
+                        <table id="datatable" class="table table-bordered dt-responsive nowrap w-100">
                             <thead>
                                 <tr>
                                     <th>#</th>
@@ -102,40 +107,9 @@ Clientes
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
-
-
-                            <tbody>
-                                <?php $i = 1;   ?>
-                                @foreach($clientes as $c)
-                                <tr>
-                                    <td style='padding:1px;text-align:center'><?php echo $i++   ?></td>
-                                    <td style='padding:1px;text-align:center'>{{$c->razon_social}}</td>
-                                    <td style='padding:1px;text-align:center'>{{$c->tipo_doc}}</td>
-                                    <td style='padding:1px;text-align:center'>{{$c->documento}}</td>
-                                    <td style='padding:1px;text-align:center'>{{$c->dire_per}}</td>
-                                    <td style='padding:1px;text-align:center'>{{$c->telefono}}</td>
-                                    <td style='padding:1px;text-align:center'>
-
-
-                                        <a type="button" href="{{ route('clientes.edit',$c->id) }}" class="btn btn-info"><i class="fas fa-edit"></i> </a>
-                                        @if($c->estado_per==1)
-                                        <button type="button" onclick="anular('{{$c->id}}');" class="btn btn-danger eliminar"><i class="fas fa-trash-alt  eliminar"></i> <input type="hidden" value="'{{$c->id}}'"> </button>
-                                        @else
-                                        <button type="button" onclick="activar('{{$c->id}}');" class="btn btn-warning activar"><i class="fas fa-sync activar"></i> </button>
-                                        @endif
-
-                                    </td>
-
-                                </tr>
-                                @endforeach
-
+                            <tbody id="listadoclientes">
                             </tbody>
                         </table>
-
-                        <div class="mt-3 d-flex justify-content-end">
-                            {{ $clientes->appends(['buscar' => $buscar, 'estado' => $estado])->links() }}
-                        </div>
-
                     </div>
                 </div>
             </div>
@@ -169,6 +143,11 @@ Clientes
 <!-- Required datatable js -->
 <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+
+<script>
+    const canEdit = {{ App\Permisos::hasPermission('clientes', 3) ? 'true' : 'false' }};
+    const canDelete = {{ App\Permisos::hasPermission('clientes', 4) ? 'true' : 'false' }};
+</script>
 
 <script src="{{ asset('js/clientes.js') }}">
 </script>

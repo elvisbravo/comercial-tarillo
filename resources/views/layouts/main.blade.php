@@ -219,6 +219,7 @@
     <!-- pace js -->
     <script src="{{ asset('assets/libs/pace-js/pace.min.js') }}"></script>
     <script src="{{ asset('assets/js/app.js') }}"></script>
+    <script src="{{ asset('js/utils.js') }}"></script>
 
     <script>
          function fetchData() {

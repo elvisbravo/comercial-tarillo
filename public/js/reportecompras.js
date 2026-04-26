@@ -120,6 +120,9 @@ function generar_reporte(){
 }
 
 function llenar_reporte(data){
+  if ($.fn.DataTable.isDataTable('#datatable')) {
+      $('#datatable').DataTable().destroy();
+  }
   let contenido="";
   for (var i = 0; i < data.length; i++) {
     contenido += "<tr>";
@@ -151,7 +154,7 @@ function llenar_reporte(data){
   }
 
   document.getElementById("listado_reporte_compras").innerHTML = contenido;
-  $("#datatable").dataTable();
+  initDataTable("#datatable");
 }
 $("#exportarexcel").on("click",function(){
 

@@ -10,6 +10,16 @@
 
     <!-- DataTables -->
     <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+    <style>
+        div.dataTables_wrapper div.dataTables_paginate {
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+        .pagination {
+            justify-content: flex-end !important;
+        }
+    </style>
 @endsection
 @section('contenido')
 
@@ -85,7 +95,9 @@
                                                      <br>
 
                                                    <button class="btn btn-primary" id="buscar">Buscar</button>
+                                                   @if(App\Permisos::hasPermission('impresion-planilla', 7))
                                                    <button class="btn btn-info" id="imprimir">Imprimir</button>
+                                                   @endif
 
                                                 </div>
 

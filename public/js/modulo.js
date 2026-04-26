@@ -33,14 +33,19 @@ function buildDataTable(data) {
         contenidoHtml += "<td> " + data[indice].url + "</td>";
         contenidoHtml += "<td> " + data[indice].order + "</td>";
         contenidoHtml += "<td class='icons-flex'>";
-        contenidoHtml +=
-            ' <button type="button" onclick="abrimodal(' +
-            data[indice].id +
-            ')" class="btn btn-info waves-effect waves-light" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i> Editar</button>';
-        contenidoHtml +=
-            '<button type="button" onclick="deleteModule(' +
-            data[indice].id +
-            ')" class="btn btn-danger waves-effect waves-light eliminar"><i class="fas fa-trash-alt"></i> Eliminar</button>';
+        if (typeof canEdit !== 'undefined' && canEdit) {
+            contenidoHtml +=
+                ' <button type="button" onclick="abrimodal(' +
+                data[indice].id +
+                ')" class="btn btn-info waves-effect waves-light" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i> Editar</button>';
+        }
+
+        if (typeof canDelete !== 'undefined' && canDelete) {
+            contenidoHtml +=
+                '<button type="button" onclick="deleteModule(' +
+                data[indice].id +
+                ')" class="btn btn-danger waves-effect waves-light"><i class="fas fa-trash-alt"></i> Eliminar</button>';
+        }
         contenidoHtml += "</td>";
         contenidoHtml += "</tr>";
     }
@@ -48,11 +53,7 @@ function buildDataTable(data) {
         $('#datatable').DataTable().destroy();
     }
     document.getElementById("listadecolores").innerHTML = contenidoHtml;
-    $("#datatable").DataTable({
-        "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.16/i18n/Spanish.json"
-        }
-    });
+    initDataTable("#datatable");
 }
 
 function abrimodal(id) {
@@ -209,40 +210,32 @@ $("#actualizar").on("click", function () {
 });
 
 function deleteModule(id) {
-    const table = document.getElementById("datatable");
-    table.addEventListener("click", (e) => {
-        if (
-            e.target.classList.contains("eliminar") ||
-            e.target.classList.contains("bx")
-        ) {
-            Swal.fire({
-                title: "¿Desea eliminar el módulo?",
-                text: "No podrás revertir esto!",
-                icon: "warning",
-                showCancelButton: true,
-                confirmButtonColor: "#3085d6",
-                cancelButtonColor: "#d33",
-                confirmButtonText: "Si, eliminar!",
-                cancelButtonText: "Cancelar",
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    let csrfToken = document.querySelector(
-                        'meta[name="csrf-token"]'
-                    ).content;
-                    $.ajax({
-                        type: "POST",
-                        url: urlGeneral + "/modulo/delete/" + id,
-                        data: { _method: "delete", _token: csrfToken },
-                        success: function (data) {
-                            getListModule();
-                            Swal.fire(
-                                "Eliminado!",
-                                "Módulo eliminado Correctamente.",
-                                "success"
-                            );
-                        },
-                    });
-                }
+    Swal.fire({
+        title: "¿Desea eliminar el módulo?",
+        text: "No podrás revertir esto!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Si, eliminar!",
+        cancelButtonText: "Cancelar",
+    }).then((result) => {
+        if (result.isConfirmed) {
+            let csrfToken = document.querySelector(
+                'meta[name="csrf-token"]'
+            ).content;
+            $.ajax({
+                type: "POST",
+                url: urlGeneral + "/modulo/delete/" + id,
+                data: { _method: "delete", _token: csrfToken },
+                success: function (data) {
+                    getListModule();
+                    Swal.fire(
+                        "Eliminado!",
+                        "Módulo eliminado Correctamente.",
+                        "success"
+                    );
+                },
             });
         }
     });

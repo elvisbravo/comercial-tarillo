@@ -4,7 +4,6 @@ $("#actualizar").hide();
 //FUNCION LOAD
 window.addEventListener("load", function (event) {
     $(".loader").fadeOut("slow");
-    $("#datatabledos").dataTable();
 });
 
 //mandar como parametros, para listar reportes de acuerdo a ellos
@@ -18,7 +17,6 @@ function generar_reporte() {
             urlgeeneral + "/reporte/listarinventario/" + stock_id,
             function (data) {
                 console.log(data);
-                $("#datatabledos").dataTable().fnDestroy();
                 llenarinventario(data);
             },
         );
@@ -26,6 +24,9 @@ function generar_reporte() {
 }
 
 function llenarinventario(data) {
+    if ($.fn.DataTable.isDataTable('#datatabledos')) {
+        $('#datatabledos').DataTable().destroy();
+    }
     let contenido = "";
     for (var i = 0; i < data.length; i++) {
         contenido += "<tr>";
@@ -80,7 +81,7 @@ function llenarinventario(data) {
 
     document.getElementById("listainventario").innerHTML = contenido;
 
-    $("#datatabledos").dataTable();
+    initDataTable("#datatabledos");
 }
 
 $("#exportarexcel").on("click", function () {

@@ -10,6 +10,16 @@ Reporte de Inventario
 
 <!-- DataTables -->
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+<style>
+    div.dataTables_wrapper div.dataTables_paginate {
+        display: flex !important;
+        justify-content: flex-end !important;
+    }
+    .pagination {
+        justify-content: flex-end !important;
+    }
+</style>
 @endsection
 @section('contenido')
 
@@ -69,7 +79,9 @@ Reporte de Inventario
 
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                         <button class="btn btn-info" type="button" onclick="generar_reporte()">GENERAR REPORTE</button>
+                        @if(App\Permisos::hasPermission('reporteinventarios', 7))
                         <button class="btn btn-success" type="button" id="exportarexcel">EXPORTAR EN EXCEL</button>
+                        @endif
                     </div>
 
 

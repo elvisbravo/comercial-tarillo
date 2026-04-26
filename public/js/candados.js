@@ -17,30 +17,35 @@ window.addEventListener("load", function (event) {
     });
 }
 
-function llenarcolores(data){
+function llenarcolores(data) {
+    if ($.fn.DataTable.isDataTable('#datatable')) {
+        $('#datatable').DataTable().destroy();
+    }
 
-  let contenido="";
-  for (var i = 0; i < data.length; i++) {
-    contenido += "<tr>";
-    contenido += "<td style='padding:1px;text-align:center'>" +  parseInt(i+1,10) + "</td>";
-    contenido += "<td style='padding:1px;text-align:center'> " + data[i].rango_minimo + "</td>";
-    contenido += "<td style='padding:1px;text-align:center'> " + data[i].rango_maximo + "</td>";
-    contenido += "<td style='padding:1px;text-align:center'> " + data[i].monto_inicial + "</td>";
-    contenido += "<td style='padding:1px;text-align:center'> " + data[i].nmeses + "</td>";
-    contenido += "<td style='padding:1px;text-align:center'>";
-    //contenido +='<i class="fas fa-edit"></i>';
-    contenido +=' <button type="button" onclick="abrimodal('+ data[i].id +')" class="btn btn-info " data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i></button>'
-    contenido +='<button type="button" onclick="eliminarsector('+ data[i].id +')" class="btn btn-danger  eliminar"><i class="fas fa-trash-alt"></i></button>'
-    contenido +="</td>";
-    contenido += "</tr>";
+    let contenido = "";
+    for (var i = 0; i < data.length; i++) {
+        contenido += "<tr>";
+        contenido += "<td style='padding:1px;text-align:center'>" + parseInt(i + 1, 10) + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].rango_minimo + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].rango_maximo + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].monto_inicial + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + data[i].nmeses + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'>";
+        
+        if (typeof canEdit !== 'undefined' && canEdit) {
+            contenido += ' <button type="button" onclick="abrimodal(' + data[i].id + ')" class="btn btn-info waves-effect waves-light" data-bs-toggle="modal" data-bs-target="#staticBackdrop" title="Editar"><i class="fas fa-edit"></i></button>';
+        }
 
+        if (typeof canDelete !== 'undefined' && canDelete) {
+            contenido += ' <button type="button" onclick="eliminarsector(' + data[i].id + ')" class="btn btn-danger waves-effect waves-light eliminar" title="Eliminar"><i class="fas fa-trash-alt"></i></button>';
+        }
 
-  }
+        contenido += "</td>";
+        contenido += "</tr>";
+    }
 
-  document.getElementById("listadecolores").innerHTML = contenido;
-  $("#datatable").dataTable();
-
-
+    $('#listadecolores').empty().html(contenido);
+    initDataTable("#datatable");
 }
 
 
@@ -187,54 +192,34 @@ $("#actualizar").on("click",function(){
 //metodo para anular el color:
 
 
-function eliminarsector(id){
-
-  const tabla = document.getElementById('datatable');
-
-  tabla.addEventListener('click', (e) => {
-    if (e.target.classList.contains('eliminar') || e.target.classList.contains('bx')) {
-        Swal.fire({
-            title: '¿Desea eliminar el color?',
-            text: "No podrás revertir esto!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Si, eliminar!',
-            cancelButtonText: 'Cancelar'
-          }).then((result) => {
-            if (result.isConfirmed) {
-            //Metodo para eleminar
+function eliminarsector(id) {
+    Swal.fire({
+        title: '¿Desea eliminar el candado?',
+        text: "No podrás revertir esto!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Si, eliminar!',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
             var csrf = document.querySelector('meta[name="csrf-token"]').content;
-              $.ajax({
+            $.ajax({
                 type: "POST",
-                url: urlgeeneral+"/candados-creditos/eliminar/"+id,
-                data: {"_method": "delete",'_token': csrf},
-
+                url: urlgeeneral + "/candados-creditos/eliminar/" + id,
+                data: { "_method": "delete", '_token': csrf },
                 success: function (data) {
-
-                  listarcolores();
-
-                  Swal.fire(
-                    'Eliminado!',
-                    'Ha sido eliminado.',
-                    'success'
-                  )
-
-
+                    listarcolores();
+                    Swal.fire(
+                        'Eliminado!',
+                        'Ha sido eliminado.',
+                        'success'
+                    )
                 }
-
             });
-
-
-
-
-
-            }
-          })
-    }
-})
-
+        }
+    });
 }
 
 

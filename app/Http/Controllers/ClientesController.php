@@ -26,20 +26,51 @@ class ClientesController extends Controller
         $this->middleware('auth');
     }
 
-    public function index(Request $request)
+    public function index()
     {
-        $buscar = $request->get('buscar');
-        $estado = $request->get('estado', '1');
+        return view('clientes.index');
+    }
 
-        $clientes = Clientes::where('estado_per', '=', $estado)
-            ->when($buscar, function ($query, $buscar) {
-                return $query->where(function($q) use ($buscar) {
-                    $q->where('nomb_per', 'ilike', "%$buscar%")
-                      ->orWhere('documento', 'like', "%$buscar%");
-                });
-            })->paginate(10);
+    public function listado(Request $request, $estado)
+    {
+        $draw = $request->get('draw');
+        $start = $request->get('start');
+        $length = $request->get('length');
+        $search = $request->get('search')['value'];
 
-        return view('clientes.index', compact('clientes', 'buscar', 'estado'));
+        $query = Clientes::where('estado_per', '=', $estado);
+
+        $totalRecords = $query->count();
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('razon_social', 'ilike', "%$search%")
+                  ->orWhere('documento', 'like', "%$search%")
+                  ->orWhere('nomb_per', 'ilike', "%$search%")
+                  ->orWhere('dire_per', 'ilike', "%$search%")
+                  ->orWhere('telefono', 'like', "%$search%");
+            });
+        }
+
+        $filteredRecords = $query->count();
+
+        // Ordenamiento (opcional pero recomendado)
+        $orderColumnIndex = $request->get('order')[0]['column'];
+        $orderDir = $request->get('order')[0]['dir'];
+        $columns = ['id', 'razon_social', 'tipo_doc', 'documento', 'dire_per', 'telefono'];
+        $orderColumn = $columns[$orderColumnIndex] ?? 'id';
+
+        $data = $query->orderBy($orderColumn, $orderDir)
+                      ->offset($start)
+                      ->limit($length)
+                      ->get();
+
+        return response()->json([
+            'draw' => intval($draw),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $filteredRecords,
+            'data' => $data
+        ]);
     }
 
     public function create()

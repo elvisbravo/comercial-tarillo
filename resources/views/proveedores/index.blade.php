@@ -10,6 +10,16 @@
 
     <!-- DataTables -->
     <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+    <style>
+        div.dataTables_wrapper div.dataTables_paginate {
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+        .pagination {
+            justify-content: flex-end !important;
+        }
+    </style>
 @endsection
 @section('contenido')
 
@@ -64,9 +74,9 @@
                                     <div class="col-12">
                                         <div class="card">
                                             <div class="card-header">
-
-                                            <button type="button" class="btn btn-primary"  onclick="abrimodal(0)" data-bs-toggle="modal" data-bs-target="#staticBackdrop"> <i class="btn-icon-prepend" data-feather="plus"></i>Nuevo</button>
-
+                                            @if(App\Permisos::hasPermission('proveedores', 2))
+                                            <button type="button" class="btn btn-primary"  onclick="abrimodal(0)" data-bs-toggle="modal" data-bs-target="#staticBackdrop"> <i class="btn-icon-prepend" data-feather="plus"></i> Nuevo Proveedor</button>
+                                            @endif
                                             </div>
 
                                             <div class="card-body">
@@ -116,85 +126,80 @@
 
      <!-- Static Backdrop Modal -->
      <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
                         <div class="modal-content">
                             <div class="modal-header">
-                                    <h5 class="modal-title" id="staticBackdropLabel">Formulario</h5>
+                                    <h5 class="modal-title" id="staticBackdropLabel">Formulario de Proveedor</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                         <div class="modal-body">
-                           <p style="color:red">Todos los campos marcados con (*) son obligatorios</p>
+                            <p class="text-muted mb-4">Todos los campos marcados con <span class="text-danger">(*)</span> son obligatorios</p>
                              <input type="hidden" name="name" id="valor" value="0" />
-                             <div class="form-group">
-                              <label for="">Razon Social <strong style="color:red">(*)</strong></label>
-                              <select name="" id="razon_social" class="form-control">
-
-
-                              </select>
-
-
+                             
+                             <div class="row">
+                                 <div class="col-md-6 mb-3">
+                                     <label for="razon_social" class="form-label">Persona <strong class="text-danger">(*)</strong></label>
+                                     <select name="razon_social" id="razon_social" class="form-select obligatorio">
+                                     </select>
+                                 </div>
+                                 <div class="col-md-6 mb-3">
+                                     <label class="form-label" for="documento_identidad">Tipo Doc. Ident <strong class="text-danger">(*)</strong></label>
+                                     <select class="form-select obligatorio" name="documento_identidad" id="documento_identidad">
+                                         @foreach ($tipo_documento as $documento)
+                                             <option value="{{ $documento->id }}" {{ $documento->id == 1 ? 'selected' : '' }}>{{ $documento->nombre }}</option>
+                                         @endforeach
+                                     </select>
+                                 </div>
                              </div>
-                             <label class="form-label" for="formrow-email-input">Tipo Doc. Ident  <strong style="color:red">(*)</strong></label>
-                                                                        <select class="form-select" name="documento_identidad" id="documento_identidad">
-                                                                            @foreach ($tipo_documento as $documento)
-                                                                                @if ($documento->id == 1)
-                                                                                    <option value="{{ $documento->id }}" selected="true">{{ $documento->nombre }}</option>
-                                                                                @else
-                                                                                    <option value="{{ $documento->id }}">{{ $documento->nombre }}</option>
-                                                                                @endif
-                                                                            @endforeach
 
-                                                                        </select>
-                            <div class="form-group">
-                                <label for="">Número Documento <strong style="color:red">(*)</strong></label>
+                             <div class="row">
+                                 <div class="col-md-6 mb-3">
+                                     <label for="ruc" class="form-label">Número Documento <strong class="text-danger">(*)</strong></label>
+                                     <div class="input-group">
+                                         <input type="number" class="form-control obligatorio" id="ruc" placeholder="Número de documento" name="ruc">
+                                         <button class="btn btn-primary" type="button" id="btn_consultar"><i class="bx bx-search-alt align-middle"></i></button>
+                                     </div>
+                                 </div>
+                                 <div class="col-md-6 mb-3">
+                                     <label for="nombre_comercial" class="form-label">Nombre / Razón Social <strong class="text-danger">(*)</strong></label>
+                                     <input type="text" class="form-control obligatorio limpiar" placeholder="Nombre Comercial" id="nombre_comercial">
+                                 </div>
+                             </div>
 
-                                <input type="numer" class="form-control obligatorio" id="ruc" placeholder="Número de documento aqui!" name="ruc" required="true">
-                                <button class="btn btn-primary" type="button" id="btn_consultar"><i class="bx bx-search-alt align-middle"></i></button>
+                             <div class="row">
+                                 <div class="col-md-6 mb-3">
+                                     <label for="direccion" class="form-label">Dirección</label>
+                                     <input type="text" class="form-control limpiar" placeholder="Dirección" id="direccion">
+                                 </div>
+                                 <div class="col-md-6 mb-3">
+                                     <label for="telefono" class="form-label">Teléfono</label>
+                                     <input type="text" class="form-control limpiar" placeholder="Teléfono" id="telefono">
+                                 </div>
+                             </div>
 
-                            </div>
-                            <div class="form-group">
-                                <label for="">Nombre Comercial <strong style="color:red">(*)</strong></label>
-                                <input type="text" class="form-control obligatorio limpiar" placeholder="Nombre Comercial" id="nombre_comercial">
+                             <div class="row">
+                                 <div class="col-md-6 mb-3">
+                                     <label for="email" class="form-label">Email</label>
+                                     <input type="email" class="form-control limpiar" placeholder="Email" id="email">
+                                 </div>
+                                 <div class="col-md-6 mb-3">
+                                     <label for="web_sitie" class="form-label">Sitio Web</label>
+                                     <input type="text" class="form-control limpiar" placeholder="URL Sitio Web" id="web_sitie">
+                                 </div>
+                             </div>
 
-                            </div>
-                            <div class="form-group">
-                                <label for="">Dirección</label>
-                                <input type="text" class="form-control  limpiar" placeholder="Dirección" id="direccion">
-
-                            </div>
-
-                            <div class="form-group">
-                                <label for="">Telefono</label>
-                                <input type="text" class="form-control  limpiar" placeholder="Telefono" id="telefono">
-
-                            </div>
-
-
-                            <div class="form-group">
-                                <label for="">Email</label>
-                                <input type="text" class="form-control  limpiar" placeholder="Email" id="email">
-
-                            </div>
-
-                            <div class="form-group">
-                                <label for="">Sitio Web</label>
-                                <input type="text" class="form-control  limpiar" placeholder="web_sitie" id="web_sitie">
-
-                            </div>
-
-                            <div class="form-group">
-                                <label for="">Contacto</label>
-                                <input type="text" class="form-control  limpiar" placeholder="Contacto" id="contacto">
-
-                            </div>
-
+                             <div class="row">
+                                 <div class="col-md-12 mb-3">
+                                     <label for="contacto" class="form-label">Contacto / Representante</label>
+                                     <input type="text" class="form-control limpiar" placeholder="Nombre del contacto" id="contacto">
+                                 </div>
+                             </div>
                         </div>
                         <div class="modal-footer">
-                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
-                        <button type="button" class="btn btn-primary" id="guardar">Guardar</button>
-                         <button type="button" class="btn btn-primary" id="actualizar">Actualizar</button>
-
-                    </div>
+                            <button type="button" class="btn btn-secondary waves-effect" data-bs-dismiss="modal">Cerrar</button>
+                            <button type="button" class="btn btn-primary waves-effect waves-light" id="guardar">Guardar</button>
+                            <button type="button" class="btn btn-primary waves-effect waves-light" id="actualizar">Actualizar</button>
+                        </div>
                     </div>
                 </div>
         </div>
@@ -214,6 +219,12 @@
     <!-- Required datatable js -->
     <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
     <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+
+    <script>
+        const canEdit = {{ App\Permisos::hasPermission('proveedores', 3) ? 'true' : 'false' }};
+        const canDelete = {{ App\Permisos::hasPermission('proveedores', 4) ? 'true' : 'false' }};
+        const canViewDetail = {{ App\Permisos::hasPermission('proveedores', 6) ? 'true' : 'false' }};
+    </script>
 
     <script src="{{ asset('js/proveedores.js') }}">
     </script>

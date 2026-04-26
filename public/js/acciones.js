@@ -17,8 +17,12 @@ function buildDataTable(data) {
         contenidoHtml += "<td>" + (i + 1) + "</td>";
         contenidoHtml += "<td>" + data[i].nombre + "</td>";
         contenidoHtml += "<td>";
-        contenidoHtml += '<button type="button" onclick="abrimodal(' + data[i].id + ')" class="btn btn-info btn-sm waves-effect waves-light me-1" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i> Editar</button>';
-        contenidoHtml += '<button type="button" onclick="eliminar(' + data[i].id + ')" class="btn btn-danger btn-sm waves-effect waves-light"><i class="fas fa-trash-alt"></i> Eliminar</button>';
+        if (typeof canEdit !== 'undefined' && canEdit) {
+            contenidoHtml += '<button type="button" onclick="abrimodal(' + data[i].id + ')" class="btn btn-info btn-sm waves-effect waves-light me-1" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fas fa-edit"></i> Editar</button>';
+        }
+        if (typeof canDelete !== 'undefined' && canDelete) {
+            contenidoHtml += '<button type="button" onclick="eliminar(' + data[i].id + ')" class="btn btn-danger btn-sm waves-effect waves-light"><i class="fas fa-trash-alt"></i> Eliminar</button>';
+        }
         contenidoHtml += "</td>";
         contenidoHtml += "</tr>";
     }
@@ -28,11 +32,7 @@ function buildDataTable(data) {
     }
     
     $("#listado").html(contenidoHtml);
-    $("#datatable").DataTable({
-        "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.16/i18n/Spanish.json"
-        }
-    });
+    initDataTable("#datatable");
 }
 
 function abrimodal(id) {

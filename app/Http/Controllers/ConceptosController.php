@@ -25,11 +25,43 @@ class ConceptosController extends Controller
         return view('conceptos.index');
     }
 
-    public function listado()
+    public function listado(Request $request)
     {
-        $listado = Conceptos::where('estado','=',1)->orderBy('id','desc')->get();
+        $draw = $request->get('draw');
+        $start = $request->get('start');
+        $length = $request->get('length');
+        $search = $request->get('search')['value'];
 
-        return response()->json($listado);
+        $query = Conceptos::where('estado', '=', 1);
+
+        $totalRecords = $query->count();
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('descripcion', 'ilike', "%$search%")
+                  ->orWhere('tipo_movimiento', 'ilike', "%$search%");
+            });
+        }
+
+        $filteredRecords = $query->count();
+
+        // Ordenamiento
+        $orderColumnIndex = $request->get('order')[0]['column'] ?? 0;
+        $orderDir = $request->get('order')[0]['dir'] ?? 'desc';
+        $columns = ['id', 'descripcion', 'tipo_movimiento'];
+        $orderColumn = $columns[$orderColumnIndex] ?? 'id';
+
+        $data = $query->orderBy($orderColumn, $orderDir)
+                      ->offset($start)
+                      ->limit($length)
+                      ->get();
+
+        return response()->json([
+            'draw' => intval($draw),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $filteredRecords,
+            'data' => $data
+        ]);
     }
 
     public function guardar(Request $request)

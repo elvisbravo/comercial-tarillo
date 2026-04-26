@@ -9,6 +9,16 @@
     <link href="{{ asset('assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
     <!-- DataTables -->
     <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+    <style>
+        div.dataTables_wrapper div.dataTables_paginate {
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+        .pagination {
+            justify-content: flex-end !important;
+        }
+    </style>
 @endsection
 @section('contenido')
 
@@ -24,7 +34,9 @@
         <div class="col-md-12 grid-margin stretch-card">
             <div class="card">
                 <div class="card-body">
+                    @if(App\Permisos::hasPermission('almacenes', 2))
                     <button type="button" class="btn btn-primary mb-3" id="btnadd">Nuevo Almacen</button>
+                    @endif
 
                     <div class="table-responsive">
                         <table id="dataTableExample" class="table">
@@ -89,6 +101,11 @@
     <!-- Required datatable js -->
     <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
     <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+
+    <script>
+        const canEdit = {{ App\Permisos::hasPermission('almacenes', 3) ? 'true' : 'false' }};
+        const canDelete = {{ App\Permisos::hasPermission('almacenes', 4) ? 'true' : 'false' }};
+    </script>
 
     <script src="{{ asset('js/almacenes.js') }}">
     </script>
