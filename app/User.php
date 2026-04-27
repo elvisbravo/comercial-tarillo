@@ -19,10 +19,16 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password','img','sede_id'
+        'name',
+        'email',
+        'password',
+        'img',
+        'sede_id',
+        'estado'
     ];
 
-    public function sede(){
+    public function sede()
+    {
 
         return $this->belongsTo(Sede::class);
     }
@@ -33,7 +39,8 @@ class User extends Authenticatable
      * @var array
      */
     protected $hidden = [
-        'password', 'remember_token',
+        'password',
+        'remember_token',
     ];
 
     /**
