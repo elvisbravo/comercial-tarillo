@@ -47,6 +47,37 @@ $("#item_productos").select2({
     },
 });
 
+const almacenSelect = document.getElementById('almacen');
+const ubicacionSelect = document.getElementById('ubicacion');
+
+almacenSelect.addEventListener('change', function() {
+    const almacen_id = this.value;
+    
+    if (almacen_id === "") {
+        ubicacionSelect.innerHTML = '<option value="">Seleccione un almacén primero</option>';
+        ubicacionSelect.disabled = true;
+        return;
+    }
+
+    ubicacionSelect.innerHTML = '<option value="">Cargando...</option>';
+    ubicacionSelect.disabled = true;
+
+    fetch(`${urlgeneral}/kardex/traer_ubicaciones/${almacen_id}`)
+        .then(res => res.json())
+        .then(data => {
+            let options = '<option value="todas">Todas las ubicaciones</option>';
+            data.forEach(ubicacion => {
+                options += `<option value="${ubicacion.id}">${ubicacion.name}</option>`;
+            });
+            ubicacionSelect.innerHTML = options;
+            ubicacionSelect.disabled = false;
+        })
+        .catch(err => {
+            console.error(err);
+            ubicacionSelect.innerHTML = '<option value="">Error al cargar ubicaciones</option>';
+        });
+});
+
 form.addEventListener('submit', (e) => {
     e.preventDefault();
 
@@ -78,6 +109,9 @@ form.addEventListener('submit', (e) => {
             <tr>
                 <td>${index+1}</td>
                 <td>${kardex.fecha}</td>
+                <td>
+                    <span class="badge bg-info">${kardex.nombre_ubicacion || ''}</span>
+                </td>
                 <td>
                     ${kardex.descripcion}
                 </td>

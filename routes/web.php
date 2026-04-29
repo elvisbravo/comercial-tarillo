@@ -49,6 +49,7 @@ Route::resource('almacenes', 'AlmacenController');
 //CONTROLADOR PARA KARDEX
 Route::post('kardex/guardar', 'KardexController@guardar');
 Route::post('kardex/traer_productos', 'KardexController@traer_productos');
+Route::get('kardex/traer_ubicaciones/{id}', 'KardexController@traer_ubicaciones');
 Route::resource('kardex', 'KardexController');
 
 //CONTROLADOR PARA TRASLADOS

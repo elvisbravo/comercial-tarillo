@@ -65,6 +65,15 @@ class KardexController extends Controller
         return response()->json($data);
     }
 
+    public function traer_ubicaciones($id)
+    {
+        $ubicaciones = DB::table('stock_location')
+            ->where('almacen_id', $id)
+            ->where('estado', '1')
+            ->get();
+        return response()->json($ubicaciones);
+    }
+
     public function guardar(Request $request)
     {
         $this->validate($request, [
@@ -78,13 +87,21 @@ class KardexController extends Controller
 
         $envio = $tipo_envio->tipo_envio_sunat();
 
-        $kardex = DB::table('kardexes')
+        $query = DB::table('kardexes')
             ->join('tipo_comprobantes', 'kardexes.tipo_comprobante', '=', 'tipo_comprobantes.id')
+            ->join('stock_location', 'kardexes.ubicacion_id', '=', 'stock_location.id')
+            ->select('kardexes.*', 'tipo_comprobantes.descripcion as comprobante', 'stock_location.name as nombre_ubicacion')
             ->where('kardexes.producto_id',$request->producto)
-            ->where('kardexes.almacen_id',$request->almacen)
             ->where('kardexes.tipo_envio',$envio)
-            ->whereBetween('kardexes.fecha', [$request->fecha_inicio, $request->fecha_final])
-            ->get();
+            ->whereBetween('kardexes.fecha', [$request->fecha_inicio, $request->fecha_final]);
+
+        if ($request->has('ubicacion') && $request->ubicacion != 'todas') {
+            $query->where('kardexes.ubicacion_id', $request->ubicacion);
+        } else {
+            $query->where('stock_location.almacen_id', $request->almacen);
+        }
+
+        $kardex = $query->orderBy('kardexes.fecha', 'asc')->get();
 
         return response()->json($kardex);
     }

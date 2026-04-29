@@ -31,7 +31,7 @@
                     <form id="form_kardex">
 
                         <div class="row">
-                            <div class="col-sm-6">
+                            <div class="col-sm-4">
                                 <div class="mb-3">
 									<label class="form-label">Seleccionar Producto</label>
 									<select class="js-example-basic-single form-select" id="item_productos" name="producto" data-width="100%">
@@ -39,15 +39,22 @@
 									</select>
 								</div>
                             </div>
-                            <div class="col-sm-6">
+                            <div class="col-sm-4">
                                 <div class="mb-3">
-                                    <label for="almacen_destino" class="form-label">Almacen</label>
+                                    <label for="almacen" class="form-label">Almacen</label>
                                     <select class="form-select" id="almacen" name="almacen" required>
                                         <option value="">Seleccione</option>
                                         @foreach ($origen as $item)
                                         <option value="{{ $item->id }}">{{ $item->nombre }}</option>
                                         @endforeach
-                                        
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="mb-3">
+                                    <label for="ubicacion" class="form-label">Ubicación</label>
+                                    <select class="form-select" id="ubicacion" name="ubicacion" required disabled>
+                                        <option value="">Seleccione un almacén primero</option>
                                     </select>
                                 </div>
                             </div>
@@ -88,6 +95,7 @@
                                 <tr>
                                     <th>N°</th>
                                     <th>Fecha</th>
+                                    <th>Ubicación</th>
                                     <th>Detalle</th>
                                     <th>ENTRADAS</th>
                                     <th>SALIDAS</th>
