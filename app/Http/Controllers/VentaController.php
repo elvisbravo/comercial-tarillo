@@ -72,25 +72,25 @@ class VentaController extends Controller
             ->join('clientes', 'ventas.cliente_id', '=', 'clientes.id')
             ->join('tipo_comprobantes', 'ventas.tipo_comprobante_id', '=', 'tipo_comprobantes.id')
             ->select(
-                'clientes.nomb_per', 
-                'clientes.pate_per', 
-                'clientes.mate_per', 
-                'clientes.documento', 
-                'tipo_comprobantes.descripcion as comprobante', 
-                'ventas.id', 
+                'clientes.nomb_per',
+                'clientes.pate_per',
+                'clientes.mate_per',
+                'clientes.documento',
+                'tipo_comprobantes.descripcion as comprobante',
+                'ventas.id',
                 DB::raw("to_char(ventas.fecha, 'DD-MM-YYYY') as fecha_formateada"),
                 'ventas.fecha',
-                'ventas.hora', 
-                'ventas.serie_comprobante', 
-                'ventas.numero_comprobante', 
-                'ventas.monto', 
-                'ventas.sede_id', 
-                'ventas.venta_estado', 
-                'ventas.aceptado_sunat', 
-                'ventas.mensaje_sunat', 
-                'ventas.tipo_comprobante_id', 
-                'ventas.estado_nota', 
-                'ventas.serie_nota_credito', 
+                'ventas.hora',
+                'ventas.serie_comprobante',
+                'ventas.numero_comprobante',
+                'ventas.monto',
+                'ventas.sede_id',
+                'ventas.venta_estado',
+                'ventas.aceptado_sunat',
+                'ventas.mensaje_sunat',
+                'ventas.tipo_comprobante_id',
+                'ventas.estado_nota',
+                'ventas.serie_nota_credito',
                 'ventas.numero_nota_credito'
             )
             ->where('ventas.tipo_envio', '=', $envio)
@@ -99,12 +99,12 @@ class VentaController extends Controller
         $totalRecords = $query->count();
 
         if ($search) {
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('clientes.razon_social', 'ilike', "%$search%")
-                  ->orWhere('clientes.documento', 'like', "%$search%")
-                  ->orWhere('clientes.nomb_per', 'ilike', "%$search%")
-                  ->orWhere('ventas.serie_comprobante', 'like', "%$search%")
-                  ->orWhere('ventas.numero_comprobante', 'like', "%$search%");
+                    ->orWhere('clientes.documento', 'like', "%$search%")
+                    ->orWhere('clientes.nomb_per', 'ilike', "%$search%")
+                    ->orWhere('ventas.serie_comprobante', 'like', "%$search%")
+                    ->orWhere('ventas.numero_comprobante', 'like', "%$search%");
             });
         }
 
@@ -117,9 +117,9 @@ class VentaController extends Controller
         $orderColumn = $columnsOrder[$orderColumnIndex] ?? 'ventas.id';
 
         $data = $query->orderBy($orderColumn, $orderDir)
-                      ->offset($start)
-                      ->limit($length)
-                      ->get();
+            ->offset($start)
+            ->limit($length)
+            ->get();
 
         return response()->json([
             'draw' => intval($draw),
@@ -196,7 +196,7 @@ class VentaController extends Controller
             ->where('dp.ubicacion_id', '=', $id_ubicacion)
             ->where('dp.tipo_envio', '=', $envio)
             ->where('p.estado', '=', '1')
-            ->where('p.nomb_pro', 'like', '%' . $buscar . '%')
+            ->where('p.nomb_pro', 'ilike', '%' . $buscar . '%')
             ->orderBy('p.id', 'asc')
             ->limit(24)
             ->get();
