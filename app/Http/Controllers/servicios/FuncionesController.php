@@ -18,19 +18,18 @@ class FuncionesController
 
     public function movimiento_kardex_producto($idubicacion, $idproducto, $cantidad, $tipo, $descripcion, $serie, $correlativo, $precio_unitario, $tipo_comprobante, $fecha, $fecha_comprobante)
     {
-        //DB::beginTransaction();
+        DB::beginTransaction();
 
         //try{
         //tipo entrada de almacen 1, salida de almacen 2
         $repuesta = "";
-        $kardex = Kardex::where('producto_id', '=', $idproducto)->where('ubicacion_id', '=', $idubicacion)->get();
+        $kardex = Kardex::where('producto_id', '=', $idproducto)->where('ubicacion_id', '=', $idubicacion)->exists();
 
         $envio = $this->tipo_envio_sunat();
 
-        if (count($kardex) == 0) {
+        if (!$kardex) {
             if ($tipo == 1) {
                 $total = $cantidad * $precio_unitario;
-
 
                 $des = "";
 
@@ -39,7 +38,6 @@ class FuncionesController
                 } else {
                     $des = $descripcion;
                 }
-
 
                 $kar = new Kardex;
                 $kar->producto_id = $idproducto;
@@ -61,28 +59,22 @@ class FuncionesController
                 $kar->estado = 1;
                 $kar->save();
                 $repuesta = 'OK';
+            } else {
+                $repuesta = 'No se puede retirar un producto sin ingresos previos';
             }
-
-            return response()->json($repuesta);
         } else {
 
-            $kardexes = Kardex::where('producto_id', '=', $idproducto)->where('ubicacion_id', '=', $idubicacion)->orderBy('id', 'desc')->get();
+            $kardexUltimo = Kardex::where('producto_id', '=', $idproducto)->where('ubicacion_id', '=', $idubicacion)->orderBy('id', 'desc')->first();
 
-            $ultimo = $kardexes->last();
-
-            $kar = Kardex::find($ultimo->id);
-
-            $stock_total = $kar->cantidad_total;
-            $subtotal_total = $kar->subtotal_total;
-            $ultimo_costo = $kar->precio_total;
-            $cantidad_unitario = $cantidad;
-            $precio_unitario = $precio_unitario;
+            $stock_total = $kardexUltimo->cantidad_total;
+            $subtotal_total = $kardexUltimo->subtotal_total;
+            $ultimo_costo = $kardexUltimo->precio_total;
 
             if ($tipo == 1) {
-                $subtotal_unitaria = $cantidad_unitario * $precio_unitario;
-                $cantidad_total = $stock_total + $cantidad_unitario;
+                $subtotal_unitaria = $cantidad * $precio_unitario;
+                $cantidad_total = $stock_total + $cantidad;
                 $total_subtotal = $subtotal_total + $subtotal_unitaria;
-                $precio_promedio = $total_subtotal / $cantidad_total;
+                $precio_promedio = $cantidad_total > 0 ? ($total_subtotal / $cantidad_total) : 0;
 
                 $kardex = new Kardex;
 
@@ -93,7 +85,7 @@ class FuncionesController
                 $kardex->tipo = $tipo;
                 $kardex->serie_comprobante = $serie;
                 $kardex->correlativo_comprobante = $correlativo;
-                $kardex->cantidad_unitaria = $cantidad_unitario;
+                $kardex->cantidad_unitaria = $cantidad;
                 $kardex->precio_unitario = $precio_unitario;
                 $kardex->subtotal_unitario = $subtotal_unitaria;
                 $kardex->cantidad_total = $cantidad_total;
@@ -106,8 +98,8 @@ class FuncionesController
                 $kardex->save();
                 $repuesta = 'OK';
             } else {
-                $subtotal_unitario = $ultimo_costo * $cantidad_unitario;
-                $cantidad_total = $stock_total - $cantidad_unitario;
+                $subtotal_unitario = $ultimo_costo * $cantidad;
+                $cantidad_total = $stock_total - $cantidad;
                 $total_subtotal = $subtotal_total - $subtotal_unitario;
 
                 $kardex = new Kardex;
@@ -119,7 +111,7 @@ class FuncionesController
                 $kardex->tipo = $tipo;
                 $kardex->serie_comprobante = $serie;
                 $kardex->correlativo_comprobante = $correlativo;
-                $kardex->cantidad_unitaria = $cantidad_unitario;
+                $kardex->cantidad_unitaria = $cantidad;
                 $kardex->precio_unitario = $precio_unitario;
                 $kardex->subtotal_unitario = $subtotal_unitario;
                 $kardex->cantidad_total = $cantidad_total;
@@ -132,11 +124,11 @@ class FuncionesController
                 $kardex->save();
                 $repuesta = 'OK';
             }
-
-            DB::commit();
-
-            return response()->json($repuesta);
         }
+
+        DB::commit();
+
+        return response()->json($repuesta);
 
         //}catch (Exception $e) {
 

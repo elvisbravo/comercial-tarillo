@@ -88,6 +88,14 @@ almacenSelect.addEventListener("change", function () {
 form.addEventListener("submit", (e) => {
     e.preventDefault();
 
+    const btnGenerar = document.getElementById("btnGenerarKardex");
+    const originalText = btnGenerar.innerHTML;
+
+    // Deshabilitar botón y cambiar texto
+    btnGenerar.disabled = true;
+    btnGenerar.innerHTML =
+        '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Consultando kardex...';
+
     const csrf = document.querySelector('meta[name="csrf-token"]').content;
 
     const formData = new FormData(form);
@@ -114,7 +122,7 @@ form.addEventListener("submit", (e) => {
 
                 html += `
             <tr>
-                <td>${index + 1}</td>
+                <td>${data.length - index}</td>
                 <td>${kardex.fecha}</td>
                 <td>
                     <span class="badge bg-info">${kardex.nombre_ubicacion || ""}</span>
@@ -136,5 +144,10 @@ form.addEventListener("submit", (e) => {
             });
 
             tabla.innerHTML = html;
+        })
+        .finally(() => {
+            // Restaurar botón al finalizar
+            btnGenerar.disabled = false;
+            btnGenerar.innerHTML = originalText;
         });
 });
