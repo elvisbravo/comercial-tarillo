@@ -156,14 +156,14 @@ class CajaController extends Controller
 
         $fecha_apertura = $ver_caja->fecha_apertura;
 
-        if ($fecha_apertura == $fecha_actual) {
-            if($estado_caja == 0) {
-                $mensaje = "Usted no abrio caja";
+        if ($estado_caja == 0) {
+            $mensaje = "Usted no abrio caja";
+            $status = 1;
+        } else {
+            if ($fecha_apertura != $fecha_actual) {
+                $mensaje = "Usted tiene una caja anterior abierta, por favor cierre caja";
                 $status = 1;
             }
-        } else {
-            $mensaje = "Usted tiene una caja anterior abierta, por favor cierre caja";
-            $status = 1;
         }
 
         $json = array(
