@@ -1,4 +1,6 @@
 urlgeneral=$("#url_raiz_proyecto").val();
+const canEdit = document.getElementById("permiso_editar")?.value == "1";
+const canDelete = document.getElementById("permiso_eliminar")?.value == "1";
 
 const tipo_documento = document.getElementById('documento_identidad');
 const numero_documento = document.getElementById('numero_documento');

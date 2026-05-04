@@ -104,10 +104,8 @@ Clientes
 <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
 
-<script>
-    const canEdit = {{ App\Permisos::hasPermission('clientes', 3) ? 'true' : 'false' }};
-    const canDelete = {{ App\Permisos::hasPermission('clientes', 4) ? 'true' : 'false' }};
-</script>
+<input type="hidden" id="permiso_editar" value="{{ App\Permisos::hasPermission('clientes', 3) }}">
+<input type="hidden" id="permiso_eliminar" value="{{ App\Permisos::hasPermission('clientes', 4) }}">
 
 <script src="{{ asset('js/clientes.js') }}">
 </script>
