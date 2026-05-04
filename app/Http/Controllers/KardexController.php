@@ -52,7 +52,7 @@ class KardexController extends Controller
         if (!isset($request->q)) {
             $productos = Productos::skip(0)->take(10)->get();
         } else {
-            $productos = Productos::where('nomb_pro', 'like', '%' . $request->q . '%')->get();
+            $productos = Productos::where('nomb_pro', 'ilike', '%' . $request->q . '%')->get();
         }
 
         foreach ($productos as $key => $value) {

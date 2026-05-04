@@ -308,35 +308,28 @@ class ComprasController extends Controller
         }
     }
 
-    //FUNCION PARA ACTUALIZAR EL PRECIO PROMEDIO DE UN PRODUCTOS
     public function actualizar_promedio($codigo, $precio)
     {
+        // Usamos agregaciones de SQL para obtener la suma y el conteo de precios históricos
+        $stats = DB::table('detalle_compras')
+            ->where('producto_id', $codigo)
+            ->selectRaw('SUM(precio) as total_suma, COUNT(*) as total_filas')
+            ->first();
 
-        $detalle = DB::table('detalle_compras as dt')
-            ->select('dt.precio')
-            ->where('dt.producto_id', '=', $codigo)
-            ->get();
+        // Calculamos el nuevo promedio incluyendo el precio de la compra actual
+        // que aún no ha sido guardado en la base de datos
+        $nueva_suma = ($stats->total_suma ?? 0) + $precio;
+        $nueva_cantidad = ($stats->total_filas ?? 0) + 1;
 
-        $total = 0;
+        $average = $nueva_suma / $nueva_cantidad;
 
-        foreach ($detalle as $det) {
-
-            $total = $det->precio + $total;
+        // Actualizamos el costo en la tabla de productos
+        $producto = Productos::find($codigo);
+        
+        if ($producto) {
+            $producto->costo = $average;
+            $producto->save();
         }
-
-        if (count($detalle) == 0) {
-
-            $average = $precio / 1;
-        } else {
-
-            $average = $total / count($detalle);
-        }
-
-
-
-        $productos = Productos::find($codigo);
-        $productos->costo = $average;
-        $productos->save();
 
         return 'ok';
     }
