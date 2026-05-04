@@ -73,7 +73,7 @@
     </div>
   </header><!-- End Header -->
 
-  <main id="main" style="margin-top: 100px;">
+  <main id="main" style="margin-top: 50px;">
     <div class="container">
       <div class="row align-items-center">
 
