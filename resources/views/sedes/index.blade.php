@@ -8,9 +8,9 @@
   <title>Sistema Comercial Tarrillo</title>
 
   <!-- Fonts -->
-    <!-- CSRF Token -->
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <!-- End fonts -->
+  <!-- CSRF Token -->
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <!-- End fonts -->
 
   <!-- Favicons -->
   <link href="{{ asset('fontsedes/assets/img/favicon.png') }}" rel="icon">
@@ -40,8 +40,8 @@
   <!-- Template Main CSS File -->
   <link href="fontsedes/assets/css/main.css" rel="stylesheet">
 
-     <!-- Sweet Alert-->
-     <link href="{{ asset('assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
+  <!-- Sweet Alert-->
+  <link href="{{ asset('assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
 
   <!-- =======================================================
   * Template Name: HeroBiz - v2.1.0
@@ -73,151 +73,150 @@
     </div>
   </header><!-- End Header -->
 
-  <section id="hero-animated" class="hero-animated d-flex align-items-center">
-    <div class="container d-flex flex-column justify-content-center align-items-center text-center position-relative" data-aos="zoom-out">
-      <img src="fontsedes/assets/img/hero-carousel/hero-carousel-3.svg" class="img-fluid animated">
-      <h2>Comercial <span>Tarrillo</span></h2>
-      <p>Bienvenido al Sistema Comercial Tarrillo</p>
+  <main id="main" style="margin-top: 100px;">
+    <div class="container">
+      <div class="row align-items-center">
 
-    </div>
-  </section>
-
-  <main id="main">
-
-    <!-- ======= Featured Services Section ======= -->
-    <section id="featured-services" class="featured-services">
-      <div class="container">
-
-      <h1 style="text-align: center;">Todas las Sedes</h1>
-      <div class="page-title-box d-sm-flex align-items-center justify-content-between">
-            <a href="{{ route('sedes.create') }}" type="buton" class="btn btn-primary"><i class="btn-icon-prepend" data-feather="plus"></i>AGREGAR</a>
-
+        <!-- LADO IZQUIERDO: Imagen y Bienvenida -->
+        <div class="col-lg-5 text-center text-lg-start mb-5 mb-lg-0" data-aos="fade-right">
+          <img src="fontsedes/assets/img/hero-carousel/hero-carousel-3.svg" class="img-fluid animated mb-4" alt="Sistema Comercial Tarrillo" style="max-height: 400px;">
+          <h2 style="font-weight: 700; color: #485664; font-size: 2.8rem;">Comercial <span style="color: #0ea2bd;">Tarrillo</span></h2>
+          <p style="color: #8f9fae; font-size: 1.1rem;">Bienvenido al Sistema de Gestión y Ventas</p>
         </div>
 
-        <div class="row gy-4" id="list_sedes">
+        <!-- LADO DERECHO: Lista de Sedes -->
+        <div class="col-lg-7" data-aos="fade-left">
+          <section id="featured-services" class="featured-services" style="padding: 0;">
 
-        @foreach( $sedes as $sede)
-
-          <div class="col-xl-3 col-md-6 " >
-            <div class="" style="background-color:white">
-              <div class="icon"><i class="bi bi-broadcast icon" style="font-size: 30px;text-align: center;color:aquamarine"></i></div>
-
-              <div class="flex-shrink-0" >
-                    <div class="dropdown">
-                        <button class="btn btn-link font-size-16 shadow-none text-muted dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bx bx-dots-horizontal-rounded"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#">Editar</a></li>
-                            <li><a class="dropdown-item" href="javascript:;" onclick="correlativos({{ $sede->id }})">Correlativos</a></li>
-                        </ul>
-                    </div>
-                </div>
-              <h4><a href="#" class="stretched-link">{{ $sede->nombre }}</a></h4>
-              <label class="tx-11 fw-bolder mb-0 text-uppercase">Dirección:</label>
-              <p> {{ $sede->direccion }}</p>
-              <label class="tx-11 fw-bolder mb-0 text-uppercase">Telefono:</label>
-              <p> {{ $sede->telefono }}</p>
-              <div class="mt-3">
-                        <div class="col">
-                            <div class="d-inline-block me-1">Prueba</div>
-                            <div class="form-check form-switch d-inline-block">
-                                @if( $sede->tipo_envio == 0 )
-                                <input type="checkbox" class="form-check-input tipo_envio" style="cursor: pointer;" value="{{ $sede->id }}" />
-                                @else
-                                <input type="checkbox" class="form-check-input tipo_envio" style="cursor: pointer;" value="{{ $sede->id }}" checked />
-                                @endif
-                                <label for="" class="form-check-label">Producción</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-3">
-                        <div class="col">
-                            <div class="d-inline-block me-1">Inactivo</div>
-                            <div class="form-check form-switch d-inline-block">
-                                @if( $sede->estado == 2 )
-                                <input type="checkbox" class="form-check-input estado" style="cursor: pointer;" value="{{ $sede->id }}" />
-                                @else
-                                <input type="checkbox" class="form-check-input estado" style="cursor: pointer;" value="{{ $sede->id }}" checked />
-                                @endif
-                                <label for="" class="form-check-label">Activo</label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-3 d-grid">
-                        <button type="button" class="btn btn-primary btn-block ingresar_sede" data-id="{{ $sede->id }}">INGRESAR</button>
-                    </div>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <h2 class="mb-0" style="color: #485664; font-weight: 600;">Sedes Disponibles</h2>
+              <a href="{{ route('sedes.create') }}" class="btn btn-primary shadow-sm" style="background-color: #0ea2bd; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 600;">
+                <i class="bi bi-plus-circle me-1"></i> AGREGAR
+              </a>
             </div>
-          </div><!-- End Service Item -->
-          @endforeach
+
+            <!-- Contenedor con scroll por si hay muchas sedes -->
+            <div class="row gy-4" id="list_sedes" style="max-height: 650px; overflow-y: auto; overflow-x: hidden; padding-right: 15px; padding-bottom: 20px;">
+
+              @foreach( $sedes as $sede)
+
+              <div class="col-xl-6 col-md-6">
+                <div style="background-color: white; padding: 10px 25px; border-radius: 15px; box-shadow: 0px 5px 20px rgba(0,0,0,0.05); height: 100%; position: relative;">
 
 
+                  <div class="flex-shrink-0">
+                    <div class="dropdown">
+                      <button class="btn btn-link font-size-16 shadow-none text-muted dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bx bx-dots-horizontal-rounded"></i>
+                      </button>
+                      <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#">Editar</a></li>
+                        <li><a class="dropdown-item" href="javascript:;" onclick="correlativos({{ $sede->id }})">Correlativos</a></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <h4><a href="#" style="text-decoration: none; color: inherit;">{{ $sede->nombre }}</a></h4>
+                  <label class="tx-11 fw-bolder mb-0 text-uppercase">Dirección:</label>
+                  <p> {{ $sede->direccion }}</p>
+                  <label class="tx-11 fw-bolder mb-0 text-uppercase">Telefono:</label>
+                  <p> {{ $sede->telefono }}</p>
+                  <div class="mt-3">
+                    <div class="col">
+                      <div class="d-inline-block me-1">Prueba</div>
+                      <div class="form-check form-switch d-inline-block">
+                        @if( $sede->tipo_envio == 0 )
+                        <input type="checkbox" class="form-check-input tipo_envio" style="cursor: pointer;" value="{{ $sede->id }}" />
+                        @else
+                        <input type="checkbox" class="form-check-input tipo_envio" style="cursor: pointer;" value="{{ $sede->id }}" checked />
+                        @endif
+                        <label for="" class="form-check-label">Producción</label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="mt-3">
+                    <div class="col">
+                      <div class="d-inline-block me-1">Inactivo</div>
+                      <div class="form-check form-switch d-inline-block">
+                        @if( $sede->estado == 2 )
+                        <input type="checkbox" class="form-check-input estado" style="cursor: pointer;" value="{{ $sede->id }}" />
+                        @else
+                        <input type="checkbox" class="form-check-input estado" style="cursor: pointer;" value="{{ $sede->id }}" checked />
+                        @endif
+                        <label for="" class="form-check-label">Activo</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3 d-grid">
+                    <button type="button" class="btn btn-primary btn-block ingresar_sede" data-id="{{ $sede->id }}">INGRESAR</button>
+                  </div>
+                </div>
+              </div><!-- End Service Item -->
+              @endforeach
+
+            </div>
+
+          </section>
         </div>
 
       </div>
-    </section><!-- End Featured Services Section -->
-
-
-    <!-- ======= F.A.Q Section ======= -->
-
-
+    </div>
   </main><!-- End #main -->
 
   <!-- modal -->
 
-<div class="modal fade bd-example-modal-lg" id="modal_correlativos" tabindex="-1" aria-labelledby="myLargeModalLabel" aria-hidden="true">
+  <div class="modal fade bd-example-modal-lg" id="modal_correlativos" tabindex="-1" aria-labelledby="myLargeModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
+      <div class="modal-content">
 
-            <div class="modal-header">
-                <h5 class="modal-title h4" id="myLargeModalLabel">Correlativos</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="btn-close"></button>
-            </div>
-            <form id="form_correlativos">
-                <input type="hidden" name="idsede" id="idsede" value="0">
-                <div class="modal-body">
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <select class="form-select" id="comprobante" name="comprobante">
-                                    @foreach ($comprobantes as $comprobante)
-                                    <option value="{{ $comprobante->id }}">{{ $comprobante->descripcion }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <button type="button" class="btn btn-primary" id="agregar_comprobante">Agregar</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <table class="table table-bordered table-sm">
-                        <thead>
-                            <tr>
-                                <th>COMPROBANTE</th>
-                                <th>PRUEBA</th>
-                                <th>PRODUCCION</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="bodyComprobantes">
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-success">Guardar</button>
-                </div>
-
-            </form>
+        <div class="modal-header">
+          <h5 class="modal-title h4" id="myLargeModalLabel">Correlativos</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="btn-close"></button>
         </div>
+        <form id="form_correlativos">
+          <input type="hidden" name="idsede" id="idsede" value="0">
+          <div class="modal-body">
+
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <select class="form-select" id="comprobante" name="comprobante">
+                    @foreach ($comprobantes as $comprobante)
+                    <option value="{{ $comprobante->id }}">{{ $comprobante->descripcion }}</option>
+                    @endforeach
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <button type="button" class="btn btn-primary" id="agregar_comprobante">Agregar</button>
+                </div>
+              </div>
+            </div>
+
+            <table class="table table-bordered table-sm">
+              <thead>
+                <tr>
+                  <th>COMPROBANTE</th>
+                  <th>PRUEBA</th>
+                  <th>PRODUCCION</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="bodyComprobantes">
+              </tbody>
+            </table>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-success">Guardar</button>
+          </div>
+
+        </form>
+      </div>
     </div>
-</div>
+  </div>
 
 
   <!-- ======= Footer ======= -->
@@ -243,10 +242,10 @@
 
   <!-- Sweet Alerts js -->
   <script src="{{ asset('assets/libs/sweetalert2/sweetalert2.min.js') }}"></script>
-    <!-- Required datatable js -->
+  <!-- Required datatable js -->
 
   <script src="{{ asset('js/sedes.js') }}">
-    </script>
+  </script>
 
 </body>
 
