@@ -90,12 +90,6 @@
                         </div>
                     </li>
 
-
-
-
-
-
-
                 </ul>
             </div>
         </nav>
@@ -431,7 +425,7 @@
     <!-- End custom js for this page -->
     @yield('script')
 
-    
+
 </body>
 
 <!-- Mirrored from www.nobleui.com/html/template/demo2/pages/general/blank-page.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 12 Nov 2021 05:26:32 GMT -->

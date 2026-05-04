@@ -184,9 +184,14 @@ Gestión de Permisos
 @section('js')
 <script src="{{ asset('assets/libs/sweetalert2/sweetalert2.min.js') }}"></script>
 <script>
+    window.addEventListener("load", function(event) {
+        $(".loader").fadeOut("slow");
+    });
+
     const urlGeneral = $("#url_raiz_proyecto").val();
     const idAccionVer = {{ $accion_ver->id }};
     const canCreate = {{ App\Permisos::hasPermission('permisos', 2) ? 'true' : 'false' }};
+
 
     $(document).on("change", `.check-permiso[data-accion='${idAccionVer}']`, function() {
         let moduloId = $(this).data('modulo');

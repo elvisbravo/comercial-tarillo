@@ -16,41 +16,13 @@ Clientes
         display: flex !important;
         justify-content: flex-end !important;
     }
+
     .pagination {
         justify-content: flex-end !important;
     }
 </style>
 @endsection
 @section('contenido')
-
-<div class="loader" style="position: fixed;
-        left: 0px;
-        top: 0px;
-        width: 100%;
-        height: 100%;
-        z-index: 9999;
-        background: url('{{asset('img/loader-meta.gif')}}') 50% 50% no-repeat rgb(249,249,249);
-        opacity: .8;">
-
-    <div class="col-md-12" id="myDIV">
-        <div class="panel panel-default">
-            <div class="panel-heading"></div>
-            <div class="panel-body loader-demo" style="margin-top:200px;">
-                <h1 style="color: #186A3B;font-family: 'Jomhuria', cursive;text-align:center"></h1>
-                <div class="ball-pulse">
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-
-
-
 
 <div class="container-fluid">
 
@@ -117,18 +89,6 @@ Clientes
     </div>
 
 </div>
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 @endsection

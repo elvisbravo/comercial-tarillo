@@ -6,11 +6,32 @@ Configuración de Acciones
 
 @section('css')
 <style>
-    .module-item { cursor: pointer; transition: background 0.3s; }
-    .module-item:hover { background-color: #f8f9fa; }
-    .submodule-list { padding-left: 2rem; border-left: 2px solid #e9ecef; margin-left: 1rem; }
-    .submodule-item { padding: 8px; border-bottom: 1px solid #f1f1f1; display: flex; justify-content: space-between; align-items: center; }
-    .action-badge { margin-right: 5px; }
+    .module-item {
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+
+    .module-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .submodule-list {
+        padding-left: 2rem;
+        border-left: 2px solid #e9ecef;
+        margin-left: 1rem;
+    }
+
+    .submodule-item {
+        padding: 8px;
+        border-bottom: 1px solid #f1f1f1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .action-badge {
+        margin-right: 5px;
+    }
 </style>
 <link href="{{asset('assets/libs/sweetalert2/sweetalert2.min.css')}}" rel="stylesheet" type="text/css" />
 @endsection
@@ -34,7 +55,7 @@ Configuración de Acciones
                         <div class="accordion-item mb-2 border">
                             <h2 class="accordion-header" id="heading{{ $parent->id }}">
                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ $parent->id }}" aria-expanded="false" aria-controls="collapse{{ $parent->id }}">
-                                    <i class="{{ $parent->icon }} me-2 text-primary"></i> 
+                                    <i class="{{ $parent->icon }} me-2 text-primary"></i>
                                     <strong>{{ $parent->name }}</strong>
                                 </button>
                             </h2>
@@ -43,21 +64,21 @@ Configuración de Acciones
                                     <div class="submodule-list">
                                         @php $hasSub = false; @endphp
                                         @foreach($submodules as $sub)
-                                            @if($sub->padre_id == $parent->id)
-                                                @php $hasSub = true; @endphp
-                                                <div class="submodule-item">
-                                                    <div>
-                                                        <i class="{{ $sub->icon }} me-1 text-secondary small"></i>
-                                                        {{ $sub->name }}
-                                                    </div>
-                                                    <button class="btn btn-outline-primary btn-sm" onclick="configurarAcciones({{ $sub->id }}, '{{ $sub->name }}')">
-                                                        <i class="fas fa-cog"></i> Configurar
-                                                    </button>
-                                                </div>
-                                            @endif
+                                        @if($sub->padre_id == $parent->id)
+                                        @php $hasSub = true; @endphp
+                                        <div class="submodule-item">
+                                            <div>
+                                                <i class="{{ $sub->icon }} me-1 text-secondary small"></i>
+                                                {{ $sub->name }}
+                                            </div>
+                                            <button class="btn btn-outline-primary btn-sm" onclick="configurarAcciones({{ $sub->id }}, '{{ $sub->name }}')">
+                                                <i class="fas fa-cog"></i> Configurar
+                                            </button>
+                                        </div>
+                                        @endif
                                         @endforeach
                                         @if(!$hasSub)
-                                            <p class="text-muted mb-0 small">No hay submódulos</p>
+                                        <p class="text-muted mb-0 small">No hay submódulos</p>
                                         @endif
                                     </div>
                                 </div>
@@ -109,42 +130,46 @@ Configuración de Acciones
 @section('js')
 <script src="{{ asset('assets/libs/sweetalert2/sweetalert2.min.js') }}"></script>
 <script>
-const urlGeneral = $("#url_raiz_proyecto").val();
+    const urlGeneral = $("#url_raiz_proyecto").val();
 
-function configurarAcciones(moduloId, nombre) {
-    $("#modulo_id").val(moduloId);
-    $("#nombreSubmodulo").text(nombre);
-    $(".check-accion").prop('checked', false);
-    
-    // Cargar asignaciones actuales
-    $.get(urlGeneral + "/configuracion-acciones/getAssignments/" + moduloId, function(data) {
-        data.forEach(accionId => {
-            $("#accion_" + accionId).prop('checked', true);
+    window.addEventListener("load", function(event) {
+        $(".loader").fadeOut("slow");
+    });
+
+    function configurarAcciones(moduloId, nombre) {
+        $("#modulo_id").val(moduloId);
+        $("#nombreSubmodulo").text(nombre);
+        $(".check-accion").prop('checked', false);
+
+        // Cargar asignaciones actuales
+        $.get(urlGeneral + "/configuracion-acciones/getAssignments/" + moduloId, function(data) {
+            data.forEach(accionId => {
+                $("#accion_" + accionId).prop('checked', true);
+            });
+            $("#modalAcciones").modal("show");
         });
-        $("#modalAcciones").modal("show");
-    });
-}
+    }
 
-function guardarConfiguracion() {
-    let moduloId = $("#modulo_id").val();
-    let acciones = [];
-    
-    $(".check-accion:checked").each(function() {
-        acciones.push($(this).val());
-    });
+    function guardarConfiguracion() {
+        let moduloId = $("#modulo_id").val();
+        let acciones = [];
 
-    $("#btnGuardar").prop('disabled', true);
-    
-    $.post(urlGeneral + "/configuracion-acciones/save", {
-        modulo_id: moduloId,
-        acciones: acciones,
-        _token: $('meta[name="csrf-token"]').attr('content')
-    }, function(data) {
-        Swal.fire("Éxito", "Configuración actualizada correctamente", "success");
-        $("#modalAcciones").modal("hide");
-    }).always(function() {
-        $("#btnGuardar").prop('disabled', false);
-    });
-}
+        $(".check-accion:checked").each(function() {
+            acciones.push($(this).val());
+        });
+
+        $("#btnGuardar").prop('disabled', true);
+
+        $.post(urlGeneral + "/configuracion-acciones/save", {
+            modulo_id: moduloId,
+            acciones: acciones,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        }, function(data) {
+            Swal.fire("Éxito", "Configuración actualizada correctamente", "success");
+            $("#modalAcciones").modal("hide");
+        }).always(function() {
+            $("#btnGuardar").prop('disabled', false);
+        });
+    }
 </script>
 @endsection

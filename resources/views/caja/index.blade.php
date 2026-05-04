@@ -48,12 +48,12 @@ Caja
 
                                 Caja Fisica Al Día: {{$fecha}} <br>
                                 <label for="">Estado Caja:
-                                    
+
                                 </label>
-                                
+
                             </div>
                             <div class="card-body">
-                                
+
                                 <h2 class="text-center" style="font-size: 58px;">S/ <strong class="total">{{ $total_fisico }}</strong> </h2>
 
                                 <div class="row">
@@ -78,11 +78,11 @@ Caja
 
                                 Caja Virtual Al Día: {{$fecha}} <br>
                                 <label for="">Estado Caja:
-                                    
+
                                 </label>
                             </div>
                             <div class="card-body">
-                                
+
                                 <h2 class="text-center" style="font-size: 58px;">S/ <strong class="total">{{ $total_virtual }}</strong> </h2>
 
 
@@ -156,8 +156,8 @@ Caja
             <form id="aperturar_caja">
                 <div class="modal-body">
                     <div class="mb-3">
-                    <label for="example-text-input" class="form-label">Fecha</label>
-                    <input type="date" class="form-control" id="fecha_apertura" name="fecha_apertura">
+                        <label for="example-text-input" class="form-label">Fecha</label>
+                        <input type="date" class="form-control" id="fecha_apertura" name="fecha_apertura">
 
                     </div>
 

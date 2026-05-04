@@ -100,8 +100,8 @@ class FuncionesController
                 $kardex->precio_total = $precio_promedio;
                 $kardex->subtotal_total = $total_subtotal;
                 $kardex->tipo_envio = $envio;
-                $kar->fecha_comprobante = $fecha_comprobante;
-                $kar->tipo_comprobante = $tipo_comprobante;
+                $kardex->fecha_comprobante = $fecha_comprobante;
+                $kardex->tipo_comprobante = $tipo_comprobante;
                 $kardex->estado = 1;
                 $kardex->save();
                 $repuesta = 'OK';
@@ -125,8 +125,8 @@ class FuncionesController
                 $kardex->cantidad_total = $cantidad_total;
                 $kardex->precio_total = $ultimo_costo;
                 $kardex->subtotal_total = $total_subtotal;
-                $kar->fecha_comprobante = $fecha_comprobante;
-                $kar->tipo_comprobante = $tipo_comprobante;
+                $kardex->fecha_comprobante = $fecha_comprobante;
+                $kardex->tipo_comprobante = $tipo_comprobante;
                 $kardex->tipo_envio = $envio;
                 $kardex->estado = 1;
                 $kardex->save();

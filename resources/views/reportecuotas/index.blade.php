@@ -12,6 +12,7 @@ Reporte Cuotas Vencidas
         border: 1px solid #556ee6;
         color: #fff;
     }
+
     .select2-container .select2-selection--multiple .select2-selection__choice__remove {
         color: #fff;
     }
@@ -21,8 +22,16 @@ Reporte Cuotas Vencidas
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }
-        body * { visibility: hidden !important; }
-        #print-area, #print-area * { visibility: visible !important; }
+
+        body * {
+            visibility: hidden !important;
+        }
+
+        #print-area,
+        #print-area * {
+            visibility: visible !important;
+        }
+
         #print-area {
             position: absolute !important;
             left: 0 !important;
@@ -30,13 +39,32 @@ Reporte Cuotas Vencidas
             width: 100% !important;
             padding: 10px !important;
         }
-        #form-filters, .page-title-box, .loader, .btn, nav { display: none !important; }
-        .print-header { display: block !important; }
-        table { font-size: 10px !important; }
-        th, td { padding: 3px 4px !important; }
+
+        #form-filters,
+        .page-title-box,
+        .loader,
+        .btn,
+        nav {
+            display: none !important;
+        }
+
+        .print-header {
+            display: block !important;
+        }
+
+        table {
+            font-size: 10px !important;
+        }
+
+        th,
+        td {
+            padding: 3px 4px !important;
+        }
     }
 
-    .print-header { display: none; }
+    .print-header {
+        display: none;
+    }
 
     #reporte-table th {
         background-color: #3b5de7;
@@ -44,10 +72,12 @@ Reporte Cuotas Vencidas
         font-size: 12px;
         white-space: nowrap;
     }
+
     #reporte-table td {
         font-size: 12px;
         vertical-align: middle;
     }
+
     .badge-cuotas {
         font-size: 11px;
         padding: 3px 7px;
@@ -62,14 +92,18 @@ Reporte Cuotas Vencidas
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(255,255,255,0.82);
+        background: rgba(255, 255, 255, 0.82);
         z-index: 9998;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 16px;
     }
-    #loading-overlay.active { display: flex; }
+
+    #loading-overlay.active {
+        display: flex;
+    }
+
     .loading-spinner {
         width: 52px;
         height: 52px;
@@ -78,16 +112,24 @@ Reporte Cuotas Vencidas
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
     }
+
     .loading-text {
         font-size: 16px;
         font-weight: 600;
         color: #3b5de7;
         letter-spacing: 0.5px;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
 
     /* Resultado stats */
-    #result-stats { display: none; }
+    #result-stats {
+        display: none;
+    }
 </style>
 @endsection
 
@@ -215,8 +257,15 @@ Reporte Cuotas Vencidas
 <script>
     const urlGeneral = $("#url_raiz_proyecto").val();
 
+    window.addEventListener("load", function(event) {
+        $(".loader").fadeOut("slow");
+    });
+
     $(document).ready(function() {
-        $('.select2').select2({ width: '100%', allowClear: true });
+        $('.select2').select2({
+            width: '100%',
+            allowClear: true
+        });
         // Pequena pausa para que el navegador pinte la pagina antes de iniciar la carga
         setTimeout(cargarDatos, 150);
     });
@@ -227,7 +276,7 @@ Reporte Cuotas Vencidas
     });
 
     function cargarDatos() {
-        const buscar   = $('#buscar').val();
+        const buscar = $('#buscar').val();
         const sectores = $('#sectores').val();
 
         // Mostrar loading
@@ -256,7 +305,10 @@ Reporte Cuotas Vencidas
     }
 
     function formatMoney(val) {
-        return 'S/ ' + parseFloat(val).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return 'S/ ' + parseFloat(val).toLocaleString('es-PE', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
     }
 
     function renderTabla(res) {
@@ -274,9 +326,9 @@ Reporte Cuotas Vencidas
             $('#btn-print').hide();
         } else {
             datos.forEach(function(row, i) {
-                const proxFecha = row.proxima_fecha
-                    ? `<span class="text-danger fw-bold">${formatFecha(row.proxima_fecha)}</span>`
-                    : '-';
+                const proxFecha = row.proxima_fecha ?
+                    `<span class="text-danger fw-bold">${formatFecha(row.proxima_fecha)}</span>` :
+                    '-';
 
                 html += `<tr>
                     <td class="text-center text-muted">${i + 1}</td>

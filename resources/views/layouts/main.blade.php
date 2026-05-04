@@ -14,8 +14,8 @@
     <!-- App favicon -->
     <link rel="shortcut icon" href="{{ asset('assets/images/favicon.ico') }}">
 
-      <!-- CSRF Token -->
-      <meta name="csrf-token" content="{{ csrf_token() }}">
+    <!-- CSRF Token -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- End fonts -->
 
 
@@ -30,11 +30,86 @@
     <!-- App Css-->
     <link href="{{ asset('assets/css/app.min.css') }}" id="app-style" rel="stylesheet" type="text/css" />
 
+    <style>
+        .custom-loader-wrapper {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .custom-spinner {
+            width: 65px;
+            height: 65px;
+            border: 5px solid #e2e8f0;
+            border-top: 5px solid #186A3B;
+            border-radius: 50%;
+            animation: spin-loader 1s linear infinite;
+            margin-bottom: 25px;
+        }
+
+        @keyframes spin-loader {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .custom-loader-title {
+            color: #186A3B;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 32px;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .custom-loader-subtitle {
+            color: #64748b;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 16px;
+            margin-top: 8px;
+            font-weight: 500;
+            animation: pulse-text 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-text {
+
+            0%,
+            100% {
+                opacity: 0.4;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+    </style>
+
     @yield('css')
 
 </head>
 
 <body>
+
+    <div class="loader custom-loader-wrapper">
+        <div class="custom-spinner"></div>
+        <h2 class="custom-loader-title">
+            <span style="color: #E51CEB;">COMERCIAL</span> <span style="color: blue;">TARRILLO</span>
+        </h2>
+        <p class="custom-loader-subtitle">Cargando...</p>
+    </div>
 
     <!-- <body data-layout="horizontal"> -->
 
@@ -222,17 +297,15 @@
     <script src="{{ asset('js/utils.js') }}"></script>
 
     <script>
-         function fetchData() {
-  // Aquí deberías escribir el código para hacer la petición a la API
-            $.get('http://127.0.0.1:8000/amortizacion/cantidad_amortizada',function(data){
+        function fetchData() {
+            // Aquí deberías escribir el código para hacer la petición a la API
+            $.get('http://127.0.0.1:8000/amortizacion/cantidad_amortizada', function(data) {
 
-                 console.log(data);
+                console.log(data);
             })
         }
 
         //setInterval(fetchData, 10000);
-
-
     </script>
 
     @yield('js')

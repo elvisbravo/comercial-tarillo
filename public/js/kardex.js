@@ -1,8 +1,12 @@
+window.addEventListener("load", function (event) {
+    $(".loader").fadeOut("slow");
+});
+
 const urlgeneral = document.getElementById("url_raiz_proyecto").value;
 
-const form = document.getElementById('form_kardex');
+const form = document.getElementById("form_kardex");
 
-const tabla = document.getElementById('contentKardex');
+const tabla = document.getElementById("contentKardex");
 
 $("#item_productos").select2({
     ajax: {
@@ -47,14 +51,15 @@ $("#item_productos").select2({
     },
 });
 
-const almacenSelect = document.getElementById('almacen');
-const ubicacionSelect = document.getElementById('ubicacion');
+const almacenSelect = document.getElementById("almacen");
+const ubicacionSelect = document.getElementById("ubicacion");
 
-almacenSelect.addEventListener('change', function() {
+almacenSelect.addEventListener("change", function () {
     const almacen_id = this.value;
-    
+
     if (almacen_id === "") {
-        ubicacionSelect.innerHTML = '<option value="">Seleccione un almacén primero</option>';
+        ubicacionSelect.innerHTML =
+            '<option value="">Seleccione un almacén primero</option>';
         ubicacionSelect.disabled = true;
         return;
     }
@@ -63,54 +68,56 @@ almacenSelect.addEventListener('change', function() {
     ubicacionSelect.disabled = true;
 
     fetch(`${urlgeneral}/kardex/traer_ubicaciones/${almacen_id}`)
-        .then(res => res.json())
-        .then(data => {
-            let options = '<option value="todas">Todas las ubicaciones</option>';
-            data.forEach(ubicacion => {
+        .then((res) => res.json())
+        .then((data) => {
+            let options =
+                '<option value="todas">Todas las ubicaciones</option>';
+            data.forEach((ubicacion) => {
                 options += `<option value="${ubicacion.id}">${ubicacion.name}</option>`;
             });
             ubicacionSelect.innerHTML = options;
             ubicacionSelect.disabled = false;
         })
-        .catch(err => {
+        .catch((err) => {
             console.error(err);
-            ubicacionSelect.innerHTML = '<option value="">Error al cargar ubicaciones</option>';
+            ubicacionSelect.innerHTML =
+                '<option value="">Error al cargar ubicaciones</option>';
         });
 });
 
-form.addEventListener('submit', (e) => {
+form.addEventListener("submit", (e) => {
     e.preventDefault();
 
     const csrf = document.querySelector('meta[name="csrf-token"]').content;
 
     const formData = new FormData(form);
 
-    formData.append('_token',csrf);
+    formData.append("_token", csrf);
 
-    fetch(urlgeneral+"/kardex/guardar",{
-        method: 'POST',
-        body: formData
+    fetch(urlgeneral + "/kardex/guardar", {
+        method: "POST",
+        body: formData,
     })
-    .then(res => res.json())
-    .then(data => {
-        let html = "";
+        .then((res) => res.json())
+        .then((data) => {
+            let html = "";
 
-        data.forEach((kardex,index) => {
-            let cantidad_entrada = 0;
-            let cantidad_salida = 0;
+            data.forEach((kardex, index) => {
+                let cantidad_entrada = 0;
+                let cantidad_salida = 0;
 
-            if (kardex.tipo == 1) {
-                cantidad_entrada = kardex.cantidad_unitaria;
-            } else {
-                cantidad_salida = kardex.cantidad_unitaria;
-            }
+                if (kardex.tipo == 1) {
+                    cantidad_entrada = kardex.cantidad_unitaria;
+                } else {
+                    cantidad_salida = kardex.cantidad_unitaria;
+                }
 
-            html += `
+                html += `
             <tr>
-                <td>${index+1}</td>
+                <td>${index + 1}</td>
                 <td>${kardex.fecha}</td>
                 <td>
-                    <span class="badge bg-info">${kardex.nombre_ubicacion || ''}</span>
+                    <span class="badge bg-info">${kardex.nombre_ubicacion || ""}</span>
                 </td>
                 <td>
                     ${kardex.descripcion}
@@ -126,10 +133,8 @@ form.addEventListener('submit', (e) => {
                 </td>
             </tr>
             `;
+            });
+
+            tabla.innerHTML = html;
         });
-
-        tabla.innerHTML = html;
-
-    })
-
 });

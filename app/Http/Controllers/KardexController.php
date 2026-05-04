@@ -21,16 +21,14 @@ class KardexController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-
-
     }
 
 
     public function index()
     {
         $idsede = session('key')->sede_id;
-        $origen = Almacen::where('sede_id','=',$idsede)->where('estado','=',1)->get();
-        return view('kardex.index',compact('origen'));
+        $origen = Almacen::where('sede_id', '=', $idsede)->where('estado', '=', 1)->get();
+        return view('kardex.index', compact('origen'));
     }
 
     /**
@@ -54,12 +52,12 @@ class KardexController extends Controller
         if (!isset($request->q)) {
             $productos = Productos::skip(0)->take(10)->get();
         } else {
-            $productos = Productos::where('nomb_pro','like','%'.$request->q.'%')->get();
+            $productos = Productos::where('nomb_pro', 'like', '%' . $request->q . '%')->get();
         }
 
         foreach ($productos as $key => $value) {
             $data["results"][$key]["id"] = $value->id;
-			$data["results"][$key]["text"] = $value->nomb_pro;
+            $data["results"][$key]["text"] = $value->nomb_pro;
         }
 
         return response()->json($data);
@@ -91,8 +89,8 @@ class KardexController extends Controller
             ->join('tipo_comprobantes', 'kardexes.tipo_comprobante', '=', 'tipo_comprobantes.id')
             ->join('stock_location', 'kardexes.ubicacion_id', '=', 'stock_location.id')
             ->select('kardexes.*', 'tipo_comprobantes.descripcion as comprobante', 'stock_location.name as nombre_ubicacion')
-            ->where('kardexes.producto_id',$request->producto)
-            ->where('kardexes.tipo_envio',$envio)
+            ->where('kardexes.producto_id', $request->producto)
+            ->where('kardexes.tipo_envio', $envio)
             ->whereBetween('kardexes.fecha', [$request->fecha_inicio, $request->fecha_final]);
 
         if ($request->has('ubicacion') && $request->ubicacion != 'todas') {
@@ -101,9 +99,33 @@ class KardexController extends Controller
             $query->where('stock_location.almacen_id', $request->almacen);
         }
 
-        $kardex = $query->orderBy('kardexes.fecha', 'asc')->get();
+        $kardex = $query->orderBy('kardexes.id', 'desc')->get();
 
         return response()->json($kardex);
+    }
+
+    public function updateKardex()
+    {
+        $lista = DB::table('kardexes')
+            ->where('fecha_comprobante', null)
+            ->where('tipo_comprobante', null)
+            ->get();
+
+        foreach ($lista as $key => $value) {
+            $fecha_comprobante = $value->fecha;
+
+            if ($value->serie_comprobante === 'NC01' || $value->serie_comprobante === 'NC03') {
+                $tipo_comprobante = 12;
+            } else {
+                $tipo_comprobante = 5;
+            }
+
+            $update = Kardex::find($value->id);
+            $update->fecha_comprobante = $fecha_comprobante;
+            $update->tipo_comprobante = $tipo_comprobante;
+
+            $update->save();
+        }
     }
 
     /**

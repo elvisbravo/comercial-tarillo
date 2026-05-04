@@ -1,93 +1,94 @@
+window.addEventListener("load", function (event) {
+    $(".loader").fadeOut("slow");
+});
+
 const urlgeeneral = $("#url_raiz_proyecto").val();
 
-const abrir_cerrar = document.getElementById('abrir_cerrar_caja');
-const estado_caja = document.getElementById('estado_caja');
-const form_caja = document.getElementById('aperturar_caja');
-const fechaInput = document.getElementById('fecha_apertura');
-const guardarBtn = document.getElementById('guardar');
+const abrir_cerrar = document.getElementById("abrir_cerrar_caja");
+const estado_caja = document.getElementById("estado_caja");
+const form_caja = document.getElementById("aperturar_caja");
+const fechaInput = document.getElementById("fecha_apertura");
+const guardarBtn = document.getElementById("guardar");
 
-const idcaja = document.getElementById('idcaja');
+const idcaja = document.getElementById("idcaja");
 
 const fechaActual = new Date();
 const fechaFormateada = fechaActual.toISOString().substr(0, 10);
 fechaInput.value = fechaFormateada;
 
-abrir_cerrar.addEventListener('click', (e) => {
+abrir_cerrar.addEventListener("click", (e) => {
     if (estado_caja.value == 0) {
-        $("#modal-aperturar-caja").modal('show');
+        $("#modal-aperturar-caja").modal("show");
     } else {
         Swal.fire({
-            title: '¿Desea cerrar Caja?',
+            title: "¿Desea cerrar Caja?",
             text: "Cierra caja para volver aperturarla!",
-            icon: 'warning',
+            icon: "warning",
             showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Cerrar Caja'
+            confirmButtonColor: "#3085d6",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Cerrar Caja",
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch(urlgeeneral+"/cerrar_caja/"+idcaja.value)
-                .then(res => res.json())
-                .then(data => {
-                    if (data == 'ok') {
-                        Swal.fire({
-                            position: 'top-center',
-                            icon: 'success',
-                            title: 'Se cerro la caja correctamente',
-                            showConfirmButton: false,
-                            timer: 2500
-                        });
+                fetch(urlgeeneral + "/cerrar_caja/" + idcaja.value)
+                    .then((res) => res.json())
+                    .then((data) => {
+                        if (data == "ok") {
+                            Swal.fire({
+                                position: "top-center",
+                                icon: "success",
+                                title: "Se cerro la caja correctamente",
+                                showConfirmButton: false,
+                                timer: 2500,
+                            });
 
-                        setTimeout(() => {
-                            location.reload();
-                        }, 2500);
-                    } else {
-                        alert('Error');
-                    }
-                })
-
+                            setTimeout(() => {
+                                location.reload();
+                            }, 2500);
+                        } else {
+                            alert("Error");
+                        }
+                    });
             }
-        })
+        });
     }
 });
 
-form_caja.addEventListener('submit', (e) => {
+form_caja.addEventListener("submit", (e) => {
     e.preventDefault();
 
     const csrf = document.querySelector('meta[name="csrf-token"]').content;
     guardarBtn.disabled = true;
 
-
     const formData = new FormData(form_caja);
 
-    formData.append('_token', csrf);
+    formData.append("_token", csrf);
 
-    fetch(urlgeeneral+"/caja/crear",{
-        method: 'POST',
-        body: formData
+    fetch(urlgeeneral + "/caja/crear", {
+        method: "POST",
+        body: formData,
     })
-    .then(res => res.json())
-    .then(data => {
-        if (data == "OK") {
-            $("#modal-aperturar-caja").modal('hide');
+        .then((res) => res.json())
+        .then((data) => {
+            if (data == "OK") {
+                $("#modal-aperturar-caja").modal("hide");
 
-            Swal.fire({
-                position: 'top-center',
-                icon: 'success',
-                title: 'Se aperturo la caja correctamente',
-                showConfirmButton: false,
-                timer: 2500
-            });
+                Swal.fire({
+                    position: "top-center",
+                    icon: "success",
+                    title: "Se aperturo la caja correctamente",
+                    showConfirmButton: false,
+                    timer: 2500,
+                });
 
-            setTimeout(() => {
-                location.reload();
-            }, 2500);
-
-        } else {
-            alert('Error');
-        }
-    })
-})
+                setTimeout(() => {
+                    location.reload();
+                }, 2500);
+            } else {
+                alert("Error");
+            }
+        });
+});
 
 function getChartColorsArray(e) {
     e = $(e).attr("data-colors");
@@ -109,7 +110,7 @@ var myChart = echarts.init(dom);
 //var myChart2 = echarts.init(dom2);
 var app = {};
 
-(option = null),
+((option = null),
     (option = {
         grid: {
             zlevel: 0,
@@ -136,6 +137,6 @@ var app = {};
         ],
         color: lineColors,
     }),
-    option && "object" == typeof option && myChart.setOption(option, !0);
+    option && "object" == typeof option && myChart.setOption(option, !0));
 
 //option && "object" == typeof option && myChart2.setOption(option, !0);

@@ -1,6 +1,6 @@
 @extends('layouts.main')
 @section('title')
-  Roles de Usuarios
+Roles de Usuarios
 @endsection
 
 @section('css')
@@ -15,6 +15,7 @@
         display: flex !important;
         justify-content: flex-end !important;
     }
+
     .pagination {
         justify-content: flex-end !important;
     }
@@ -52,53 +53,53 @@
                         @endif
                     </div>
                     <div class="card-body">
-                    @if ($message = Session::get('success'))
+                        @if ($message = Session::get('success'))
                         <div class="alert alert-success">
                             <p>{{ $message }}</p>
                         </div>
-                    @endif
+                        @endif
 
-                    <div class="table-responsive">
+                        <div class="table-responsive">
 
-                    <table id="datatable" class="table table-bordered dt-responsive  nowrap w-100">
-                            <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Nombre</th>
+                            <table id="datatable" class="table table-bordered dt-responsive  nowrap w-100">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Nombre</th>
 
-                                <th width="280px">Action</th>
-                            </tr>
-                            </thead>
-
-
-                            <tbody id="serviciosdatos">
-                            @foreach ($roles as $key => $role)
-                            <tr>
-                             <td>{{ ++$i }}</td>
-                             <td>{{ $role->name }}</td>
-                             <td>
-                                <a class="btn btn-info" href="{{ route('roles.show',$role->id) }}">Ver</a>
-                                
-                                @if(App\Permisos::hasPermission('roles', 3))
-                                <a class="btn btn-primary" href="{{ route('roles.edit',$role->id) }}">Editar</a>
-                                @endif
-
-                                @if(App\Permisos::hasPermission('roles', 4))
-                                {!! Form::open(['method' => 'DELETE','route' => ['roles.destroy', $role->id],'style'=>'display:inline']) !!}
-                                    {!! Form::submit('Eliminar', ['class' => 'btn btn-danger']) !!}
-                                {!! Form::close() !!}
-                                @endif
-                           </td>
-
-                            </tr>
-                            @endforeach
+                                        <th width="280px">Action</th>
+                                    </tr>
+                                </thead>
 
 
-                            </tbody>
-                        </table>
+                                <tbody id="serviciosdatos">
+                                    @foreach ($roles as $key => $role)
+                                    <tr>
+                                        <td>{{ ++$i }}</td>
+                                        <td>{{ $role->name }}</td>
+                                        <td>
+                                            <a class="btn btn-info" href="{{ route('roles.show',$role->id) }}">Ver</a>
 
-                        {!! $roles->render() !!}
-                   </div>
+                                            @if(App\Permisos::hasPermission('roles', 3))
+                                            <a class="btn btn-primary" href="{{ route('roles.edit',$role->id) }}">Editar</a>
+                                            @endif
+
+                                            @if(App\Permisos::hasPermission('roles', 4))
+                                            {!! Form::open(['method' => 'DELETE','route' => ['roles.destroy', $role->id],'style'=>'display:inline']) !!}
+                                            {!! Form::submit('Eliminar', ['class' => 'btn btn-danger']) !!}
+                                            {!! Form::close() !!}
+                                            @endif
+                                        </td>
+
+                                    </tr>
+                                    @endforeach
+
+
+                                </tbody>
+                            </table>
+
+                            {!! $roles->render() !!}
+                        </div>
 
 
 
@@ -127,6 +128,10 @@
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
 <script src="{{ asset('js/utils.js') }}"></script>
 <script>
+    window.addEventListener("load", function(event) {
+        $(".loader").fadeOut("slow");
+    });
+
     $(document).ready(function() {
         initDataTable("#datatable");
     });
