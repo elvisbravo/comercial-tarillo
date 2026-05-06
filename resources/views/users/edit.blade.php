@@ -2,7 +2,7 @@
 
 
 @section('title')
-  Editar Usuario
+Editar Usuario
 @endsection
 
 @section('css')
@@ -15,48 +15,48 @@
 @section('contenido')
 
 
-    <div class="container-fluid">
-        <!-- start page title -->
-        <div class="row">
-            <div class="col-12">
-                <div class="page-title-box d-sm-flex align-items-center justify-content-between">
-                    <h4 class="mb-sm-0 font-size-18">Editar Usuario</h4>
+<div class="container-fluid">
+    <!-- start page title -->
+    <div class="row">
+        <div class="col-12">
+            <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+                <h4 class="mb-sm-0 font-size-18">Editar Usuario</h4>
 
-                    <div class="page-title-right">
-                        <ol class="breadcrumb m-0">
-                           
-                            <li class="breadcrumb-item active">Detalle</li>
-                        </ol>
-                    </div>
+                <div class="page-title-right">
+                    <ol class="breadcrumb m-0">
 
+                        <li class="breadcrumb-item active">Detalle</li>
+                    </ol>
                 </div>
+
             </div>
         </div>
-        <!-- end page title -->
+    </div>
+    <!-- end page title -->
 
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center bg-transparent border-bottom">
-                        <h5 class="card-title mb-0">Información del Usuario a Editar</h5>
-                        <a href="{{ url('users') }}" class="btn btn-secondary btn-sm waves-effect btn-label waves-light">
-                            <i class="bx bx-arrow-back label-icon"></i> Atras
-                        </a>
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center bg-transparent border-bottom">
+                    <h5 class="card-title mb-0">Información del Usuario a Editar</h5>
+                    <a href="{{ url('users') }}" class="btn btn-secondary btn-sm waves-effect btn-label waves-light">
+                        <i class="bx bx-arrow-back label-icon"></i> Atras
+                    </a>
+                </div>
+
+                <div class="card-body">
+
+                    @if (count($errors) > 0)
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <strong>¡Ups!</strong> Hubo algunos problemas con su entrada.<br><br>
+                        <ul class="mb-0">
+                            @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
-                    
-                    <div class="card-body">
-
-                        @if (count($errors) > 0)
-                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                <strong>¡Ups!</strong> Hubo algunos problemas con su entrada.<br><br>
-                                <ul class="mb-0">
-                                @foreach ($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                                </ul>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        @endif
+                    @endif
 
                     {!! Form::model($user, ['method' => 'PATCH','route' => ['users.update', $user->id],'autocomplete'=>'off','files'=>'true', 'class' => 'needs-validation', 'novalidate']) !!}
                     <input type="hidden" value="{{$user->id}}" name="id">
@@ -103,11 +103,11 @@
                                 <select name="sede_id" id="sede_id" class="form-select" required>
                                     <option value="" disabled>--Seleccionar Sede--</option>
                                     @foreach( $sedes as $sede)
-                                        @if($sede->id==$user->sede_id)
-                                            <option value="{{$sede->id}}" selected>{{$sede->nombre}}</option>
-                                        @else
-                                            <option value="{{$sede->id}}">{{$sede->nombre}}</option>
-                                        @endif
+                                    @if($sede->id==$user->sede_id)
+                                    <option value="{{$sede->id}}" selected>{{$sede->nombre}}</option>
+                                    @else
+                                    <option value="{{$sede->id}}">{{$sede->nombre}}</option>
+                                    @endif
                                     @endforeach
                                 </select>
                             </div>
@@ -128,7 +128,7 @@
                     </div>
 
                     <hr class="mt-4 mb-4">
-                    
+
                     <div class="text-end">
                         <button type="submit" class="btn btn-primary waves-effect waves-light">
                             <i class="bx bx-save font-size-16 align-middle me-2"></i> Guardar Cambios
@@ -137,56 +137,42 @@
 
                     {!! Form::close() !!}
 
-                    </div>
                 </div>
             </div>
         </div>
+    </div>
 
-      </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+</div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const rolSelect  = document.getElementById('roles_select');
-    const sedeSelect = document.getElementById('sede_id');
+    window.addEventListener("load", function(event) {
+        $(".loader").fadeOut("slow");
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+        const rolSelect = document.getElementById('roles_select');
+        const sedeSelect = document.getElementById('sede_id');
 
-    function filtrarSedePorRol() {
-        const rolElegido = rolSelect.value.toLowerCase();
-        const esAdmin    = rolElegido === 'administrador';
+        function filtrarSedePorRol() {
+            const rolElegido = rolSelect.value.toLowerCase();
+            const esAdmin = rolElegido === 'administrador';
 
-        Array.from(sedeSelect.options).forEach(function (opt) {
-            if (opt.text.trim().toUpperCase() === 'TODOS') {
-                opt.hidden   = !esAdmin;
-                opt.disabled = !esAdmin;
-                // Si estaba seleccionada y ya no está disponible, limpiar
-                if (!esAdmin && opt.selected) {
-                    sedeSelect.value = '';
+            Array.from(sedeSelect.options).forEach(function(opt) {
+                if (opt.text.trim().toUpperCase() === 'TODOS') {
+                    opt.hidden = !esAdmin;
+                    opt.disabled = !esAdmin;
+                    // Si estaba seleccionada y ya no está disponible, limpiar
+                    if (!esAdmin && opt.selected) {
+                        sedeSelect.value = '';
+                    }
                 }
-            }
-        });
-    }
+            });
+        }
 
-    // Ejecutar al cargar para respetar el rol actual del usuario
-    filtrarSedePorRol();
+        // Ejecutar al cargar para respetar el rol actual del usuario
+        filtrarSedePorRol();
 
-    // Ejecutar cada vez que cambia el rol
-    rolSelect.addEventListener('change', filtrarSedePorRol);
-});
+        // Ejecutar cada vez que cambia el rol
+        rolSelect.addEventListener('change', filtrarSedePorRol);
+    });
 </script>
 @endsection
