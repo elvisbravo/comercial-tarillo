@@ -25,6 +25,8 @@ Listado Compras
 @section('contenido')
 
 <div class="container-fluid">
+    <input type="hidden" id="can_delete" value="{{ App\Permisos::hasPermission('compras', 4) ? '1' : '0' }}">
+    <input type="hidden" id="can_view_detail" value="{{ App\Permisos::hasPermission('compras', 6) ? '1' : '0' }}">
 
     <!-- start page title -->
     <div class="row">
@@ -96,22 +98,24 @@ Listado Compras
 
 </div>
 
-
-
-
 <!-- Static Backdrop Modal -->
 <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="staticBackdropLabel">Detalle de la Compra</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <div id="loader_modal" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <h5 class="mt-2">Cargando datos...</h5>
+                </div>
 
-
-
-                <div class="table-responsive">
+                <div id="content_modal" style="display: none;">
+                    <div class="table-responsive">
                     <table id="datatabledos" class="table  dt-responsive  nowrap w-100">
                         <thead>
                             <tr>
@@ -132,11 +136,8 @@ Listado Compras
                         </tbody>
                     </table>
                 </div>
-
-
-
-
-            </div>
+            </div> <!-- Fin content_modal -->
+        </div> <!-- Fin modal-body -->
             <div class="modal-footer">
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
 
@@ -146,53 +147,15 @@ Listado Compras
     </div>
 </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @endsection
 
 @section('js')
 
 <!-- Sweet Alerts js -->
-
-<!-- Required datatable js -->
-<!-- Sweet Alerts js -->
 <script src="{{ asset('assets/libs/sweetalert2/sweetalert2.min.js') }}"></script>
 <!-- Required datatable js -->
 <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
-
-<script>
-    const canDelete = {{ App\Permisos::hasPermission('compras', 4) ? 'true' : 'false' }};
-    const canViewDetail = {{ App\Permisos::hasPermission('compras', 6) ? 'true' : 'false' }};
-</script>
 
 <script src="{{ asset('js/compraslista.js') }}">
 </script>

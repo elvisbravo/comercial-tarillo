@@ -357,8 +357,8 @@ class ComprasController extends Controller
     {
 
         $detalle = DB::table('detalle_compras as dt')
-            ->join('productos as p', 'dt.producto_id', '=', 'p.id')
-            ->join('unidad_medidas as u', 'dt.unidad_medida_id', '=', 'u.id')
+            ->leftjoin('productos as p', 'dt.producto_id', '=', 'p.id')
+            ->leftjoin('unidad_medidas as u', 'dt.unidad_medida_id', '=', 'u.id')
             ->select('p.nomb_pro', 'u.descripcion', 'dt.cantidad', 'dt.precio', 'dt.subtotal')
             ->where('dt.compra_id', '=', $id)
             ->get();
