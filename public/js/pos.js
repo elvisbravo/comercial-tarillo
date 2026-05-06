@@ -1,6 +1,6 @@
-window.onload = () => {
+/*window.onload = () => {
     validar_caja();
-};
+};*/
 
 window.addEventListener("load", function (event) {
     $(".loader").fadeOut("slow");
