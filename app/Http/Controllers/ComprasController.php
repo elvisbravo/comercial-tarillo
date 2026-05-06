@@ -63,6 +63,7 @@ class ComprasController extends Controller
             ->join('tipo_comprobantes as tc', 'c.tipo_comprobante_id', '=', 'tc.id')
             ->select('c.id', 'pr.nombre_comercial', 'c.serie_comprobante', 'c.correlativo_comprobante', 'c.total_compra', 'fp.descripcion', 'c.fecha_compra', 'c.estado')
             ->where('c.sede_id', '=', $idsede)
+            ->orderBy('c.id', 'desc')
             ->get();
 
 
@@ -325,7 +326,7 @@ class ComprasController extends Controller
 
         // Actualizamos el costo en la tabla de productos
         $producto = Productos::find($codigo);
-        
+
         if ($producto) {
             $producto->costo = $average;
             $producto->save();

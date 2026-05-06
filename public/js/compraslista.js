@@ -48,9 +48,12 @@ function llenardata(data) {
             "<td style='padding:1px;text-align:center'> " +
             data[i].descripcion +
             "</td>";
+        let fecha = data[i].fecha_compra.split("-");
+        let fecha_formateada = fecha[2] + "-" + fecha[1] + "-" + fecha[0];
+
         contenido +=
             "<td style='padding:1px;text-align:center'> " +
-            data[i].fecha_compra +
+            fecha_formateada +
             "</td>";
         contenido +=
             "<td style='padding:1px;text-align:center'> " +
@@ -59,10 +62,16 @@ function llenardata(data) {
         contenido += "<td style='padding:1px;text-align:center'>";
 
         if (typeof canViewDetail !== "undefined" && canViewDetail) {
-            let num_comprobante = data[i].serie_comprobante + "-" + data[i].correlativo_comprobante;
+            let num_comprobante =
+                data[i].serie_comprobante +
+                "-" +
+                data[i].correlativo_comprobante;
             contenido +=
                 ' <button type="button" onclick="abrimodal(' +
-                data[i].id + ", '" + num_comprobante + "'" +
+                data[i].id +
+                ", '" +
+                num_comprobante +
+                "'" +
                 ')" class="btn btn-warning waves-effect waves-light" data-bs-toggle="modal" data-bs-target="#staticBackdrop" title="Ver Detalle"><i class="fas fa-eye"></i> </button>';
         }
 
@@ -96,7 +105,9 @@ function abrimodal(id, comprobante) {
         $("#actualizar").hide();
     } else {
         // Actualizamos el título del modal con el número de comprobante
-        $("#staticBackdropLabel").html("Detalle de la Compra " + (comprobante || ""));
+        $("#staticBackdropLabel").html(
+            "Detalle de la Compra " + (comprobante || ""),
+        );
 
         // Mostramos el loader y ocultamos el contenido para una carga limpia
         $("#loader_modal").show();
@@ -125,7 +136,7 @@ function abrimodal(id, comprobante) {
                             parseInt(i + 1, 10) +
                             "</td>";
                         contenido +=
-                            "<td style='padding:1px;text-align:center'> " +
+                            "<td style='padding:1px;'> " +
                             data[i].nomb_pro +
                             "</td>";
                         contenido +=
