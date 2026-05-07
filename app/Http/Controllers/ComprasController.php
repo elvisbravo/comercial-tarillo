@@ -438,10 +438,9 @@ class ComprasController extends Controller
                 // return response()->json($compra);
 
                 foreach ($detalle as $dt) {
-
                     $serviciodetallealmacen = new FuncionesController;
-
-                    $sumar = $serviciodetallealmacen->aumentar_descontar_stock(0, $dt->ubicacion_id, $dt->producto_id, $dt->cantidad, $tipo->tipo_envio);
+                    // Usamos el tipo de envío que tenía la compra original
+                    $sumar = $serviciodetallealmacen->aumentar_descontar_stock(0, $dt->ubicacion_id, $dt->producto_id, $dt->cantidad, $dt->tipo_envio_compra);
                 }
             }
 
@@ -462,48 +461,36 @@ class ComprasController extends Controller
         }
     }
 
-    //METODO PARA VALIDAR TODO EL ARRAY DE LA COMPRA Y SI ME REGRESA 1 ES PORQUE NO DEBO MODIFICAR  Y 0 SI DEVO MODIFICAR
     public function validar_anulacion($id)
     {
-
         $detalle = $this->obtenerDetalleCompra($id);
 
-
-        $valor = 0;
-
         foreach ($detalle as $dt) {
+            // Validamos si hay stock suficiente para este producto considerando el tipo de envío de la compra
+            $insuficiente = $this->validar_stock($dt->producto_id, $dt->ubicacion_id, $dt->cantidad, $dt->tipo_envio_compra);
 
-            $valor = $this->validar_stock($dt->producto_id, $dt->ubicacion_id, $dt->cantidad);
-
-            if ($valor == 1) {
-                $valor = 0;
-            } else {
-                $valor = 1;
+            if ($insuficiente == 1) {
+                return 1; // Bloquear si un solo producto falla
             }
         }
 
-        return $valor;
+        return 0; // Se puede anular
     }
 
-
-    //metodo para comprobar si el monto ingresado es igual al del stock
-    public function validar_stock($id, $ubicacion, $cantidad)
+    public function validar_stock($id, $ubicacion, $cantidad, $tipo_envio)
     {
-
-        $detalle = DB::table('detalle_almacen_productos as dt')
-            ->where('dt.producto_id', '=', $id)
-            ->where('dt.ubicacion_id', '=', $ubicacion)
+        $detalle = DB::table('detalle_almacen_productos')
+            ->where('producto_id', '=', $id)
+            ->where('ubicacion_id', '=', $ubicacion)
+            ->where('tipo_envio', '=', $tipo_envio)
             ->first();
 
-        $valor = 0;
-        $suma = ($detalle->stock - $cantidad);
-
-        if ($suma == 0) {
-            $valor = 1;
+        // Si no existe el registro o el stock es menor a lo que queremos anular, bloqueamos
+        if (!$detalle || $detalle->stock < $cantidad) {
+            return 1; // Insuficiente
         }
 
-
-        return $valor;
+        return 0; // Suficiente
     }
 
     public function obtenerCompra($id)
@@ -513,9 +500,9 @@ class ComprasController extends Controller
 
     public function obtenerDetalleCompra($compraId)
     {
-
-        return DB::table('compras as c')
-            ->join('detalle_compras as dt', 'dt.compra_id', '=', 'c.id')
+        return DB::table('detalle_compras as dt')
+            ->join('compras as c', 'dt.compra_id', '=', 'c.id')
+            ->select('dt.*', 'c.ubicacion_id', 'c.tipo as tipo_envio_compra')
             ->where('dt.compra_id', '=', $compraId)
             ->get();
     }

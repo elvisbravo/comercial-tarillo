@@ -10,8 +10,13 @@ window.addEventListener("load", function (event) {
 //FUNCION LISTADO
 
 function listadocompras() {
-    $.get(urlgeeneral + "/compras/listacompras", function (data) {
-        llenardata(data);
+    $.ajax({
+        url: urlgeeneral + "/compras/listacompras",
+        type: "GET",
+        cache: false,
+        success: function (data) {
+            llenardata(data);
+        },
     });
 }
 
@@ -90,7 +95,15 @@ function llenardata(data) {
         contenido += "</tr>";
     }
 
-    document.getElementById("listadocompras").innerHTML = contenido;
+    // 1. Destruimos la instancia de DataTable si ya existe para evitar conflictos en el refresco
+    if ($.fn.DataTable.isDataTable("#datatable")) {
+        $("#datatable").DataTable().destroy();
+    }
+
+    // 2. Actualizamos el HTML
+    $("#listadocompras").html(contenido);
+
+    // 3. Reinicializamos la tabla
     initDataTable("#datatable");
 }
 
@@ -197,15 +210,12 @@ function eliminarcompra(id) {
         cancelButtonText: "Cancelar",
     }).then((result) => {
         if (result.isConfirmed) {
-            var csrf = document.querySelector(
-                'meta[name="csrf-token"]',
-            ).content;
+            var csrf = document.querySelector('meta[name="csrf-token"]').content;
             $.ajax({
                 type: "POST",
-                url: "compras/eliminar/" + id,
+                url: urlgeeneral + "/compras/eliminar/" + id,
                 data: { _method: "delete", _token: csrf },
                 success: function (data) {
-                    listadocompras();
                     if (data.respuesta === "error") {
                         Swal.fire({
                             icon: "error",
@@ -217,8 +227,17 @@ function eliminarcompra(id) {
                             icon: "success",
                             title: "Anulado",
                             text: data.mensaje,
+                        }).then(() => {
+                            listadocompras();
                         });
                     }
+                },
+                error: function () {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Error",
+                        text: "Ocurrió un error al intentar anular la compra",
+                    });
                 },
             });
         }
