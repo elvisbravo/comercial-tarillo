@@ -191,14 +191,12 @@ class KardexController extends Controller
         try {
             DB::beginTransaction();
 
-            // Obtener todas las combinaciones únicas de producto, ubicación y tipo_envio
             $items = DB::table('kardexes')
                 ->select('producto_id', 'ubicacion_id', 'tipo_envio')
                 ->groupBy('producto_id', 'ubicacion_id', 'tipo_envio')
                 ->get();
 
             foreach ($items as $item) {
-                // Obtener todos los movimientos para esta combinación, ordenados por fecha e ID
                 $movimientos = Kardex::where('producto_id', $item->producto_id)
                     ->where('ubicacion_id', $item->ubicacion_id)
                     ->where('tipo_envio', $item->tipo_envio)
@@ -211,21 +209,22 @@ class KardexController extends Controller
                 $current_avg_price = 0;
 
                 foreach ($movimientos as $mov) {
-                    if ($mov->tipo == 1) { // Ingreso
-                        $running_cantidad += $mov->cantidad_unitaria;
-                        $running_subtotal += $mov->subtotal_unitario;
-                    } else if ($mov->tipo == 2) { // Salida
-                        // El subtotal unitario de la salida debe ser el costo promedio actual
-                        $mov->subtotal_unitario = $current_avg_price * $mov->cantidad_unitaria;
+                    $tipo = (int)$mov->tipo;
+                    $cantidad = (float)$mov->cantidad_unitaria;
 
-                        $running_cantidad -= $mov->cantidad_unitaria;
-                        $running_subtotal -= $mov->subtotal_unitario;
+                    if ($tipo === 1) { // Ingreso
+                        $running_cantidad += $cantidad;
+                        $running_subtotal += (float)$mov->subtotal_unitario;
+                    } else if ($tipo === 2) { // Salida
+                        $mov->subtotal_unitario = $current_avg_price * $cantidad;
+                        $running_cantidad -= $cantidad;
+                        $running_subtotal -= (float)$mov->subtotal_unitario;
                     }
 
-                    // Evitar saldos negativos de subtotal si la cantidad es 0
                     if ($running_cantidad <= 0) {
                         $running_subtotal = 0;
                         $current_avg_price = 0;
+                        $running_cantidad = ($running_cantidad < 0 && $tipo === 2) ? $running_cantidad : 0;
                     } else {
                         $current_avg_price = $running_subtotal / $running_cantidad;
                     }
@@ -234,9 +233,12 @@ class KardexController extends Controller
                     $mov->precio_total = $current_avg_price;
                     $mov->subtotal_total = $running_subtotal;
                     $mov->save();
+
+                    if ($mov->producto_id == 6) {
+                        \Log::info("Recalculando Producto 6: ID {$mov->id}, Tipo {$tipo}, Cant {$cantidad}, Total Acumulado {$running_cantidad}");
+                    }
                 }
 
-                // Actualizar el stock actual en detalle_almacen_productos para que coincida con el Kardex
                 DB::table('detalle_almacen_productos')
                     ->where('producto_id', $item->producto_id)
                     ->where('ubicacion_id', $item->ubicacion_id)
@@ -247,7 +249,7 @@ class KardexController extends Controller
             DB::commit();
             return response()->json([
                 'status' => 'success',
-                'message' => 'Kardex y Stock actualizados correctamente para todos los productos y ubicaciones.'
+                'message' => 'Kardex y Stock actualizados correctamente. Se ha generado un registro en el log para el producto 6.'
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
