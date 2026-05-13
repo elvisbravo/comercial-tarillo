@@ -86,8 +86,8 @@ class KardexController extends Controller
         $envio = $tipo_envio->tipo_envio_sunat();
 
         $query = DB::table('kardexes')
-            ->join('tipo_comprobantes', 'kardexes.tipo_comprobante', '=', 'tipo_comprobantes.id')
-            ->join('stock_location', 'kardexes.ubicacion_id', '=', 'stock_location.id')
+            ->leftJoin('tipo_comprobantes', 'kardexes.tipo_comprobante', '=', 'tipo_comprobantes.id')
+            ->leftJoin('stock_location', 'kardexes.ubicacion_id', '=', 'stock_location.id')
             ->select('kardexes.*', 'tipo_comprobantes.descripcion as comprobante', 'stock_location.name as nombre_ubicacion')
             ->where('kardexes.producto_id', $request->producto)
             ->where('kardexes.tipo_envio', $envio)
@@ -235,6 +235,13 @@ class KardexController extends Controller
                     $mov->subtotal_total = $running_subtotal;
                     $mov->save();
                 }
+
+                // Actualizar el stock actual en detalle_almacen_productos para que coincida con el Kardex
+                DB::table('detalle_almacen_productos')
+                    ->where('producto_id', $item->producto_id)
+                    ->where('ubicacion_id', $item->ubicacion_id)
+                    ->where('tipo_envio', $item->tipo_envio)
+                    ->update(['stock' => $running_cantidad]);
             }
 
             DB::commit();
