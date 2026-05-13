@@ -115,6 +115,12 @@ form.addEventListener("submit", (e) => {
                 let cantidad_salida = 0;
                 let descripcion = "";
 
+                if (kardex.tipo == 1) {
+                    cantidad_entrada = kardex.cantidad_unitaria;
+                } else {
+                    cantidad_salida = kardex.cantidad_unitaria;
+                }
+
                 html += `
             <tr>
                 <td>${data.length - index}</td>
