@@ -183,4 +183,71 @@ class KardexController extends Controller
     {
         //
     }
+    public function recalculateKardex()
+    {
+        ini_set('max_execution_time', 0);
+        ini_set('memory_limit', '512M');
+
+        try {
+            DB::beginTransaction();
+
+            // Obtener todas las combinaciones únicas de producto, ubicación y tipo_envio
+            $items = DB::table('kardexes')
+                ->select('producto_id', 'ubicacion_id', 'tipo_envio')
+                ->groupBy('producto_id', 'ubicacion_id', 'tipo_envio')
+                ->get();
+
+            foreach ($items as $item) {
+                // Obtener todos los movimientos para esta combinación, ordenados por fecha e ID
+                $movimientos = Kardex::where('producto_id', $item->producto_id)
+                    ->where('ubicacion_id', $item->ubicacion_id)
+                    ->where('tipo_envio', $item->tipo_envio)
+                    ->orderBy('fecha', 'asc')
+                    ->orderBy('id', 'asc')
+                    ->get();
+
+                $running_cantidad = 0;
+                $running_subtotal = 0;
+                $current_avg_price = 0;
+
+                foreach ($movimientos as $mov) {
+                    if ($mov->tipo == 1) { // Ingreso
+                        $running_cantidad += $mov->cantidad_unitaria;
+                        $running_subtotal += $mov->subtotal_unitario;
+                    } else if ($mov->tipo == 2) { // Salida
+                        // El subtotal unitario de la salida debe ser el costo promedio actual
+                        $mov->subtotal_unitario = $current_avg_price * $mov->cantidad_unitaria;
+
+                        $running_cantidad -= $mov->cantidad_unitaria;
+                        $running_subtotal -= $mov->subtotal_unitario;
+                    }
+
+                    // Evitar saldos negativos de subtotal si la cantidad es 0
+                    if ($running_cantidad <= 0) {
+                        $running_subtotal = 0;
+                        $current_avg_price = 0;
+                    } else {
+                        $current_avg_price = $running_subtotal / $running_cantidad;
+                    }
+
+                    $mov->cantidad_total = $running_cantidad;
+                    $mov->precio_total = $current_avg_price;
+                    $mov->subtotal_total = $running_subtotal;
+                    $mov->save();
+                }
+            }
+
+            DB::commit();
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Kardex y Stock actualizados correctamente para todos los productos y ubicaciones.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al recalcular: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

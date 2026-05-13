@@ -429,9 +429,6 @@ class ComprasController extends Controller
                     return response()->json($json);
                 }
 
-
-
-
                 $compra->estado = 0;
 
                 $compra->save();
@@ -443,10 +440,6 @@ class ComprasController extends Controller
                     $sumar = $serviciodetallealmacen->aumentar_descontar_stock(0, $dt->ubicacion_id, $dt->producto_id, $dt->cantidad, $dt->tipo_envio_compra);
                 }
             }
-
-
-
-
 
             $json = array(
                 "respuesta" => "ok",
