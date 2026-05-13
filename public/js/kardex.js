@@ -115,14 +115,6 @@ form.addEventListener("submit", (e) => {
                 let cantidad_salida = 0;
                 let descripcion = "";
 
-                if (kardex.tipo == 1) {
-                    cantidad_entrada = kardex.cantidad_unitaria;
-                    descripcion = `COMPRA ${kardex.serie_comprobante}-${kardex.correlativo_comprobante}`;
-                } else {
-                    cantidad_salida = kardex.cantidad_unitaria;
-                    descripcion = `VENTA ${kardex.serie_comprobante}-${kardex.correlativo_comprobante}`;
-                }
-
                 html += `
             <tr>
                 <td>${data.length - index}</td>
@@ -131,7 +123,7 @@ form.addEventListener("submit", (e) => {
                     <span class="badge bg-info">${kardex.nombre_ubicacion || ""}</span>
                 </td>
                 <td>
-                    ${descripcion}
+                    ${kardex.descripcion}
                 </td>
                 <td>
                     ${cantidad_entrada}
