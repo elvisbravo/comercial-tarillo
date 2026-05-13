@@ -99,7 +99,9 @@ class KardexController extends Controller
             $query->where('stock_location.almacen_id', $request->almacen);
         }
 
-        $kardex = $query->orderBy('kardexes.id', 'desc')->get();
+        $kardex = $query->orderBy('kardexes.fecha', 'desc')
+            ->orderBy('kardexes.id', 'desc')
+            ->get();
 
         return response()->json($kardex);
     }
