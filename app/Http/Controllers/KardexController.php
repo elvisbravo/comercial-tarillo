@@ -185,6 +185,7 @@ class KardexController extends Controller
     {
         //
     }
+
     public function recalculateKardex()
     {
         ini_set('max_execution_time', 0);
@@ -214,6 +215,45 @@ class KardexController extends Controller
                     $tipo = (int)$mov->tipo;
                     $cantidad = (float)$mov->cantidad_unitaria;
 
+                    // Identificar traslados por prefijo 'GI' (case-insensitive) o por tipo de comprobante 7
+                    $isTraslado = ($mov->serie_comprobante && stripos(trim($mov->serie_comprobante), 'GI') === 0) || ($mov->tipo_comprobante == 7);
+
+                    if ($isTraslado) {
+                        $traslado = DB::table('traslados')
+                            ->where('serie', trim($mov->serie_comprobante))
+                            ->where('correlativo', trim($mov->correlativo_comprobante))
+                            ->first();
+
+                        if ($traslado) {
+                            // REQUERIMIENTO: Solo se considera si el estado es exactamente 0 (Totalmente recibido)
+                            if ($traslado->estado == 0) {
+                                // Buscamos la cantidad recibida real en el detalle del traslado
+                                $detalleTraslado = DB::table('detalle_traslado')
+                                    ->where('traslado_id', $traslado->id)
+                                    ->where('producto_id', $mov->producto_id)
+                                    ->first();
+
+                                if ($detalleTraslado) {
+                                    $cantidad = (float)$detalleTraslado->cantidad_recibido;
+                                }
+                                // Si no hay detalle, se mantiene la cantidad original del movimiento
+                            } else {
+                                // Si el estado es diferente de 0 (ej. 1=Creado o 2=Parcial), NO se considera en el kardex
+                                $cantidad = 0;
+                            }
+                        } else {
+                            // Si es un documento marcado como traslado pero no existe en la tabla traslados, lo ignoramos
+                            $cantidad = 0;
+                        }
+
+                        // Actualizamos el objeto movimiento con la cantidad decidida
+                        $mov->cantidad_unitaria = $cantidad;
+                        // Si es un ingreso, recalculamos el subtotal unitario con la nueva cantidad
+                        if ($tipo === 1) {
+                            $mov->subtotal_unitario = $cantidad * (float)$mov->precio_unitario;
+                        }
+                    }
+
                     if ($tipo === 1) { // Ingreso
                         $running_cantidad += $cantidad;
                         $running_subtotal += (float)$mov->subtotal_unitario;
@@ -223,12 +263,20 @@ class KardexController extends Controller
                         $running_subtotal -= (float)$mov->subtotal_unitario;
                     }
 
-                    if ($running_cantidad <= 0) {
-                        $running_subtotal = 0;
-                        $current_avg_price = 0;
-                        $running_cantidad = ($running_cantidad < 0 && $tipo === 2) ? $running_cantidad : 0;
+                    if ($cantidad != 0) {
+                        if ($running_cantidad <= 0) {
+                            $running_subtotal = 0;
+                            $current_avg_price = 0;
+                            $running_cantidad = ($running_cantidad < 0 && $tipo === 2) ? $running_cantidad : 0;
+                        } else {
+                            $current_avg_price = $running_subtotal / $running_cantidad;
+                        }
                     } else {
-                        $current_avg_price = $running_subtotal / $running_cantidad;
+                        // Si la cantidad es 0 (movimiento ignorado), mantenemos el saldo anterior 
+                        // evitando el reset agresivo a 0 que descuadra el historial negativo.
+                        if ($running_cantidad > 0) {
+                            $current_avg_price = $running_subtotal / $running_cantidad;
+                        }
                     }
 
                     $mov->cantidad_total = $running_cantidad;
