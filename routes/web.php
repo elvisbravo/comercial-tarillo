@@ -488,4 +488,8 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('configuracion-acciones/getAssignments/{id}', 'ConfiguracionAccionesController@getAssignments');
     Route::post('configuracion-acciones/save', 'ConfiguracionAccionesController@saveAssignments');
     Route::resource('configuracion-acciones', 'ConfiguracionAccionesController');
+
+    // VENTAS MOVILES
+    Route::get('ventas-moviles', 'MobileSalesController@index');
+    Route::get('ventas-moviles/asignar', 'MobileSalesController@asignar');
 });
