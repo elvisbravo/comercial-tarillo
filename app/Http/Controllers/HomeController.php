@@ -33,6 +33,17 @@ class HomeController extends Controller
      */
     public function index(Request $request)
     {
+        $usuario = Auth::user();
+
+        // Verificar si el usuario está registrado y activo como vendedor en ruta
+        $vendedor = \App\Vendedor::where('usuario_id', $usuario->id)
+                                 ->where('estado', 1)
+                                 ->first();
+
+        if ($vendedor) {
+            return redirect()->route('vendedor.dashboard');
+        }
+
         $usuarioSesion = $request->session()->get('key');
         $anioActual    = date("Y");
 
@@ -40,8 +51,9 @@ class HomeController extends Controller
         $sedeId = $usuarioSesion->sede_id;
 
         // Re-fetch solo para datos de perfil (nombre, imagen, etc.)
-        $usuario        = User::find($usuarioSesion->id);
-        $sedeDelUsuario = $usuarioSesion->sede ?? $usuario->sede;
+        $usuarioModel   = User::find($usuarioSesion->id);
+        $sedeDelUsuario = $usuarioSesion->sede ?? $usuarioModel->sede;
+
 
         //OBTENER EL TOTAL DE LAS VENTAS AL CONTADO
         $totalVentasContado = $this->total_ventas_contado($sedeId);

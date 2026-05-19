@@ -12,7 +12,7 @@ class Recibos extends Model
     public $timestamps=true;
 
     protected $fillable=['mont_rec','fech_rec','cliente_id','fpag_rec','obse_rec','esta_rec','docu_ref','insercion','usuario',
-                          'f_anulacion','num_recibo','id_movimiento','sede_id','usuario_anulo','vendedor_id'];
+                          'f_anulacion','num_recibo','id_movimiento','sede_id','usuario_anulo','vendedor_id','estado_liquidacion'];
 
     public function Amortizaciones() {
 

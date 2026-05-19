@@ -492,4 +492,22 @@ Route::group(['middleware' => ['auth']], function () {
     // VENTAS MOVILES
     Route::get('ventas-moviles', 'MobileSalesController@index');
     Route::get('ventas-moviles/asignar', 'MobileSalesController@asignar');
+    Route::get('ventas-moviles/liquidar-caja', 'MobileSalesController@liquidarCajaIndex')->name('admin.liquidar');
+    Route::post('ventas-moviles/liquidar-caja/procesar', 'MobileSalesController@liquidarCajaProcesar')->name('admin.liquidar.procesar');
+    Route::get('ventas-moviles/retorno-stock', 'MobileSalesController@retornoStockIndex')->name('admin.retorno');
+    Route::post('ventas-moviles/retorno-stock/procesar', 'MobileSalesController@retornoStockProcesar')->name('admin.retorno.procesar');
+    Route::get('ventas-moviles/cargar-stock', 'MobileSalesController@cargarStockIndex')->name('admin.cargar_stock');
+    Route::post('ventas-moviles/cargar-stock/procesar', 'MobileSalesController@cargarStockProcesar')->name('admin.cargar_stock.procesar');
+    Route::get('ventas-moviles/asignar-ruta', 'MobileSalesController@asignarRutaIndex')->name('admin.asignar');
+    Route::post('ventas-moviles/asignar-ruta/guardar', 'MobileSalesController@asignarRutaGuardar')->name('admin.asignar.guardar');
+    Route::delete('ventas-moviles/asignar-ruta/eliminar/{id}', 'MobileSalesController@asignarRutaEliminar')->name('admin.asignar.eliminar');
+
+    // VENDEDOR
+    Route::get('vendedor/dashboard', 'MobileSalesController@vendedorDashboard')->name('vendedor.dashboard');
+    Route::get('vendedor/venta', 'MobileSalesController@vendedorVenta')->name('vendedor.venta');
+    Route::post('vendedor/venta/guardar', 'MobileSalesController@vendedorVentaGuardar')->name('vendedor.venta.guardar');
+    Route::get('vendedor/cobros', 'MobileSalesController@vendedorCobros')->name('vendedor.cobros');
+    Route::post('vendedor/cobros/guardar', 'MobileSalesController@vendedorCobrosGuardar')->name('vendedor.cobros.guardar');
+    Route::get('vendedor/stock', 'MobileSalesController@vendedorStock')->name('vendedor.stock');
 });
+

@@ -460,7 +460,7 @@ class FuncionesController
 
         $caja = Caja::where('user_id', '=', $user_id)->where('tipo_envio', '=', $envio)->where('sede_id', '=', $idsede)->orderBy('id', 'desc')->limit(1)->first();
 
-        $id_caja = $caja->id;
+        $id_caja = $caja ? $caja->id : null;
 
         // Log de valores iniciales
         Log::info('Generar movimiento - valores iniciales', [
@@ -479,13 +479,19 @@ class FuncionesController
             'tipo_envio' => $envio,
         ]);
 
-        if ($forma_pago == 1) {
-            $tipo_caja = 'FISICA';
-            $total = $this->total_caja_fisica($id_caja);
+        if ($id_caja) {
+            if ($forma_pago == 1) {
+                $tipo_caja = 'FISICA';
+                $total = $this->total_caja_fisica($id_caja);
+            } else {
+                $tipo_caja = 'VIRTUAL';
+                $total = $this->total_caja_virtual($id_caja);
+            }
         } else {
-            $tipo_caja = 'VIRTUAL';
-            $total = $this->total_caja_virtual($id_caja);
+            $tipo_caja = $forma_pago == 1 ? 'FISICA' : 'VIRTUAL';
+            $total = 0;
         }
+
 
 
         if ($tipo_movimiento == "EGRESO") {

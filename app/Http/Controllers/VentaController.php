@@ -336,6 +336,11 @@ class VentaController extends Controller
             $venta->cliente_id = $id_cliente;
             $venta->descuento = '0';
             $venta->vendedor_id = $post['vendedor'];
+            if (isset($post['es_movil']) && $post['es_movil']) {
+                $venta->estado_liquidacion = 'PENDIENTE';
+            } else {
+                $venta->estado_liquidacion = 'NO_APLICA';
+            }
 
             $venta->save();
 
@@ -369,11 +374,16 @@ class VentaController extends Controller
                 }
             }
 
-            if ($post['tipo_venta'] == 1) {
-                $estado_mov = 1;
-            } else {
+            if (isset($post['es_movil']) && $post['es_movil']) {
                 $estado_mov = 0;
+            } else {
+                if ($post['tipo_venta'] == 1) {
+                    $estado_mov = 1;
+                } else {
+                    $estado_mov = 0;
+                }
             }
+
 
             if ($post['forma_pago'] != 9) {
                 $forma_venta = new Venta_formapago;

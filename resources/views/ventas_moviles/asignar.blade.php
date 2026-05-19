@@ -1,215 +1,179 @@
 @extends('layouts.main')
 
-@section('title', 'Asignar Mercancía - Ventas Móviles')
+@section('title', 'Asignación de Rutas y Sectores')
 
 @section('css')
 <style>
-    .assign-container {
-        display: flex;
-        gap: 2rem;
-        height: calc(100vh - 200px);
-    }
-    .product-selection {
-        flex: 2;
-        background: white;
-        border-radius: 20px;
-        padding: 1.5rem;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        display: flex;
-        flex-direction: column;
-    }
-    .assignment-bag {
-        flex: 1;
-        background: rgba(118, 75, 162, 0.05);
-        border: 2px dashed rgba(118, 75, 162, 0.2);
-        border-radius: 20px;
-        padding: 1.5rem;
-        display: flex;
-        flex-direction: column;
-    }
-    .product-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        gap: 1rem;
-        overflow-y: auto;
-        padding: 0.5rem;
-    }
-    .product-item {
-        background: #f8f9fa;
-        border-radius: 15px;
-        padding: 1rem;
-        text-align: center;
-        transition: all 0.2s ease;
-        cursor: pointer;
-        border: 2px solid transparent;
-    }
-    .product-item:hover {
-        background: white;
-        border-color: #764ba2;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-    }
-    .product-img {
-        width: 100%;
-        height: 100px;
-        background: #eee;
-        border-radius: 10px;
-        margin-bottom: 0.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #999;
-    }
-    .bag-item {
-        background: white;
-        padding: 10px;
+    .asignar-card {
         border-radius: 12px;
-        margin-bottom: 0.75rem;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
-    }
-    .btn-finish {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
         border: none;
-        color: white;
-        padding: 15px;
-        border-radius: 12px;
-        font-weight: 600;
-        margin-top: auto;
-    }
-    .qty-input {
-        width: 60px;
-        text-align: center;
-        border: 1px solid #ddd;
-        border-radius: 5px;
     }
 </style>
 @endsection
 
 @section('contenido')
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url('ventas-moviles') }}">Ventas Móviles</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Nueva Asignación</li>
-                </ol>
-            </nav>
-            <h3 class="fw-bold mb-1">Nueva Asignación de Mercancía</h3>
-        </div>
-    </div>
-
+<div class="container-fluid py-3">
+    <!-- Navegación del Módulo de Ventas Móviles -->
     <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="form-group">
-                <label class="form-label fw-bold">Seleccionar Vendedor</label>
-                <select class="form-select form-select-lg rounded-pill border-2">
-                    <option selected>Selecciona un vendedor...</option>
-                    <option>Juan Bravo (Ruta Norte)</option>
-                    <option>María Torres (Ruta Sur)</option>
-                    <option>Roberto Gómez (Ruta Centro)</option>
-                </select>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="form-group">
-                <label class="form-label fw-bold">Almacén de Origen</label>
-                <select class="form-select form-select-lg rounded-pill border-2">
-                    <option selected>Almacén Central</option>
-                    <option>Sede Norte</option>
-                </select>
+        <div class="col-12">
+            <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #ffffff;">
+                <div class="card-body p-2 d-flex flex-wrap gap-2">
+                    <a href="{{ route('admin.asignar') }}" class="btn {{ Request::routeIs('admin.asignar') ? 'btn-primary' : 'btn-light' }} btn-action">
+                        <i class="mdi mdi-map-marker-path me-1"></i> 1. Asignar Rutas
+                    </a>
+                    <a href="{{ route('admin.cargar_stock') }}" class="btn {{ Request::routeIs('admin.cargar_stock') ? 'btn-primary' : 'btn-light' }} btn-action">
+                        <i class="mdi mdi-truck-load me-1"></i> 2. Cargar Furgonetas
+                    </a>
+                    <a href="{{ route('admin.liquidar') }}" class="btn {{ Request::routeIs('admin.liquidar') ? 'btn-primary' : 'btn-light' }} btn-action">
+                        <i class="mdi mdi-cash-multiple me-1"></i> 3. Liquidar Caja
+                    </a>
+                    <a href="{{ route('admin.retorno') }}" class="btn {{ Request::routeIs('admin.retorno') ? 'btn-primary' : 'btn-light' }} btn-action">
+                        <i class="mdi mdi-swap-horizontal-bold me-1"></i> 4. Retorno de Stock
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="assign-container">
-        <!-- Product Selection -->
-        <div class="product-selection">
-            <div class="input-group mb-4 shadow-sm rounded-pill overflow-hidden">
-                <span class="input-group-text bg-white border-0 ps-4"><i class="fas fa-search"></i></span>
-                <input type="text" class="form-control border-0 py-3" placeholder="Buscar productos por nombre, código o categoría...">
-            </div>
-
-            <div class="product-grid">
-                <!-- Mock Products -->
-                @for ($i = 1; $i <= 12; $i++)
-                <div class="product-item">
-                    <div class="product-img">
-                        <i class="fas fa-image fa-2x"></i>
-                    </div>
-                    <p class="mb-1 small fw-bold">Producto Demo #{{ $i }}</p>
-                    <p class="text-primary small mb-2">S/ 45.00</p>
-                    <button class="btn btn-sm btn-outline-primary w-100 rounded-pill">
-                        <i class="fas fa-plus"></i> Añadir
-                    </button>
-                </div>
-                @endfor
-            </div>
-        </div>
-
-        <!-- Assignment Bag -->
-        <div class="assignment-bag">
-            <h5 class="fw-bold mb-4 d-flex justify-content-between">
-                Items para Asignar
-                <span class="badge bg-primary rounded-pill">3</span>
-            </h5>
-            
-            <div class="bag-items-list overflow-auto">
-                <div class="bag-item">
-                    <div class="bg-light rounded p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                        <i class="fas fa-box text-muted"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <p class="mb-0 small fw-bold">Aceite Primor 1L</p>
-                        <p class="mb-0 text-muted smaller">SKU: 001234</p>
-                    </div>
-                    <input type="number" class="qty-input" value="12">
-                    <button class="btn btn-link text-danger p-0"><i class="fas fa-times"></i></button>
-                </div>
-
-                <div class="bag-item">
-                    <div class="bg-light rounded p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                        <i class="fas fa-box text-muted"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <p class="mb-0 small fw-bold">Arroz Costeño 5kg</p>
-                        <p class="mb-0 text-muted smaller">SKU: 009876</p>
-                    </div>
-                    <input type="number" class="qty-input" value="5">
-                    <button class="btn btn-link text-danger p-0"><i class="fas fa-times"></i></button>
-                </div>
-
-                <div class="bag-item">
-                    <div class="bg-light rounded p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                        <i class="fas fa-box text-muted"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <p class="mb-0 small fw-bold">Azúcar Rubia 1kg</p>
-                        <p class="mb-0 text-muted smaller">SKU: 005544</p>
-                    </div>
-                    <input type="number" class="qty-input" value="20">
-                    <button class="btn btn-link text-danger p-0"><i class="fas fa-times"></i></button>
-                </div>
-            </div>
-
-            <div class="mt-4 border-top pt-3">
-                <div class="d-flex justify-content-between mb-2">
-                    <span class="text-muted">Total Unidades:</span>
-                    <span class="fw-bold">37</span>
-                </div>
-                <div class="d-flex justify-content-between mb-4">
-                    <span class="text-muted">Valor Estimado:</span>
-                    <span class="fw-bold text-primary">S/ 1,240.00</span>
-                </div>
-                <button class="btn btn-finish w-100 shadow">
-                    <i class="fas fa-check-circle me-2"></i> Confirmar y Generar Guía
-                </button>
+    <!-- Título de Página -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+                <h4 class="mb-sm-0 font-size-18 text-primary font-weight-bold">
+                    <i class="mdi mdi-map-marker-path me-2"></i> Asignación y Programación de Rutas Diarias
+                </h4>
             </div>
         </div>
     </div>
+
+    <!-- Alertas -->
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert" style="border-radius: 10px;">
+            <strong>¡Éxito!</strong> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert" style="border-radius: 10px;">
+            <strong>¡Atención!</strong> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    <div class="row">
+        <!-- Formulario de Asignación -->
+        <div class="col-md-4 mb-4">
+            <div class="card asignar-card">
+                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                    <h5 class="font-weight-bold text-dark mb-0">Nueva Asignación de Ruta</h5>
+                </div>
+                <div class="card-body px-4">
+                    <form action="{{ route('admin.asignar.guardar') }}" method="POST">
+                        @csrf
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold">Vendedor</label>
+                            <select class="form-select" name="vendedor_id" required style="border-radius: 8px;">
+                                <option value="">-- Seleccionar Vendedor --</option>
+                                @foreach($vendedores as $v)
+                                    <option value="{{ $v->id }}">{{ $v->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold">Sector / Ruta</label>
+                            <select class="form-select" name="sector_id" required style="border-radius: 8px;">
+                                <option value="">-- Seleccionar Sector --</option>
+                                @foreach($sectores as $s)
+                                    <option value="{{ $s->id }}">{{ $s->nomb_sec }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold">Fecha Programada</label>
+                            <input type="date" class="form-control" name="fecha" value="{{ date('Y-m-d') }}" required style="border-radius: 8px;">
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg py-2 font-weight-bold" style="border-radius: 10px;">
+                                <i class="mdi mdi-plus-circle-outline me-1"></i> Asignar Ruta
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historial y Registro de Rutas -->
+        <div class="col-md-8">
+            <div class="card asignar-card">
+                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                    <h5 class="font-weight-bold text-dark mb-0">Historial y Programación de Rutas</h5>
+                </div>
+                <div class="card-body px-4">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped align-middle font-size-13" id="datatable_rutas">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Vendedor</th>
+                                    <th>Sector Asignado</th>
+                                    <th class="text-center" style="width: 100px;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if($historial->isEmpty())
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">No se han registrado asignaciones de ruta aún.</td>
+                                    </tr>
+                                @else
+                                    @foreach($historial as $h)
+                                        <tr>
+                                            <td class="font-weight-bold">{{ date('d-m-Y', strtotime($h->fecha)) }}</td>
+                                            <td>{{ $h->vendedor->nombre ?? '---' }}</td>
+                                            <td>
+                                                <span class="badge bg-soft-success text-success p-2 font-size-12">
+                                                    {{ $h->sector->nomb_sec ?? '---' }}
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                <form action="{{ route('admin.asignar.eliminar', $h->id) }}" method="POST" style="display:inline-block;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Está seguro de eliminar esta asignación de ruta?');" title="Eliminar asignación">
+                                                        <i class="mdi mdi-trash-can-outline font-size-15"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                @endif
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('js')
-<script src="{{ asset('js/ventas_moviles.js') }}"></script>
+<script>
+    $(document).ready(function() {
+        $(".loader").fadeOut("slow");
+        
+        // Inicializar DataTable si es necesario
+        if ($('#datatable_rutas tbody tr').length > 1) {
+            $('#datatable_rutas').DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                },
+                "order": [[0, "desc"]]
+            });
+        }
+    });
+</script>
 @endsection

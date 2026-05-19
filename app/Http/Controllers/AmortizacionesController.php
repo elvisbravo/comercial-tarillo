@@ -185,6 +185,8 @@ class AmortizacionesController extends Controller
             Log::info('Parámetros para generar_movimiento', $parametros_movimiento);
             $idsede = session('key')->sede_id;
 
+            $es_movil = $request->input('es_movil', false);
+
             $recibo = new Recibos;
             $recibo->mont_rec = $request->mont_rec; //$amortizado->monto;// 
             $recibo->fech_rec = $request->fech_rec; //Date('Y-m-d');/// 
@@ -197,12 +199,20 @@ class AmortizacionesController extends Controller
             $recibo->insercion = 'MANUAL';
             $recibo->usuario = $user->name;
             $recibo->num_recibo = $result[0];
+
+            if ($es_movil) {
+                $recibo->estado_liquidacion = 'PENDIENTE';
+            } else {
+                $recibo->estado_liquidacion = 'NO_APLICA';
+            }
+
             $serviciomovimiento = new FuncionesController;
-            $recibo->id_movimiento = $serviciomovimiento->generar_movimiento("INGRESO", $request->fpag_rec, 1, $request->mont_rec, "PAGO DE CUOTAS DE CREDITO", 1, 1, $result[0], 1);
-            //$recibo->id_movimiento=$serviciomovimiento->generar_movimiento("INGRESO",$amortizado->fecha,1,$amortizado->monto,"PAGO DE CUOTA",1,1,$result[0],1);
+            $estado_mov = $es_movil ? 0 : 1;
+            $recibo->id_movimiento = $serviciomovimiento->generar_movimiento("INGRESO", $request->fpag_rec, 1, $request->mont_rec, "PAGO DE CUOTAS DE CREDITO", 1, 1, $result[0], $estado_mov);
             $recibo->sede_id = $idsede;
             Log::info('Contenido del Recibo antes de guardar', $recibo->toArray());
             $recibo->save();
+
 
             //return response()->json($recibo);
 
@@ -299,8 +309,7 @@ class AmortizacionesController extends Controller
             ]);
 
             DB::commit();
-            // return response()->json($respuesta);
-            return response()->json('OK');
+            return response()->json(['status' => 'OK', 'id' => $recibo->id]);
         } catch (Exception $e) {
 
             Log::error('Error: ' . $e->getMessage());
