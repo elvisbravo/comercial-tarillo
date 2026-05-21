@@ -29,6 +29,70 @@ class MobileSalesController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+
+        $this->middleware(function ($request, $next) {
+            $user = $request->user();
+            if ($request->is('vendedor/*') || $request->is('vendedor')) {
+                if ($user && !$user->roles()->where('id', 6)->exists()) {
+                    abort(403, 'Acceso denegado. Este módulo es exclusivo para vendedores con perfil ID 6.');
+                }
+            }
+            return $next($request);
+        });
+    }
+
+    private function resolveVendedor($usuario)
+    {
+        $vendedor = Vendedor::where('usuario_id', $usuario->id)->first();
+        if (!$vendedor) {
+            // Se crea el vendedor en la base de datos con valores por defecto para evitar restricciones NOT NULL
+            $vendedor = Vendedor::create([
+                'nombre' => $usuario->name,
+                'documento' => '00000000', // DNI ficticio por defecto
+                'direccion' => 'Dirección por defecto',
+                'usuario_id' => $usuario->id,
+                'estado' => 1,
+            ]);
+            
+            // Buscar ubicación por defecto según la sede del usuario (furgoneta/stock principal)
+            $ubicacion_id = null;
+            $almacen = Almacen::where('sede_id', $usuario->sede_id)->first();
+            if ($almacen) {
+                $defaultUbicacion = DB::table('stock_location')
+                    ->where('almacen_id', $almacen->id)
+                    ->where('name', '!=', 'Transferencias')
+                    ->orderByRaw("CASE WHEN name = 'Stock' THEN 1 ELSE 2 END")
+                    ->first();
+                if ($defaultUbicacion) {
+                    $ubicacion_id = $defaultUbicacion->id;
+                }
+            }
+            $vendedor->stock_location_id = $ubicacion_id;
+            $vendedor->save();
+        } else {
+            if ($vendedor->estado != 1) {
+                $vendedor->estado = 1;
+                $vendedor->save();
+            }
+            // Si el vendedor de la BD no tiene ubicación asignada, le asignamos la principal de su sede
+            if (!$vendedor->stock_location_id) {
+                $ubicacion_id = null;
+                $almacen = Almacen::where('sede_id', $usuario->sede_id)->first();
+                if ($almacen) {
+                    $defaultUbicacion = DB::table('stock_location')
+                        ->where('almacen_id', $almacen->id)
+                        ->where('name', '!=', 'Transferencias')
+                        ->orderByRaw("CASE WHEN name = 'Stock' THEN 1 ELSE 2 END")
+                        ->first();
+                    if ($defaultUbicacion) {
+                        $ubicacion_id = $defaultUbicacion->id;
+                    }
+                }
+                $vendedor->stock_location_id = $ubicacion_id;
+                $vendedor->save();
+            }
+        }
+        return $vendedor;
     }
 
     public function index()
@@ -49,17 +113,11 @@ class MobileSalesController extends Controller
     {
         $usuario = Auth::user();
         
-        $vendedor = Vendedor::where('usuario_id', $usuario->id)
-                            ->where('estado', 1)
-                            ->first();
-
-        if (!$vendedor) {
-            return response("Error: Su usuario no está configurado como un vendedor activo. Por favor contacte al administrador.", 403);
-        }
+        $vendedor = $this->resolveVendedor($usuario);
 
         // Sectores asignados para el día de hoy
         $fechaHoy = date('Y-m-d');
-        $sectoresAsignados = VendedorSector::where('vendedor_id', $vendedor->id)
+        $sectoresAsignados = VendedorSector::where('vendedor_id', $usuario->id)
                                            ->where('fecha', $fechaHoy)
                                            ->with('sector')
                                            ->get();
@@ -99,18 +157,19 @@ class MobileSalesController extends Controller
     public function vendedorVenta(Request $request)
     {
         $usuario = Auth::user();
-        $vendedor = Vendedor::where('usuario_id', $usuario->id)
-                            ->where('estado', 1)
-                            ->first();
+        $vendedor = $this->resolveVendedor($usuario);
 
-        if (!$vendedor) {
-            return redirect()->back()->with('error', 'Usuario no es vendedor.');
-        }
+        $idsede = session('key')->sede_id;
+        $almacenPrincipal = \App\Almacen::where('sede_id', $idsede)->first();
+        $ubicacionMoviles = DB::table('stock_location')
+                                ->where('almacen_id', $almacenPrincipal->id)
+                                ->where(DB::raw('LOWER(name)'), 'moviles')
+                                ->first();
 
-        // Ubicación de la furgoneta
-        $ubicacion_id = $vendedor->stock_location_id;
+        // Ubicación de la furgoneta / moviles
+        $ubicacion_id = $ubicacionMoviles ? $ubicacionMoviles->id : null;
         if (!$ubicacion_id) {
-            return redirect()->back()->with('error', 'Su usuario de vendedor no tiene una furgoneta (ubicación de stock) asignada.');
+            return redirect()->back()->with('error', 'No se encontró la ubicación de stock "moviles".');
         }
 
         $servicios = new FuncionesController;
@@ -129,7 +188,7 @@ class MobileSalesController extends Controller
 
         // Clientes de los sectores asignados para hoy
         $fechaHoy = date('Y-m-d');
-        $sectoresIds = VendedorSector::where('vendedor_id', $vendedor->id)
+        $sectoresIds = VendedorSector::where('vendedor_id', $usuario->id)
                                     ->where('fecha', $fechaHoy)
                                     ->pluck('sector_id')
                                     ->toArray();
@@ -180,17 +239,11 @@ class MobileSalesController extends Controller
     public function vendedorCobros(Request $request)
     {
         $usuario = Auth::user();
-        $vendedor = Vendedor::where('usuario_id', $usuario->id)
-                            ->where('estado', 1)
-                            ->first();
-
-        if (!$vendedor) {
-            return redirect()->back()->with('error', 'Usuario no es vendedor.');
-        }
+        $vendedor = $this->resolveVendedor($usuario);
 
         // Sectores del vendedor hoy
         $fechaHoy = date('Y-m-d');
-        $sectoresIds = VendedorSector::where('vendedor_id', $vendedor->id)
+        $sectoresIds = VendedorSector::where('vendedor_id', $usuario->id)
                                     ->where('fecha', $fechaHoy)
                                     ->pluck('sector_id')
                                     ->toArray();
@@ -232,17 +285,18 @@ class MobileSalesController extends Controller
     public function vendedorStock(Request $request)
     {
         $usuario = Auth::user();
-        $vendedor = Vendedor::where('usuario_id', $usuario->id)
-                            ->where('estado', 1)
-                            ->first();
+        $vendedor = $this->resolveVendedor($usuario);
 
-        if (!$vendedor) {
-            return redirect()->back()->with('error', 'Usuario no es vendedor.');
-        }
+        $idsede = session('key')->sede_id;
+        $almacenPrincipal = \App\Almacen::where('sede_id', $idsede)->first();
+        $ubicacionMoviles = DB::table('stock_location')
+                                ->where('almacen_id', $almacenPrincipal->id)
+                                ->where(DB::raw('LOWER(name)'), 'moviles')
+                                ->first();
 
-        $ubicacion_id = $vendedor->stock_location_id;
+        $ubicacion_id = $ubicacionMoviles ? $ubicacionMoviles->id : null;
         if (!$ubicacion_id) {
-            return redirect()->back()->with('error', 'No tiene furgoneta asignada.');
+            return redirect()->back()->with('error', 'No se encontró la ubicación de stock "moviles".');
         }
 
         $servicios = new FuncionesController;
@@ -283,8 +337,19 @@ class MobileSalesController extends Controller
             ]);
         }
 
-        // Obtener todos los vendedores activos
-        $vendedores = Vendedor::where('estado', 1)->get();
+        // Obtener sede activa de la sesión
+        $idsede = session('key')->sede_id;
+
+        // Obtener usuarios activos de esta sede con rol ID 6
+        $usuariosVendedoresIds = \App\User::where('sede_id', $idsede)
+            ->where('estado', 1)
+            ->whereHas('roles', function($q) {
+                $q->where('id', 6);
+            })->pluck('id');
+
+        $vendedores = Vendedor::where('estado', 1)
+                              ->whereIn('usuario_id', $usuariosVendedoresIds)
+                              ->get();
 
         $totalGralEfectivo = 0;
         $totalGralVentasContado = 0;
@@ -297,8 +362,8 @@ class MobileSalesController extends Controller
                              ->where('estado_liquidacion', 'PENDIENTE')
                              ->get();
             
-            $v->total_ventas_contado = $v_ventas->where('tipo_venta', 1)->sum('monto');
-            $v->total_ventas_credito = $v_ventas->where('tipo_venta', 2)->sum('monto');
+            $v->total_ventas_contado = $v_ventas->where('tipo_pago_id', 1)->sum('monto');
+            $v->total_ventas_credito = $v_ventas->where('tipo_pago_id', 2)->sum('monto');
             
             // Cobros de crédito pendientes de liquidar
             $v->total_cobros_credito = Recibos::where('vendedor_id', $v->id)
@@ -401,12 +466,21 @@ class MobileSalesController extends Controller
         $servicios = new FuncionesController;
         $envio = $servicios->tipo_envio_sunat();
 
+        $idsede = session('key')->sede_id;
+        $almacenPrincipal = \App\Almacen::where('sede_id', $idsede)->first();
+        $ubicacionMoviles = DB::table('stock_location')
+                                ->where('almacen_id', $almacenPrincipal->id)
+                                ->where(DB::raw('LOWER(name)'), 'moviles')
+                                ->first();
+        
+        $moviles_id = $ubicacionMoviles ? $ubicacionMoviles->id : null;
+
         if ($request->input('format') == 'json' && $request->vendedor_id) {
             $vendedor = Vendedor::find($request->vendedor_id);
             $stock = DB::table('detalle_almacen_productos as dp')
                 ->join('productos as p', 'dp.producto_id', '=', 'p.id')
                 ->select('p.id', 'p.nomb_pro', 'dp.stock')
-                ->where('dp.ubicacion_id', '=', $vendedor->stock_location_id)
+                ->where('dp.ubicacion_id', '=', $moviles_id)
                 ->where('dp.tipo_envio', '=', $envio)
                 ->where('p.estado', '=', '1')
                 ->where('dp.stock', '>', 0)
@@ -414,7 +488,18 @@ class MobileSalesController extends Controller
             return response()->json($stock);
         }
 
+        // Obtener sede activa de la sesión
+        $idsede = session('key')->sede_id;
+
+        // Obtener usuarios activos de esta sede con rol ID 6
+        $usuariosVendedoresIds = \App\User::where('sede_id', $idsede)
+            ->where('estado', 1)
+            ->whereHas('roles', function($q) {
+                $q->where('id', 6);
+            })->pluck('id');
+
         $vendedores = Vendedor::with('stockLocation')
+                              ->whereIn('usuario_id', $usuariosVendedoresIds)
                               ->whereNotNull('stock_location_id')
                               ->where('estado', 1)
                               ->get();
@@ -422,7 +507,7 @@ class MobileSalesController extends Controller
         foreach ($vendedores as $v) {
             $v_stock = DB::table('detalle_almacen_productos as dp')
                 ->join('productos as p', 'dp.producto_id', '=', 'p.id')
-                ->where('dp.ubicacion_id', '=', $v->stock_location_id)
+                ->where('dp.ubicacion_id', '=', $moviles_id)
                 ->where('dp.tipo_envio', '=', $envio)
                 ->where('p.estado', '=', '1')
                 ->where('dp.stock', '>', 0)
@@ -447,10 +532,18 @@ class MobileSalesController extends Controller
         }
 
         $vendedor = Vendedor::find($vendedorId);
-        $origen_id = $vendedor->stock_location_id;
+        $idsede = session('key')->sede_id;
+        
+        $almacenPrincipal = \App\Almacen::where('sede_id', $idsede)->first();
+        $ubicacionMoviles = DB::table('stock_location')
+                                ->where('almacen_id', $almacenPrincipal->id)
+                                ->where(DB::raw('LOWER(name)'), 'moviles')
+                                ->first();
+        
+        $origen_id = $ubicacionMoviles ? $ubicacionMoviles->id : null;
 
         if (!$origen_id) {
-            return redirect()->back()->with('error', 'El vendedor no tiene ubicación de stock.');
+            return redirect()->back()->with('error', 'No se encontró la ubicación de stock "moviles".');
         }
 
         DB::beginTransaction();
@@ -486,12 +579,12 @@ class MobileSalesController extends Controller
             // Obtener siguiente correlativo
             $ultimoTraslado = Traslado::where('serie', 'RET')->orderBy('id', 'desc')->first();
             $traslado->correlativo = $ultimoTraslado ? ((int)$ultimoTraslado->correlativo + 1) : 1;
-            $traslado->almacen_origen = 'FURGONETA: ' . $vendedor->nombre;
-            $traslado->almacen_destino = 'ALMACEN PRINCIPAL';
+            $traslado->almacen_origen = DB::table('stock_location')->where('id', $origen_id)->value('almacen_id');
+            $traslado->almacen_destino = DB::table('stock_location')->where('id', $destino_id)->value('almacen_id');
             $traslado->id_ubicacion_origen = $origen_id;
             $traslado->id_ubicacion_destino = $destino_id;
             $traslado->motivo = 'RETORNO DE STOCK DE FURGONETA';
-            $traslado->estado = 'RECIBIDO';
+            $traslado->estado = 1; // 1 = RECIBIDO
             $traslado->tipo_envio = $envio;
             $traslado->sede_id = $idsede;
             $traslado->user_id = $user_id;
@@ -543,13 +636,31 @@ class MobileSalesController extends Controller
     // C. Asignación de Ruta
     public function asignarRutaIndex(Request $request)
     {
-        $vendedores = Vendedor::where('estado', 1)->get();
+        // Obtener sede activa de la sesión
+        $idsede = session('key')->sede_id;
+
+        // Obtener usuarios activos de esta sede con rol ID 6 y asegurar que tengan registro de vendedor creado/activo
+        $usuariosVendedores = \App\User::where('sede_id', $idsede)
+            ->where('estado', 1)
+            ->whereHas('roles', function($q) {
+                $q->where('id', 6);
+            })->get();
+
+        foreach ($usuariosVendedores as $u) {
+            $this->resolveVendedor($u);
+        }
+
+        $vendedores = Vendedor::where('estado', 1)
+                              ->whereIn('usuario_id', $usuariosVendedores->pluck('id'))
+                              ->get();
         $sectores = Sector::where('estado', 'ACTIVO')->get();
 
         $historial = VendedorSector::with(['vendedor', 'sector'])
                                     ->orderBy('fecha', 'desc')
-                                    ->orderBy('id', 'desc')
-                                    ->get();
+                                    ->get()
+                                    ->groupBy(function($item) {
+                                        return $item->fecha . '_' . $item->vendedor_id;
+                                    });
 
         return view('ventas_moviles.asignar', compact('vendedores', 'sectores', 'historial'));
     }
@@ -557,7 +668,7 @@ class MobileSalesController extends Controller
     public function asignarRutaGuardar(Request $request)
     {
         $request->validate([
-            'vendedor_id' => 'required|exists:vendedores,id',
+            'vendedor_id' => 'required|exists:users,id',
             'sector_id' => 'required|exists:sectores,id',
             'fecha' => 'required|date'
         ]);
@@ -569,6 +680,9 @@ class MobileSalesController extends Controller
                                 ->exists();
 
         if ($existe) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['status' => 'error', 'message' => 'Esta asignación de ruta ya existe para esta fecha.'], 422);
+            }
             return redirect()->back()->with('error', 'Esta asignación de ruta ya existe para esta fecha.');
         }
 
@@ -578,6 +692,10 @@ class MobileSalesController extends Controller
             'fecha' => $request->fecha
         ]);
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['status' => 'success', 'message' => 'Ruta asignada exitosamente.']);
+        }
+
         return redirect()->back()->with('success', 'Ruta asignada exitosamente.');
     }
 
@@ -585,6 +703,10 @@ class MobileSalesController extends Controller
     {
         $asignacion = VendedorSector::findOrFail($id);
         $asignacion->delete();
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json(['status' => 'success', 'message' => 'Asignación de ruta eliminada exitosamente.']);
+        }
 
         return redirect()->back()->with('success', 'Asignación de ruta eliminada exitosamente.');
     }
@@ -620,7 +742,15 @@ class MobileSalesController extends Controller
             ->orderBy('p.nomb_pro', 'asc')
             ->get();
 
+        // Obtener usuarios activos de esta sede con rol ID 6
+        $usuariosVendedoresIds = \App\User::where('sede_id', $idsede)
+            ->where('estado', 1)
+            ->whereHas('roles', function($q) {
+                $q->where('id', 6);
+            })->pluck('id');
+
         $vendedores = Vendedor::with('stockLocation')
+                              ->whereIn('usuario_id', $usuariosVendedoresIds)
                               ->whereNotNull('stock_location_id')
                               ->where('estado', 1)
                               ->get();
@@ -639,12 +769,7 @@ class MobileSalesController extends Controller
         }
 
         $vendedor = Vendedor::find($vendedorId);
-        $destino_id = $vendedor->stock_location_id; // Furgoneta del vendedor
-
-        if (!$destino_id) {
-            return redirect()->back()->with('error', 'El vendedor no tiene ubicación de stock (furgoneta) asignada.');
-        }
-
+        
         DB::beginTransaction();
 
         try {
@@ -666,6 +791,24 @@ class MobileSalesController extends Controller
 
             $origen_id = $ubicacionOrigen->id;
 
+            // Buscar ubicación destino: 'moviles'
+            $ubicacionDestino = DB::table('stock_location')
+                                  ->where('almacen_id', $almacenPrincipal->id)
+                                  ->where(DB::raw('LOWER(name)'), 'moviles')
+                                  ->first();
+            
+            if (!$ubicacionDestino) {
+                $ubicacionDestino = DB::table('stock_location')
+                                      ->where(DB::raw('LOWER(name)'), 'moviles')
+                                      ->first();
+            }
+
+            if (!$ubicacionDestino) {
+                throw new \Exception("No se encontró la ubicación destino 'moviles'. Por favor cree una ubicación de stock con nombre 'moviles'.");
+            }
+            
+            $destino_id = $ubicacionDestino->id;
+
             // 1. Crear documento de traslado para auditoría de la carga
             $traslado = new Traslado;
             $traslado->fecha = date('Y-m-d');
@@ -673,12 +816,12 @@ class MobileSalesController extends Controller
             $traslado->serie = 'CAR';
             $ultimoTraslado = Traslado::where('serie', 'CAR')->orderBy('id', 'desc')->first();
             $traslado->correlativo = $ultimoTraslado ? ((int)$ultimoTraslado->correlativo + 1) : 1;
-            $traslado->almacen_origen = 'ALMACEN PRINCIPAL';
-            $traslado->almacen_destino = 'FURGONETA: ' . $vendedor->nombre;
+            $traslado->almacen_origen = DB::table('stock_location')->where('id', $origen_id)->value('almacen_id');
+            $traslado->almacen_destino = DB::table('stock_location')->where('id', $destino_id)->value('almacen_id');
             $traslado->id_ubicacion_origen = $origen_id;
             $traslado->id_ubicacion_destino = $destino_id;
-            $traslado->motivo = 'CARGA DIARIA DE STOCK A FURGONETA';
-            $traslado->estado = 'RECIBIDO';
+            $traslado->motivo = 'CARGA DIARIA DE STOCK A MOVILES';
+            $traslado->estado = 1; // 1 = RECIBIDO
             $traslado->tipo_envio = $envio;
             $traslado->sede_id = $idsede;
             $traslado->user_id = $user_id;
@@ -706,7 +849,7 @@ class MobileSalesController extends Controller
                 // Descontar del origen (Almacén Principal)
                 $servicios->aumentar_descontar_stock(0, $origen_id, $productId, $cantidad, $envio);
 
-                // Aumentar en el destino (Furgoneta)
+                // Aumentar en el destino (Moviles)
                 $stockDestinoRecord = Detalle_almacen_productos::where('ubicacion_id', $destino_id)
                                                                ->where('producto_id', $productId)
                                                                ->where('tipo_envio', $envio)
@@ -717,7 +860,6 @@ class MobileSalesController extends Controller
                     $stockDestinoRecord->producto_id = $productId;
                     $stockDestinoRecord->tipo_envio = $envio;
                     $stockDestinoRecord->stock = 0;
-                    $stockDestinoRecord->almacen_id = DB::table('stock_location')->where('id', $destino_id)->value('almacen_id');
                     $stockDestinoRecord->save();
                 }
 
@@ -725,12 +867,12 @@ class MobileSalesController extends Controller
 
                 // Registrar Kardex Salida (Origen)
                 $precio_unitario = DB::table('precios')->where('articulo_id', $productId)->value('precio_contado') ?? 0;
-                $descripSalida = 'CARGA DIARIA A FURGONETA ' . $vendedor->nombre;
-                $servicios->movimiento_kardex_producto($origen_id, $productId, $cantidad, 2, $descripSalida, $traslado->serie, $traslado->correlativo, $precio_unitario, 'CARGA', date('Y-m-d'), date('Y-m-d'));
+                $descripSalida = 'CARGA DIARIA A MOVILES (Vendedor: ' . $vendedor->nombre . ')';
+                $servicios->movimiento_kardex_producto($origen_id, $productId, $cantidad, 2, $descripSalida, $traslado->serie, $traslado->correlativo, $precio_unitario, 9, date('Y-m-d'), date('Y-m-d'));
 
                 // Registrar Kardex Entrada (Destino)
-                $descripEntrada = 'CARGA DIARIA RECIBIDA EN FURGONETA';
-                $servicios->movimiento_kardex_producto($destino_id, $productId, $cantidad, 1, $descripEntrada, $traslado->serie, $traslado->correlativo, $precio_unitario, 'CARGA', date('Y-m-d'), date('Y-m-d'));
+                $descripEntrada = 'CARGA DIARIA RECIBIDA EN MOVILES (Vendedor: ' . $vendedor->nombre . ')';
+                $servicios->movimiento_kardex_producto($destino_id, $productId, $cantidad, 1, $descripEntrada, $traslado->serie, $traslado->correlativo, $precio_unitario, 9, date('Y-m-d'), date('Y-m-d'));
 
                 // Crear detalle del traslado
                 $detalle = new Detalle_traslado;

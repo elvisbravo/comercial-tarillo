@@ -101,17 +101,17 @@
         </div>
     @endif
 
-    <div class="row">
-        <!-- Formulario e Inputs de Selección -->
-        <div class="col-lg-4 mb-4">
-            <div class="card cargar-card">
-                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
-                    <h5 class="font-weight-bold text-dark mb-0">Detalles de la Carga</h5>
-                    <p class="text-muted font-size-12 mb-0">Seleccione el vendedor y agregue los productos a la carga diaria.</p>
-                </div>
-                <div class="card-body px-4">
-                    <form action="{{ route('admin.cargar_stock.procesar') }}" method="POST" id="form_cargar_stock">
-                        @csrf
+    <form action="{{ route('admin.cargar_stock.procesar') }}" method="POST" id="form_cargar_stock">
+        @csrf
+        <div class="row">
+            <!-- Formulario e Inputs de Selección -->
+            <div class="col-lg-4 mb-4">
+                <div class="card cargar-card">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                        <h5 class="font-weight-bold text-dark mb-0">Detalles de la Carga</h5>
+                        <p class="text-muted font-size-12 mb-0">Seleccione el vendedor y agregue los productos a la carga diaria.</p>
+                    </div>
+                    <div class="card-body px-4">
                         
                         <!-- Selección del Vendedor -->
                         <div class="mb-4">
@@ -166,10 +166,9 @@
                                 <i class="mdi mdi-check-all me-1"></i> Procesar Carga de Stock
                             </button>
                         </div>
-                    </form>
+                    </div>
                 </div>
             </div>
-        </div>
 
         <!-- Tabla de Productos Agregados -->
         <div class="col-lg-8 mb-4">
@@ -203,6 +202,7 @@
             </div>
         </div>
     </div>
+    </form>
 </div>
 @endsection
 

@@ -1,285 +1,572 @@
 @extends('layouts.main')
 
-@section('title', 'Registrar Venta')
+@section('title', 'Registrar Venta - Ventas Móviles')
 
 @section('css')
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-    .mobile-container {
-        max-width: 600px;
+    * { font-family: 'Inter', sans-serif; }
+
+    body { background: #f0f4f8; }
+
+    .mobile-wrapper {
+        max-width: 640px;
         margin: 0 auto;
-        padding-bottom: 80px;
+        padding: 16px 16px 100px;
     }
-    .product-list-item {
+
+    /* === HEADER === */
+    .page-header {
+        background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 16px;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 8px 32px rgba(15,32,39,0.3);
+    }
+    .page-header .back-btn {
+        width: 40px; height: 40px;
+        background: rgba(255,255,255,0.15);
         border-radius: 12px;
-        border: 1px solid #eef2f3;
+        display: flex; align-items: center; justify-content: center;
+        color: white; text-decoration: none;
+        transition: background 0.2s;
+        flex-shrink: 0;
+    }
+    .page-header .back-btn:hover { background: rgba(255,255,255,0.25); color: white; }
+    .page-header .vendor-info small { opacity: 0.7; font-size: 12px; }
+    .page-header h4 { margin: 0; font-weight: 700; font-size: 17px; }
+
+    /* === CARDS === */
+    .section-card {
+        background: white;
+        border-radius: 16px;
+        padding: 18px;
+        margin-bottom: 14px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        border: 1px solid rgba(0,0,0,0.04);
+    }
+    .section-card .section-title {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #94a3b8;
+        margin-bottom: 14px;
+        display: flex; align-items: center; gap: 6px;
+    }
+    .section-card .section-title i { font-size: 14px; }
+
+    /* === TIPO DE VENTA TOGGLE === */
+    .venta-toggle {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+    .venta-toggle-btn {
+        border: 2px solid #e2e8f0;
+        background: #f8fafc;
+        border-radius: 12px;
         padding: 12px;
-        background: #ffffff;
-        margin-bottom: 10px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: all 0.2s ease;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+        font-weight: 600;
+        font-size: 13px;
+        color: #64748b;
+        user-select: none;
     }
-    .product-list-item:active {
-        background: #f8f9fa;
+    .venta-toggle-btn.active-contado {
+        border-color: #10b981;
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+        color: #059669;
     }
-    .cart-summary-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: #ffffff;
-        box-shadow: 0 -4px 15px rgba(0,0,0,0.08);
-        padding: 12px 20px;
-        z-index: 1000;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .venta-toggle-btn.active-credito {
+        border-color: #f59e0b;
+        background: linear-gradient(135deg, #fffbeb, #fef3c7);
+        color: #d97706;
     }
-    .search-box {
+    .venta-toggle-btn i { display: block; font-size: 20px; margin-bottom: 4px; }
+
+    /* === CLIENTE === */
+    .cliente-select-wrapper { position: relative; }
+    .form-select, .form-control {
         border-radius: 10px;
-        border: 1px solid #ced4da;
-        padding: 10px 15px;
+        border: 1.5px solid #e2e8f0;
+        padding: 10px 14px;
+        font-size: 14px;
+        transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .quantity-controls {
+    .form-select:focus, .form-control:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+    }
+    .form-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+    }
+
+    /* Nuevo cliente expandible */
+    #form_nuevo_cliente {
+        background: #f8faff;
+        border-radius: 12px;
+        padding: 14px;
+        border: 1.5px dashed #93c5fd;
+        margin-top: 12px;
+    }
+    #form_nuevo_cliente .nc-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #3b82f6;
+        margin-bottom: 12px;
+        display: flex; align-items: center; gap: 6px;
+    }
+    .input-group-sm .btn {
+        border-radius: 0 8px 8px 0;
+        border: 1.5px solid #e2e8f0;
+    }
+
+    /* === SEARCH BOX === */
+    .search-box-wrapper {
+        position: relative;
+        margin-bottom: 12px;
+    }
+    .search-box-wrapper i {
+        position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+        color: #94a3b8; font-size: 16px; pointer-events: none;
+    }
+    .search-box-wrapper input {
+        padding-left: 38px;
+        border-radius: 12px;
+        border: 1.5px solid #e2e8f0;
+        font-size: 14px;
+        width: 100%;
+        padding-top: 11px; padding-bottom: 11px;
+    }
+    .search-box-wrapper input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+        outline: none;
+    }
+
+    /* === PRODUCT ITEMS === */
+    .product-item {
+        background: white;
+        border-radius: 14px;
+        padding: 14px;
+        margin-bottom: 10px;
+        border: 1.5px solid #f1f5f9;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
+        transition: all 0.2s;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .product-item:hover { border-color: #3b82f6; box-shadow: 0 4px 16px rgba(59,130,246,0.1); }
+    .product-item.in-cart {
+        border-color: #10b981;
+        background: linear-gradient(135deg, #f0fdf4, white);
+    }
+    .prod-icon {
+        width: 44px; height: 44px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        color: white; font-size: 18px;
+    }
+    .prod-info { flex: 1; min-width: 0; }
+    .prod-name {
+        font-weight: 700; font-size: 13.5px; color: #1e293b;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .prod-prices { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+    .price-tag {
+        font-size: 11px; font-weight: 600; padding: 2px 7px;
+        border-radius: 6px;
+    }
+    .price-tag.contado { background: #ecfdf5; color: #059669; }
+    .price-tag.credito { background: #fffbeb; color: #d97706; }
+    .stock-tag {
+        font-size: 10px; font-weight: 700; padding: 2px 7px;
+        border-radius: 6px; background: #eff6ff; color: #3b82f6;
+    }
+    .qty-controls {
+        display: flex; align-items: center; gap: 8px; flex-shrink: 0;
     }
     .qty-btn {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        border: none;
-        background: #e9ecef;
-        font-weight: bold;
+        width: 30px; height: 30px;
+        border-radius: 8px; border: none;
+        background: #f1f5f9; color: #475569;
+        font-weight: 700; font-size: 15px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: all 0.15s; line-height: 1;
+    }
+    .qty-btn:hover { background: #e2e8f0; }
+    .qty-btn.plus:hover { background: #dcfce7; color: #16a34a; }
+    .qty-btn.minus:hover { background: #fee2e2; color: #dc2626; }
+    .qty-display {
+        font-weight: 800; font-size: 16px; color: #1e293b;
+        min-width: 24px; text-align: center;
+    }
+
+    /* No stock */
+    .empty-products {
+        text-align: center; padding: 40px 20px;
+        background: white; border-radius: 16px;
+    }
+    .empty-products i { font-size: 50px; color: #cbd5e1; }
+    .empty-products p { color: #94a3b8; margin-top: 10px; font-size: 14px; }
+
+    /* === BOTTOM BAR === */
+    .cart-bar {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: white;
+        border-top: 1px solid #e2e8f0;
+        padding: 12px 20px;
         display: flex;
+        justify-content: space-between;
         align-items: center;
-        justify-content: center;
-        font-size: 16px;
-        color: #495057;
+        z-index: 1000;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+    }
+    .cart-bar .total-section small { color: #94a3b8; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .cart-bar .total-section h3 { margin: 0; font-weight: 800; font-size: 24px; color: #1e293b; }
+    .btn-checkout {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white; border: none;
+        border-radius: 14px; padding: 13px 24px;
+        font-weight: 700; font-size: 15px;
+        display: flex; align-items: center; gap: 8px;
+        transition: all 0.2s; box-shadow: 0 4px 15px rgba(17,153,142,0.3);
+    }
+    .btn-checkout:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(17,153,142,0.4); }
+    .btn-checkout:disabled { background: #e2e8f0; color: #94a3b8; box-shadow: none; transform: none; }
+
+    /* === MODAL === */
+    .modal-content { border: none; border-radius: 24px !important; overflow: hidden; }
+    .modal-header-grad {
+        background: linear-gradient(135deg, #0f2027, #2c5364);
+        padding: 20px 24px; border: none; color: white;
+    }
+    .modal-header-grad .modal-title { font-weight: 700; font-size: 16px; }
+    .modal-body { padding: 24px; }
+    .modal-footer-light { background: #f8fafc; padding: 16px 24px; border: none; }
+
+    .total-badge {
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+        color: white; border-radius: 16px; padding: 16px 20px;
+        text-align: center; margin-bottom: 20px;
+    }
+    .total-badge small { opacity: 0.8; font-size: 12px; font-weight: 600; display: block; margin-bottom: 2px; }
+    .total-badge h2 { margin: 0; font-weight: 800; font-size: 32px; }
+
+    .form-group-modern { margin-bottom: 16px; }
+    .input-modern {
+        border: 1.5px solid #e2e8f0; border-radius: 12px;
+        padding: 12px 14px; font-size: 14px; width: 100%;
         transition: all 0.2s;
     }
-    .qty-btn:active {
-        background: #ced4da;
+    .input-modern:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+        outline: none;
     }
-    .btn-green-grad {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-weight: 600;
-        padding: 10px 20px;
+    .select-modern {
+        border: 1.5px solid #e2e8f0; border-radius: 12px;
+        padding: 12px 14px; font-size: 14px; width: 100%;
+        background: white; appearance: none;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 12px center; background-repeat: no-repeat; background-size: 16px;
+        cursor: pointer; transition: all 0.2s;
     }
-    .btn-green-grad:hover, .btn-green-grad:focus {
-        color: white;
+    .select-modern:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+        outline: none;
     }
-    .badge-stock {
-        font-size: 11px;
-        padding: 4px 8px;
-        border-radius: 6px;
+
+    .btn-confirm {
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+        color: white; border: none; border-radius: 14px;
+        padding: 14px 28px; font-weight: 700; font-size: 15px;
+        width: 100%; transition: all 0.2s;
+    }
+    .btn-confirm:hover { transform: translateY(-1px); }
+    .btn-confirm:disabled { background: #e2e8f0; color: #94a3b8; }
+
+    /* === SUCCESS MODAL === */
+    .success-icon { font-size: 80px; color: #10b981; animation: popIn 0.4s ease-out; }
+    @keyframes popIn {
+        0% { transform: scale(0); opacity: 0; }
+        70% { transform: scale(1.1); }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* === VUELTO CALC === */
+    .vuelto-display {
+        background: #f0fdf4; border-radius: 10px; padding: 10px 14px;
+        display: flex; justify-content: space-between; align-items: center;
+        border: 1.5px solid #bbf7d0; margin-top: 10px;
+    }
+    .vuelto-display span { font-size: 12px; font-weight: 600; color: #166534; }
+    .vuelto-display strong { font-size: 16px; font-weight: 800; color: #15803d; }
+
+    .bank-wrapper { display: none; }
+
+    .cart-count-badge {
+        background: #ef4444; color: white; font-size: 10px; font-weight: 800;
+        width: 18px; height: 18px; border-radius: 50%;
+        display: inline-flex; align-items: center; justify-content: center;
+        margin-left: 4px;
     }
 </style>
 @endsection
 
 @section('contenido')
-<div class="mobile-container py-3">
-    <!-- Encabezado / Regresar -->
-    <div class="d-flex align-items-center mb-3">
-        <a href="{{ route('vendedor.dashboard') }}" class="btn btn-light btn-rounded me-2">
-            <i class="mdi mdi-arrow-left"></i>
+<div class="mobile-wrapper">
+
+    {{-- HEADER --}}
+    <div class="page-header">
+        <a href="{{ route('vendedor.dashboard') }}" class="back-btn">
+            <i class="mdi mdi-arrow-left" style="font-size:18px;"></i>
         </a>
-        <h4 class="mb-0 font-weight-bold" style="color: #2c3e50;">Registrar Nueva Venta</h4>
+        <div class="vendor-info">
+            <small><i class="mdi mdi-truck me-1"></i>Ventas Móviles</small>
+            <h4>Registrar Venta</h4>
+        </div>
     </div>
 
-    <!-- Tipo de Venta y Cliente -->
-    <div class="card shadow-sm border-0 mb-3" style="border-radius: 12px;">
-        <div class="card-body">
-            <div class="row">
-                <div class="col-12 mb-3">
-                    <label class="form-label font-weight-bold">Tipo de Venta</label>
-                    <select class="form-select" id="tipo_venta" style="border-radius: 8px;">
-                        <option value="1">VENTA AL CONTADO</option>
-                        <option value="2">VENTA AL CREDITO</option>
-                    </select>
-                </div>
-
-                <div class="col-12 mb-3">
-                    <label class="form-label font-weight-bold">Cliente en Ruta</label>
-                    <select class="form-select select2" id="select_cliente" style="border-radius: 8px;">
-                        <option value="">-- Seleccionar Cliente --</option>
-                        @foreach($clientes as $cli)
-                            <option value="{{ $cli->id }}" 
-                                    data-documento="{{ $cli->documento }}" 
-                                    data-nombre="{{ $cli->razon_social }}" 
-                                    data-direccion="{{ $cli->dire_per }}" 
-                                    data-telefono="{{ $cli->telefono }}"
-                                    data-sector="{{ $cli->id_sector }}"
-                                    data-tipodoc="{{ $cli->tipo_doc }}">
-                                {{ $cli->razon_social }} ({{ $cli->documento }})
-                            </option>
-                        @endforeach
-                        <option value="NUEVO">-- NUEVO CLIENTE (REGISTRAR) --</option>
-                    </select>
-                </div>
+    {{-- TIPO DE VENTA --}}
+    <div class="section-card">
+        <div class="section-title"><i class="mdi mdi-cash-multiple"></i> Tipo de Venta</div>
+        <div class="venta-toggle">
+            <div class="venta-toggle-btn active-contado" id="btn_contado" onclick="setTipoVenta(1)">
+                <i class="mdi mdi-cash"></i>
+                Contado
             </div>
+            <div class="venta-toggle-btn" id="btn_credito" onclick="setTipoVenta(2)">
+                <i class="mdi mdi-credit-card-outline"></i>
+                Crédito
+            </div>
+        </div>
+        <input type="hidden" id="tipo_venta" value="1">
+    </div>
 
-            <!-- Formulario Cliente Rápido (Oculto inicialmente) -->
-            <div id="form_nuevo_cliente" class="d-none border-top pt-3 mt-2">
-                <h6 class="font-weight-bold mb-3 text-primary">Registrar Cliente Rápido</h6>
-                <div class="row">
-                    <div class="col-6 mb-2">
-                        <label class="form-label font-size-12">Tipo Doc.</label>
-                        <select class="form-select form-select-sm" id="tipo_doc_nuevo">
-                            @foreach($tipo_documento as $td)
-                                <option value="{{ $td->id }}">{{ $td->nomb_doc }}</option>
-                            @endforeach
-                        </select>
+    {{-- CLIENTE --}}
+    <div class="section-card">
+        <div class="section-title"><i class="mdi mdi-account-circle"></i> Cliente</div>
+        
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="form-label mb-0">Seleccionar Cliente en Ruta</label>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btn_toggle_nuevo_cliente" style="border-radius: 8px; font-weight: 700; font-size: 11px;">
+                <i class="mdi mdi-account-plus me-1"></i> NUEVO CLIENTE
+            </button>
+        </div>
+
+        <div class="form-group-modern" id="wrapper_select_cliente">
+            <select class="select-modern" id="select_cliente">
+                <option value="">-- Seleccionar Cliente --</option>
+                @foreach($clientes as $cli)
+                    <option value="{{ $cli->id }}"
+                            data-documento="{{ $cli->documento }}"
+                            data-nombre="{{ $cli->razon_social }}"
+                            data-direccion="{{ $cli->dire_per }}"
+                            data-telefono="{{ $cli->telefono }}"
+                            data-sector="{{ $cli->id_sector }}"
+                            data-tipodoc="{{ $cli->tipo_doc }}">
+                        {{ $cli->razon_social }} · {{ $cli->documento }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+
+        {{-- Formulario Nuevo Cliente --}}
+        <div id="form_nuevo_cliente" class="d-none">
+            <div class="nc-title"><i class="mdi mdi-account-plus"></i> Registro Rápido de Cliente</div>
+            <div class="row g-2">
+                <div class="col-5">
+                    <label class="form-label">Tipo Doc.</label>
+                    <select class="select-modern" id="tipo_doc_nuevo">
+                        @foreach($tipo_documento as $td)
+                            <option value="{{ $td->id }}">{{ $td->nomb_doc }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-7">
+                    <label class="form-label">Número Doc.</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control input-modern" id="doc_nuevo" placeholder="Ej: 12345678" style="border-radius: 12px 0 0 12px;">
+                        <button class="btn btn-primary btn-sm" type="button" id="btn_buscar_api" style="border-radius: 0 12px 12px 0; padding: 0 12px;">
+                            <i class="mdi mdi-magnify"></i>
+                        </button>
                     </div>
-                    <div class="col-6 mb-2">
-                        <label class="form-label font-size-12">Número Doc.</label>
-                        <div class="input-group input-group-sm">
-                            <input type="text" class="form-control" id="doc_nuevo">
-                            <button class="btn btn-outline-primary" type="button" id="btn_buscar_api">
-                                <i class="mdi mdi-magnify"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="col-12 mb-2">
-                        <label class="form-label font-size-12">Nombre / Razón Social</label>
-                        <input type="text" class="form-control form-control-sm" id="nombre_nuevo">
-                    </div>
-                    <div class="col-12 mb-2">
-                        <label class="form-label font-size-12">Dirección</label>
-                        <input type="text" class="form-control form-control-sm" id="direccion_nuevo">
-                    </div>
-                    <div class="col-6 mb-2">
-                        <label class="form-label font-size-12">Celular</label>
-                        <input type="text" class="form-control form-control-sm" id="celular_nuevo">
-                    </div>
-                    <div class="col-6 mb-2">
-                        <label class="form-label font-size-12">Sector</label>
-                        <select class="form-select form-select-sm" id="sector_nuevo">
-                            @foreach($sectores as $sec)
-                                <option value="{{ $sec->id }}">{{ $sec->nomb_sec }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Nombre / Razón Social</label>
+                    <input type="text" class="input-modern" id="nombre_nuevo" placeholder="Nombre completo">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Dirección</label>
+                    <input type="text" class="input-modern" id="direccion_nuevo" placeholder="Av. / Jr. / Calle...">
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Celular</label>
+                    <input type="text" class="input-modern" id="celular_nuevo" placeholder="9XXXXXXXX">
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Sector</label>
+                    <select class="select-modern" id="sector_nuevo">
+                        @foreach($sectores as $sec)
+                            <option value="{{ $sec->id }}">{{ $sec->nomb_sec }}</option>
+                        @endforeach
+                    </select>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Lista de Productos en la Furgoneta -->
-    <h5 class="font-weight-bold mb-3" style="color: #2c3e50; padding-left: 5px;">Productos en Furgoneta</h5>
-    <div class="mb-3">
-        <input type="text" class="form-control search-box" id="buscar_producto" placeholder="🔍 Buscar producto por nombre...">
+    {{-- PRODUCTOS --}}
+    <div class="section-title" style="padding: 0 4px; margin-bottom: 10px;">
+        <i class="mdi mdi-package-variant-closed" style="font-size:16px; color:#64748b;"></i>
+        <span style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#64748b;">
+            Productos en Ruta
+        </span>
+        <span id="cart_count_badge" class="cart-count-badge d-none">0</span>
     </div>
 
-    <div id="productos_lista_wrapper">
+    <div class="search-box-wrapper">
+        <i class="mdi mdi-magnify"></i>
+        <input type="text" id="buscar_producto" placeholder="Buscar producto...">
+    </div>
+
+    <div id="productos_lista">
         @if($productos->isEmpty())
-            <div class="text-center py-4 bg-white shadow-sm rounded p-3">
-                <i class="mdi mdi-inbox-remove-outline text-muted" style="font-size: 40px;"></i>
-                <p class="text-muted mt-2 mb-0">No hay stock disponible en la furgoneta.</p>
+            <div class="empty-products">
+                <i class="mdi mdi-inbox-remove-outline"></i>
+                <p>No hay stock disponible en la unidad móvil.</p>
             </div>
         @else
             @foreach($productos as $prod)
-                <div class="product-list-item" data-id="{{ $prod->id }}" data-nombre="{{ $prod->nomb_pro }}">
-                    <div style="flex: 1;">
-                        <span class="font-weight-bold d-block text-truncate" style="max-width: 250px; font-size: 14px;">{{ $prod->nomb_pro }}</span>
-                        <div class="mt-1 d-flex gap-2 align-items-center">
-                            <span class="badge-stock bg-soft-info text-info font-weight-bold">Contado: S/ <span class="precio-contado">{{ $prod->precio_contado }}</span></span>
-                            <span class="badge-stock bg-soft-warning text-warning font-weight-bold">Crédito: S/ <span class="precio-credito">{{ $prod->precio_credito }}</span></span>
-                        </div>
-                        <span class="badge bg-soft-success text-success mt-2 d-inline-block">Stock: <span class="prod-stock">{{ $prod->stock }}</span></span>
+                <div class="product-item"
+                     data-id="{{ $prod->id }}"
+                     data-nombre="{{ $prod->nomb_pro }}"
+                     data-precio-contado="{{ $prod->precio_contado }}"
+                     data-precio-credito="{{ $prod->precio_credito }}"
+                     data-stock="{{ $prod->stock }}">
+                    <div class="prod-icon">
+                        <i class="mdi mdi-package"></i>
                     </div>
-
-                    <div class="quantity-controls">
-                        <button class="qty-btn btn-minus" type="button">-</button>
-                        <span class="qty-display font-weight-bold" style="font-size: 16px; min-width: 20px; text-align: center;">0</span>
-                        <button class="qty-btn btn-plus" type="button">+</button>
+                    <div class="prod-info">
+                        <div class="prod-name">{{ $prod->nomb_pro }}</div>
+                        <div class="prod-prices">
+                            <span class="price-tag contado">S/ {{ number_format($prod->precio_contado, 2) }}</span>
+                            <span class="price-tag credito">S/ {{ number_format($prod->precio_credito, 2) }}</span>
+                            <span class="stock-tag"><i class="mdi mdi-cube-outline"></i> {{ $prod->stock }}</span>
+                        </div>
+                    </div>
+                    <div class="qty-controls">
+                        <button class="qty-btn minus btn-minus" type="button">−</button>
+                        <span class="qty-display">0</span>
+                        <button class="qty-btn plus btn-plus" type="button">+</button>
                     </div>
                 </div>
             @endforeach
         @endif
     </div>
+
 </div>
 
-<!-- Barra de Resumen / Acción Inferior -->
-<div class="cart-summary-bar">
-    <div>
-        <span class="text-muted font-size-12 d-block">Monto Total</span>
-        <h4 class="mb-0 font-weight-bold text-success" id="cart_total_display">S/ 0.00</h4>
+{{-- BARRA INFERIOR --}}
+<div class="cart-bar">
+    <div class="total-section">
+        <small>Total a Cobrar</small>
+        <h3 id="cart_total_display">S/ 0.00</h3>
     </div>
-    <button class="btn btn-green-grad px-4 py-2 shadow" id="btn_continuar_venta" disabled>
-        Continuar <i class="mdi mdi-arrow-right ms-1"></i>
+    <button class="btn-checkout" id="btn_continuar_venta" disabled>
+        Continuar <i class="mdi mdi-arrow-right"></i>
     </button>
 </div>
 
-<!-- Modal para finalizar venta y cobrar -->
-<div class="modal fade" id="modalFinalizarVenta" tabindex="-1" role="dialog" aria-hidden="true" data-bs-backdrop="static">
+{{-- MODAL FINALIZAR VENTA --}}
+<div class="modal fade" id="modalFinalizarVenta" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
-            <div class="modal-header bg-light border-0">
-                <h5 class="modal-title font-weight-bold text-dark">Finalizar y Cobrar</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content">
+            <div class="modal-header-grad d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="modal-title"><i class="mdi mdi-cash-register me-2"></i>Finalizar y Cobrar</div>
+                    <small style="opacity:0.7; font-size:12px;">Confirme los datos antes de procesar</small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form id="form_finalizar_venta">
-                <div class="modal-body p-4">
-                    <h2 class="text-center font-weight-bold text-success mb-4" id="modal_total_display">S/ 0.00</h2>
+                <div class="modal-body">
+                    <div class="total-badge">
+                        <small>Monto Total</small>
+                        <h2 id="modal_total_display">S/ 0.00</h2>
+                    </div>
 
-                    <div class="mb-3">
-                        <label class="form-label font-weight-bold">Comprobante</label>
-                        <select class="form-select" name="documento" id="select_documento" required>
+                    <div class="form-group-modern">
+                        <label class="form-label">Comprobante</label>
+                        <select class="select-modern" name="documento" id="select_documento" required>
                             @foreach($comprobantes as $comp)
                                 <option value="{{ $comp->id }}" {{ $comp->id == 9 ? 'selected' : '' }}>{{ $comp->descripcion }}</option>
                             @endforeach
                         </select>
                     </div>
 
-                    <div class="mb-3" id="wrapper_forma_pago">
-                        <label class="form-label font-weight-bold">Forma de Pago</label>
-                        <select class="form-select" name="forma_pago" id="select_forma_pago" required>
+                    <div class="form-group-modern">
+                        <label class="form-label">Forma de Pago</label>
+                        <select class="select-modern" name="forma_pago" id="select_forma_pago" required>
                             @foreach($forma_pagos as $fp)
-                                <option value="{{ $fp->id }}">{{ $fp->nombre }}</option>
+                                <option value="{{ $fp->id }}">{{ $fp->descripcion }}</option>
                             @endforeach
                         </select>
                     </div>
 
-                    <!-- Detalles depósito / aplicativos -->
-                    <div id="pago_operacion_wrapper" class="d-none border p-3 rounded mb-3 bg-light">
-                        <div class="mb-2">
-                            <label class="form-label font-weight-bold">Banco</label>
-                            <select class="form-select" name="banco_venta" id="select_banco">
+                    <div class="bank-wrapper" id="pago_operacion_wrapper">
+                        <div class="form-group-modern">
+                            <label class="form-label">Banco</label>
+                            <select class="select-modern" name="banco_venta" id="select_banco">
                                 <option value="">-- Seleccionar Banco --</option>
                                 @foreach($bancos as $b)
-                                    <option value="{{ $b->id }}">{{ $b->abreviatura }} - {{ $b->cuenta_corriente }}</option>
+                                    <option value="{{ $b->id }}">{{ $b->abreviatura }} · {{ $b->cuenta_corriente }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div>
-                            <label class="form-label font-weight-bold">N° de Operación</label>
-                            <input type="text" class="form-control" name="numero_operacion" id="input_operacion">
+                        <div class="form-group-modern">
+                            <label class="form-label">N° Operación</label>
+                            <input type="text" class="input-modern" name="numero_operacion" id="input_operacion">
                         </div>
                     </div>
 
-                    <!-- Campos de Efectivo -->
-                    <div class="row mb-3" id="efectivo_calculo_wrapper">
-                        <div class="col-6">
-                            <label class="form-label font-weight-bold">Recibido (S/)</label>
-                            <input type="number" step="0.01" class="form-control" name="total_recibido" id="input_recibido" value="0">
+                    <div id="efectivo_calculo_wrapper">
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <label class="form-label">Monto Recibido (S/)</label>
+                                <input type="number" step="0.01" class="input-modern" name="total_recibido" id="input_recibido" value="0">
+                            </div>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label font-weight-bold">Vuelto (S/)</label>
-                            <input type="number" class="form-control bg-light" name="vuelto" id="input_vuelto" value="0" readonly>
+                        <div class="vuelto-display">
+                            <span><i class="mdi mdi-arrow-left-right me-1"></i>Vuelto / Cambio</span>
+                            <strong id="vuelto_display">S/ 0.00</strong>
                         </div>
+                        <input type="hidden" name="vuelto" id="input_vuelto" value="0">
                     </div>
                 </div>
-                <div class="modal-footer border-0 bg-light">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Atrás</button>
-                    <button type="submit" class="btn btn-success px-4" id="btn_guardar_venta_final">
-                        Confirmar Venta
+                <div class="modal-footer-light">
+                    <button type="button" class="btn btn-outline-secondary w-100 mb-2" data-bs-dismiss="modal">Atrás</button>
+                    <button type="submit" class="btn-confirm" id="btn_guardar_venta_final">
+                        <i class="mdi mdi-check-circle me-2"></i> Confirmar Venta
                     </button>
                 </div>
             </form>
@@ -287,27 +574,26 @@
     </div>
 </div>
 
-<!-- Modal Éxito / Ticket -->
-<div class="modal fade" id="modalVentaExitosa" tabindex="-1" role="dialog" aria-hidden="true" data-bs-backdrop="static">
+{{-- MODAL ÉXITO --}}
+<div class="modal fade" id="modalVentaExitosa" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="border-radius: 16px;">
+        <div class="modal-content">
             <div class="modal-body text-center p-5">
-                <div class="mb-4">
-                    <i class="mdi mdi-checkbox-marked-circle-outline text-success" style="font-size: 72px;"></i>
+                <div class="mb-3">
+                    <i class="mdi mdi-check-circle success-icon"></i>
                 </div>
-                <h4 class="font-weight-bold text-dark mb-2">¡Venta Registrada!</h4>
-                <p class="text-muted mb-4">La venta ha sido guardada exitosamente y queda pendiente de liquidación.</p>
-
+                <h4 class="fw-bold text-dark mb-2">¡Venta Registrada!</h4>
+                <p class="text-muted mb-4">La venta fue guardada y queda pendiente de liquidación.</p>
                 <div class="d-grid gap-2">
-                    <a href="#" id="link_ticket" target="_blank" class="btn btn-primary btn-lg">
-                        <i class="mdi mdi-receipt me-2"></i> Imprimir / Ver Ticket
+                    <a href="#" id="link_ticket" target="_blank" class="btn btn-primary btn-lg" style="border-radius: 12px;">
+                        <i class="mdi mdi-receipt me-2"></i> Ver / Imprimir Ticket
                     </a>
-                    <a href="{{ route('vendedor.dashboard') }}" class="btn btn-outline-secondary">
+                    <button type="button" class="btn btn-outline-success" style="border-radius: 12px;" onclick="window.location.reload();">
+                        <i class="mdi mdi-plus me-1"></i> Registrar Otra Venta
+                    </button>
+                    <a href="{{ route('vendedor.dashboard') }}" class="btn btn-light" style="border-radius: 12px;">
                         Volver al Dashboard
                     </a>
-                    <button type="button" class="btn btn-light" onclick="window.location.reload();">
-                        Registrar Otra Venta
-                    </button>
                 </div>
             </div>
         </div>
@@ -317,272 +603,299 @@
 
 @section('js')
 <script>
-    $(document).ready(function() {
-        $(".loader").fadeOut("slow");
+$(document).ready(function() {
+    $(".loader").fadeOut("slow");
 
-        // Estado del Carrito
-        let cart = {};
-
-        // Filtrar productos
-        $('#buscar_producto').on('keyup', function() {
-            let value = $(this).val().toLowerCase();
-            $('#productos_lista_wrapper .product-list-item').filter(function() {
-                $(this).toggle($(this).attr('data-nombre').toLowerCase().indexOf(value) > -1)
-            });
-        });
-
-        // Manejar Cliente Nuevo vs Existente
-        $('#select_cliente').on('change', function() {
-            if ($(this).val() === 'NUEVO') {
-                $('#form_nuevo_cliente').removeClass('d-none');
-            } else {
-                $('#form_nuevo_cliente').addClass('d-none');
-            }
-        });
-
-        // Buscar en RUC/DNI API
-        $('#btn_buscar_api').on('click', function() {
-            let doc = $('#doc_nuevo').val();
-            let tipo = $('#tipo_doc_nuevo').val();
-            if (!doc) return alert('Ingrese un número de documento.');
-
-            $(".loader").fadeIn("fast");
-            $.ajax({
-                url: "{{ url('ventas/consultar_dni_ruc') }}",
-                type: 'POST',
-                data: {
-                    _token: "{{ csrf_token() }}",
-                    tipo_documento: tipo,
-                    num_doc: doc
-                },
-                success: function(res) {
-                    $(".loader").fadeOut("fast");
-                    if (res.exception === 'existe_base_datos') {
-                        alert('El cliente ya existe en la base de datos local. Seleccionándolo...');
-                        $('#form_nuevo_cliente').addClass('d-none');
-                        // Buscar el cliente en el select
-                        let option = $('#select_cliente option').filter(function() {
-                            return $(this).attr('data-documento') === doc;
-                        });
-                        if (option.length) {
-                            $('#select_cliente').val(option.val()).trigger('change');
-                        }
-                    } else if (res.nombres || (res.original && res.original.nombres)) {
-                        let nombres = res.nombres || res.original.nombres;
-                        let direccion = res.direccion || res.original.direccion || '';
-                        $('#nombre_nuevo').val(nombres);
-                        $('#direccion_nuevo').val(direccion);
-                    } else {
-                        alert('No se encontraron resultados en la consulta.');
-                    }
-                },
-                error: function() {
-                    $(".loader").fadeOut("fast");
-                    alert('Error al consultar el documento.');
-                }
-            });
-        });
-
-        // Cambios en los botones de cantidad (+/-)
-        $('.btn-plus').on('click', function() {
-            let item = $(this).closest('.product-list-item');
-            let id = item.attr('data-id');
-            let nombre = item.attr('data-nombre');
-            let stock = parseInt(item.find('.prod-stock').text());
-            let priceContado = parseFloat(item.find('.precio-contado').text());
-            let priceCredito = parseFloat(item.find('.precio-credito').text());
-
-            if (!cart[id]) {
-                cart[id] = { id: id, nombre: nombre, qty: 0, stock: stock, priceContado: priceContado, priceCredito: priceCredito };
-            }
-
-            if (cart[id].qty < stock) {
-                cart[id].qty++;
-                item.find('.qty-display').text(cart[id].qty);
-                updateTotals();
-            } else {
-                alert('No hay más stock disponible en la furgoneta.');
-            }
-        });
-
-        $('.btn-minus').on('click', function() {
-            let item = $(this).closest('.product-list-item');
-            let id = item.attr('data-id');
-
-            if (cart[id] && cart[id].qty > 0) {
-                cart[id].qty--;
-                item.find('.qty-display').text(cart[id].qty);
-                if (cart[id].qty === 0) {
-                    delete cart[id];
-                }
-                updateTotals();
-            }
-        });
-
-        $('#tipo_venta').on('change', function() {
-            updateTotals();
-        });
-
-        // Actualizar Totales del carrito
-        function updateTotals() {
-            let tipoVenta = $('#tipo_venta').val();
-            let total = 0;
-            let count = 0;
-
-            for (let id in cart) {
-                let p = cart[id];
-                let price = (tipoVenta === '1') ? p.priceContado : p.priceCredito;
-                total += p.qty * price;
-                count += p.qty;
-            }
-
-            $('#cart_total_display').text('S/ ' + total.toFixed(2));
-            $('#modal_total_display').text('S/ ' + total.toFixed(2));
-            $('#input_recibido').val(total.toFixed(2));
-            $('#input_vuelto').val('0.00');
-
-            if (count > 0) {
-                $('#btn_continuar_venta').prop('disabled', false);
-            } else {
-                $('#btn_continuar_venta').prop('disabled', true);
-            }
+    // ============================
+    // TIPO DE VENTA
+    // ============================
+    function setTipoVenta(tipo) {
+        $('#tipo_venta').val(tipo);
+        if (tipo == 1) {
+            $('#btn_contado').addClass('active-contado').removeClass('active-credito');
+            $('#btn_credito').removeClass('active-contado active-credito');
+        } else {
+            $('#btn_credito').addClass('active-credito').removeClass('active-contado');
+            $('#btn_contado').removeClass('active-contado active-credito');
         }
+        updateTotals();
+    }
+    window.setTipoVenta = setTipoVenta;
 
-        // Continuar a la pantalla de Pago
-        $('#btn_continuar_venta').on('click', function() {
-            let clienteVal = $('#select_cliente').val();
-            if (!clienteVal) {
-                alert('Debe seleccionar o registrar un cliente antes de continuar.');
-                return;
-            }
-            $('#modalFinalizarVenta').modal('show');
-        });
+    // ============================
+    // CLIENTE
+    // ============================
+    let isNuevoClienteMode = false;
 
-        // Ocultar/mostrar banco e input de operación según forma de pago
-        $('#select_forma_pago').on('change', function() {
-            let val = $(this).val();
-            if (val === '1') { // Efectivo
-                $('#pago_operacion_wrapper').addClass('d-none');
-                $('#efectivo_calculo_wrapper').removeClass('d-none');
-            } else {
-                $('#pago_operacion_wrapper').removeClass('d-none');
-                $('#efectivo_calculo_wrapper').addClass('d-none');
-            }
-        });
+    $('#btn_toggle_nuevo_cliente').on('click', function() {
+        isNuevoClienteMode = !isNuevoClienteMode;
+        if (isNuevoClienteMode) {
+            $(this).removeClass('btn-outline-primary').addClass('btn-primary').html('<i class="mdi mdi-close me-1"></i> CANCELAR');
+            $('#form_nuevo_cliente').removeClass('d-none');
+            $('#wrapper_select_cliente').addClass('d-none');
+            $('#select_cliente').val('');
+        } else {
+            $(this).removeClass('btn-primary').addClass('btn-outline-primary').html('<i class="mdi mdi-account-plus me-1"></i> NUEVO CLIENTE');
+            $('#form_nuevo_cliente').addClass('d-none');
+            $('#wrapper_select_cliente').removeClass('d-none');
+        }
+    });
 
-        // Calcular vuelto
-        $('#input_recibido').on('input', function() {
-            let recibido = parseFloat($(this).val()) || 0;
-            let totalText = $('#modal_total_display').text().replace('S/ ', '');
-            let total = parseFloat(totalText) || 0;
-            let vuelto = recibido - total;
-            $('#input_vuelto').val(vuelto >= 0 ? vuelto.toFixed(2) : '0.00');
-        });
-
-        // Enviar Formulario Venta Completo
-        $('#form_finalizar_venta').on('submit', function(e) {
-            e.preventDefault();
-
-            let clienteVal = $('#select_cliente').val();
-            let numDoc = '', nomCli = '', dirCli = '', telCli = '', tipoDoc = '1', sectorId = '';
-
-            if (clienteVal === 'NUEVO') {
-                numDoc = $('#doc_nuevo').val();
-                nomCli = $('#nombre_nuevo').val();
-                dirCli = $('#direccion_nuevo').val();
-                telCli = $('#celular_nuevo').val();
-                tipoDoc = $('#tipo_doc_nuevo').val();
-                sectorId = $('#sector_nuevo').val();
-
-                if (!numDoc || !nomCli) {
-                    alert('Debe completar los campos del cliente nuevo.');
-                    return;
+    // Buscar en API RUC/DNI
+    $('#btn_buscar_api').on('click', function() {
+        let doc = $('#doc_nuevo').val().trim();
+        let tipo = $('#tipo_doc_nuevo').val();
+        if (!doc) { alert('Ingrese un número de documento.'); return; }
+        $(".loader").fadeIn("fast");
+        $.ajax({
+            url: "{{ url('ventas/consultar_dni_ruc') }}",
+            type: 'POST',
+            data: { _token: "{{ csrf_token() }}", tipo_documento: tipo, num_doc: doc },
+            success: function(res) {
+                $(".loader").fadeOut("fast");
+                if (res.exception === 'existe_base_datos') {
+                    alert('Cliente ya existe en la base de datos. Selecciónelo desde el listado.');
+                    $('#btn_toggle_nuevo_cliente').click(); // Volver al listado
+                    // Seleccionar automáticamente si existe en el select
+                    $('#select_cliente option').each(function() {
+                        if ($(this).data('documento') == doc) {
+                            $('#select_cliente').val($(this).val());
+                        }
+                    });
+                } else if (res.nombres || (res.original && res.original.nombres)) {
+                    let nombres = res.nombres || res.original.nombres;
+                    let direccion = res.direccion || (res.original && res.original.direccion) || '';
+                    $('#nombre_nuevo').val(nombres);
+                    $('#direccion_nuevo').val(direccion);
+                } else {
+                    alert('No se encontraron resultados para este documento.');
                 }
-            } else {
-                let opt = $('#select_cliente option:selected');
-                numDoc = opt.attr('data-documento');
-                nomCli = opt.attr('data-nombre');
-                dirCli = opt.attr('data-direccion');
-                telCli = opt.attr('data-telefono');
-                tipoDoc = opt.attr('data-tipodoc');
-                sectorId = opt.attr('data-sector');
-            }
-
-            // Preparar arrays del carrito
-            let quanty = [];
-            let idproducto = [];
-            let priceproducto = [];
-            let nameproducto = [];
-            let importe = [];
-            let ubicacion = [];
-            let tipoVenta = $('#tipo_venta').val();
-
-            for (let id in cart) {
-                let p = cart[id];
-                let price = (tipoVenta === '1') ? p.priceContado : p.priceCredito;
-                quanty.push(p.qty);
-                idproducto.push(p.id);
-                priceproducto.push(price);
-                nameproducto.push(p.nombre);
-                importe.push((p.qty * price).toFixed(2));
-                ubicacion.push("{{ $ubicacion_id }}");
-            }
-
-            let totalVentaVal = $('#modal_total_display').text().replace('S/ ', '');
-
-            let dataToSend = {
-                _token: "{{ csrf_token() }}",
-                es_movil: 1,
-                documento: $('#select_documento').val(),
-                tipoDocumentoIdentidad: tipoDoc,
-                numeroDocumento: numDoc,
-                nombre_cliente: nomCli,
-                direccion_cliente: dirCli,
-                celular_cliente: telCli,
-                correo_cliente: '',
-                sectores: sectorId,
-                forma_pago: $('#select_forma_pago').val(),
-                tipo_venta: tipoVenta,
-                total_venta: totalVentaVal,
-                total_recibido: $('#input_recibido').val(),
-                vuelto: $('#input_vuelto').val(),
-                numero_operacion: $('#input_operacion').val(),
-                banco_venta: $('#select_banco').val(),
-                fecha_venta: "{{ date('Y-m-d') }}",
-                vendedor: "{{ $vendedor->id }}",
-                quanty: quanty,
-                idproducto: idproducto,
-                priceproducto: priceproducto,
-                nameproducto: nameproducto,
-                importe: importe,
-                ubicacion: ubicacion
-            };
-
-            $('#btn_guardar_venta_final').prop('disabled', true).text('Guardando...');
-            $(".loader").fadeIn("fast");
-
-            $.ajax({
-                url: "{{ route('vendedor.venta.guardar') }}",
-                type: 'POST',
-                data: dataToSend,
-                success: function(response) {
-                    $(".loader").fadeOut("fast");
-                    if (response.respuesta === 'ok') {
-                        $('#modalFinalizarVenta').modal('hide');
-                        $('#link_ticket').attr('href', "{{ url('ventas/ticket') }}/" + response.id);
-                        $('#modalVentaExitosa').modal('show');
-                    } else {
-                        $('#btn_guardar_venta_final').prop('disabled', false).text('Confirmar Venta');
-                        alert('Error al guardar la venta: ' + (response.mensaje || response.error));
-                    }
-                },
-                error: function(xhr) {
-                    $(".loader").fadeOut("fast");
-                    $('#btn_guardar_venta_final').prop('disabled', false).text('Confirmar Venta');
-                    alert('Error en la comunicación con el servidor.');
-                }
-            });
+            },
+            error: function() { $(".loader").fadeOut("fast"); alert('Error al consultar el documento.'); }
         });
     });
+
+    // ============================
+    // CARRITO
+    // ============================
+    let cart = {};
+
+    // Buscar productos
+    $('#buscar_producto').on('input', function() {
+        let value = $(this).val().toLowerCase();
+        $('#productos_lista .product-item').each(function() {
+            let nombre = $(this).attr('data-nombre').toLowerCase();
+            $(this).toggle(nombre.includes(value));
+        });
+    });
+
+    // Botón +
+    $(document).on('click', '.btn-plus', function() {
+        let item = $(this).closest('.product-item');
+        let id = item.attr('data-id');
+        let stock = parseInt(item.attr('data-stock'));
+        let priceContado = parseFloat(item.attr('data-precio-contado')) || 0;
+        let priceCredito = parseFloat(item.attr('data-precio-credito')) || 0;
+        let nombre = item.attr('data-nombre');
+
+        if (!cart[id]) {
+            cart[id] = { id, nombre, qty: 0, stock, priceContado, priceCredito };
+        }
+        if (cart[id].qty < stock) {
+            cart[id].qty++;
+            item.find('.qty-display').text(cart[id].qty);
+            item.addClass('in-cart');
+            updateTotals();
+        } else {
+            // Shake animation
+            item.css('border-color', '#ef4444');
+            setTimeout(() => item.css('border-color', ''), 800);
+        }
+    });
+
+    // Botón -
+    $(document).on('click', '.btn-minus', function() {
+        let item = $(this).closest('.product-item');
+        let id = item.attr('data-id');
+        if (cart[id] && cart[id].qty > 0) {
+            cart[id].qty--;
+            item.find('.qty-display').text(cart[id].qty);
+            if (cart[id].qty === 0) {
+                delete cart[id];
+                item.removeClass('in-cart');
+            }
+            updateTotals();
+        }
+    });
+
+    function updateTotals() {
+        let tipoVenta = $('#tipo_venta').val();
+        let total = 0;
+        let count = 0;
+        for (let id in cart) {
+            let p = cart[id];
+            let price = (tipoVenta === '1') ? p.priceContado : p.priceCredito;
+            total += p.qty * price;
+            count += p.qty;
+        }
+        $('#cart_total_display').text('S/ ' + total.toFixed(2));
+        $('#modal_total_display').text('S/ ' + total.toFixed(2));
+        $('#input_recibido').val(total.toFixed(2));
+        recalcVuelto();
+
+        if (count > 0) {
+            $('#btn_continuar_venta').prop('disabled', false);
+            $('#cart_count_badge').text(count).removeClass('d-none');
+        } else {
+            $('#btn_continuar_venta').prop('disabled', true);
+            $('#cart_count_badge').addClass('d-none');
+        }
+    }
+
+    // ============================
+    // CONTINUAR
+    // ============================
+    $('#btn_continuar_venta').on('click', function() {
+        if (!isNuevoClienteMode && !$('#select_cliente').val()) {
+            alert('Debe seleccionar un cliente del listado o registrar uno nuevo.');
+            return;
+        }
+        updateTotals();
+        $('#modalFinalizarVenta').modal('show');
+    });
+
+    // ============================
+    // FORMA DE PAGO
+    // ============================
+    $('#select_forma_pago').on('change', function() {
+        let val = $(this).val();
+        if (val === '1') {
+            $('#pago_operacion_wrapper').hide();
+            $('#efectivo_calculo_wrapper').show();
+        } else {
+            $('#pago_operacion_wrapper').show();
+            $('#efectivo_calculo_wrapper').hide();
+        }
+    });
+
+    // Vuelto
+    function recalcVuelto() {
+        let recibido = parseFloat($('#input_recibido').val()) || 0;
+        let totalText = $('#modal_total_display').text().replace('S/ ', '');
+        let total = parseFloat(totalText) || 0;
+        let vuelto = recibido - total;
+        let vueltoVal = vuelto >= 0 ? vuelto : 0;
+        $('#vuelto_display').text('S/ ' + vueltoVal.toFixed(2));
+        $('#input_vuelto').val(vueltoVal.toFixed(2));
+    }
+    $('#input_recibido').on('input', recalcVuelto);
+
+    // ============================
+    // ENVIAR VENTA
+    // ============================
+    $('#form_finalizar_venta').on('submit', function(e) {
+        e.preventDefault();
+
+        let clienteVal = $('#select_cliente').val();
+        let numDoc = '', nomCli = '', dirCli = '', telCli = '', tipoDoc = '1', sectorId = '', correo = '';
+
+        if (isNuevoClienteMode) {
+            numDoc = $('#doc_nuevo').val().trim();
+            nomCli = $('#nombre_nuevo').val().trim();
+            dirCli = $('#direccion_nuevo').val().trim();
+            telCli = $('#celular_nuevo').val().trim();
+            tipoDoc = $('#tipo_doc_nuevo').val();
+            sectorId = $('#sector_nuevo').val();
+            if (!numDoc || !nomCli) {
+                alert('Debe completar el número de documento y nombre del nuevo cliente.');
+                return;
+            }
+        } else {
+            let opt = $('#select_cliente option:selected');
+            if (!opt.val()) {
+                alert('Debe seleccionar un cliente del listado o registrar uno nuevo.');
+                return;
+            }
+            numDoc   = opt.attr('data-documento') || '';
+            nomCli   = opt.attr('data-nombre') || '';
+            dirCli   = opt.attr('data-direccion') || '';
+            telCli   = opt.attr('data-telefono') || '';
+            tipoDoc  = opt.attr('data-tipodoc') || '1';
+            sectorId = opt.attr('data-sector') || '';
+        }
+
+        let tipoVenta = $('#tipo_venta').val();
+        let quanty = [], idproducto = [], priceproducto = [], nameproducto = [], importe = [], ubicacion = [];
+
+        for (let id in cart) {
+            let p = cart[id];
+            let price = (tipoVenta === '1') ? p.priceContado : p.priceCredito;
+            quanty.push(p.qty);
+            idproducto.push(p.id);
+            priceproducto.push(price);
+            nameproducto.push(p.nombre);
+            importe.push((p.qty * price).toFixed(2));
+            ubicacion.push("{{ $ubicacion_id }}");
+        }
+
+        if (quanty.length === 0) {
+            alert('No hay productos en el carrito.'); return;
+        }
+
+        let totalVentaVal = $('#modal_total_display').text().replace('S/ ', '');
+
+        let dataToSend = {
+            _token: "{{ csrf_token() }}",
+            es_movil: 1,
+            documento: $('#select_documento').val(),
+            tipoDocumentoIdentidad: tipoDoc,
+            numeroDocumento: numDoc,
+            nombre_cliente: nomCli,
+            direccion_cliente: dirCli,
+            celular_cliente: telCli,
+            correo_cliente: correo,
+            sectores: sectorId,
+            forma_pago: $('#select_forma_pago').val(),
+            tipo_venta: tipoVenta,
+            total_venta: totalVentaVal,
+            total_recibido: $('#input_recibido').val(),
+            vuelto: $('#input_vuelto').val(),
+            numero_operacion: $('#input_operacion').val() || '',
+            banco_venta: $('#select_banco').val() || '',
+            fecha_venta: "{{ date('Y-m-d') }}",
+            vendedor: "{{ $vendedor->id }}",
+            quanty: quanty,
+            idproducto: idproducto,
+            priceproducto: priceproducto,
+            nameproducto: nameproducto,
+            importe: importe,
+            ubicacion: ubicacion
+        };
+
+        $('#btn_guardar_venta_final').prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin me-2"></i>Guardando...');
+
+        $.ajax({
+            url: "{{ route('vendedor.venta.guardar') }}",
+            type: 'POST',
+            data: dataToSend,
+            success: function(response) {
+                if (response.respuesta === 'ok') {
+                    $('#modalFinalizarVenta').modal('hide');
+                    $('#link_ticket').attr('href', "{{ url('ventas/ticket') }}/" + response.id);
+                    $('#modalVentaExitosa').modal('show');
+                } else {
+                    $('#btn_guardar_venta_final').prop('disabled', false).html('<i class="mdi mdi-check-circle me-2"></i>Confirmar Venta');
+                    alert('Error: ' + (response.mensaje || response.error));
+                }
+            },
+            error: function(xhr) {
+                $('#btn_guardar_venta_final').prop('disabled', false).html('<i class="mdi mdi-check-circle me-2"></i>Confirmar Venta');
+                let msg = 'Error en el servidor.';
+                try { let r = xhr.responseJSON; msg = r.error || r.mensaje || msg; } catch(ex) {}
+                alert(msg);
+            }
+        });
+    });
+});
 </script>
 @endsection

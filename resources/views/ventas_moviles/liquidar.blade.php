@@ -444,8 +444,8 @@
                     let sumVentasContado = 0;
                     if (res.ventas && res.ventas.length > 0) {
                         res.ventas.forEach(function(v) {
-                            let tipoStr = v.tipo_venta == 1 ? '<span class="badge bg-soft-success text-success">CONTADO</span>' : '<span class="badge bg-soft-warning text-warning">CRÉDITO</span>';
-                            if (v.tipo_venta == 1) {
+                            let tipoStr = v.tipo_pago_id == 1 ? '<span class="badge bg-soft-success text-success">CONTADO</span>' : '<span class="badge bg-soft-warning text-warning">CRÉDITO</span>';
+                            if (v.tipo_pago_id == 1) {
                                 sumVentasContado += parseFloat(v.monto);
                             }
                             htmlVentas += '<tr>';

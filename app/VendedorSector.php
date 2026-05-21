@@ -16,7 +16,7 @@ class VendedorSector extends Model
 
     public function vendedor()
     {
-        return $this->belongsTo(Vendedor::class, 'vendedor_id', 'id');
+        return $this->belongsTo(Vendedor::class, 'vendedor_id', 'usuario_id');
     }
 
     public function sector()

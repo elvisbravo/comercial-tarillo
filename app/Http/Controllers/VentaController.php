@@ -294,7 +294,7 @@ class VentaController extends Controller
                 $cliente->dire_per = $post['direccion_cliente'];
                 $cliente->email = $post['correo_cliente'];
                 $cliente->razon_social = $post['nombre_cliente'];
-                $cliente->id_sector = $post['sectores'];
+                $cliente->id_sector = empty($post['sectores']) ? null : $post['sectores'];
 
                 $cliente->save();
 
@@ -307,7 +307,7 @@ class VentaController extends Controller
                 $cliente_->telefono = $post['celular_cliente'];
                 $cliente_->dire_per = $post['direccion_cliente'];
                 $cliente_->razon_social = $post['nombre_cliente'];
-                $cliente_->id_sector = $post['sectores'];
+                $cliente_->id_sector = empty($post['sectores']) ? null : $post['sectores'];
 
                 $cliente_->save();
             }
@@ -368,7 +368,8 @@ class VentaController extends Controller
 
                 $detalle->save();
 
-                if ($tipo_comprobante != 9) {
+                $es_movil = isset($post['es_movil']) && $post['es_movil'];
+                if ($tipo_comprobante != 9 || $es_movil) {
                     $servicios->aumentar_descontar_stock(0, $ubicaciones[$i], $productos[$i], $cantidades[$i], $envio);
                     $servicios->movimiento_kardex_producto($ubicaciones[$i], $productos[$i], $cantidades[$i], 2, "VENTA", $serie, $numero, $precios[$i], $tipo_comprobante, date('Y-m-d'), date('Y-m-d'));
                 }

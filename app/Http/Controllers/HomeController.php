@@ -35,12 +35,8 @@ class HomeController extends Controller
     {
         $usuario = Auth::user();
 
-        // Verificar si el usuario está registrado y activo como vendedor en ruta
-        $vendedor = \App\Vendedor::where('usuario_id', $usuario->id)
-                                 ->where('estado', 1)
-                                 ->first();
-
-        if ($vendedor) {
+        // Si el usuario posee el rol ID 6, es redirigido automáticamente al dashboard de vendedor
+        if ($usuario && $usuario->roles()->where('id', 6)->exists()) {
             return redirect()->route('vendedor.dashboard');
         }
 
