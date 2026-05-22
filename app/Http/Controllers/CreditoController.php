@@ -433,4 +433,9 @@ class CreditoController extends Controller
     {
         //
     }
+
+    public function descargarExcelCreditos()
+    {
+        return \Excel::download(new \App\Exports\CreditosExport, 'creditos_activos.xlsx');
+    }
 }

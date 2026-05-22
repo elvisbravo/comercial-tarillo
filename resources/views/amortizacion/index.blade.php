@@ -45,6 +45,9 @@ Lista Creditos
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
+                    <a href="{{ url('descargar-excel-creditos') }}" class="btn btn-success waves-effect waves-light">
+                        <i class="fas fa-file-excel"></i> Descargar Excel Créditos
+                    </a>
                 </div>
 
                 <div class="card-body">

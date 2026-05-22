@@ -222,6 +222,7 @@ Route::post('caja/modificar', 'CajaController@update');
 
 //CONTROLADOR CREDITOS
 
+Route::get('descargar-excel-creditos', 'CreditoController@descargarExcelCreditos');
 Route::get('creditos/ventas_credito', 'CreditoController@ventas_credito');
 Route::get('creditos/contrato/{codigo}', 'CreditoController@contrato');
 Route::get('creditos/validador_candados/{monto}', 'CreditoController@validador_candados');
