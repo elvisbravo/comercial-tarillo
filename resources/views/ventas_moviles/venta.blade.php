@@ -3,11 +3,74 @@
 @section('title', 'Registrar Venta - Ventas Móviles')
 
 @section('css')
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
     * { font-family: 'Inter', sans-serif; }
 
     body { background: #f0f4f8; }
+
+    /* === SELECT2 CUSTOM PREMIUM STYLING === */
+    .select2-container--default .select2-selection--single {
+        border: 1.5px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        height: 46px !important;
+        background: white !important;
+        transition: all 0.2s !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 46px !important;
+        padding-left: 14px !important;
+        padding-right: 30px !important;
+        color: #1e293b !important;
+        font-size: 14px !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 44px !important;
+        right: 12px !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow b {
+        border-color: #6b7280 transparent transparent transparent !important;
+        border-width: 5px 4px 0 4px !important;
+    }
+    .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+        border-color: transparent transparent #6b7280 transparent !important;
+        border-width: 0 4px 5px 4px !important;
+    }
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.12) !important;
+        outline: none !important;
+    }
+    .select2-dropdown {
+        border: 1.5px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08) !important;
+        overflow: hidden !important;
+    }
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        border: 1.5px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+        padding: 8px 12px !important;
+        font-size: 13px !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+        border-color: #3b82f6 !important;
+        outline: none !important;
+    }
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #3b82f6 !important;
+        color: white !important;
+    }
+    .select2-container--default .select2-results__option {
+        padding: 8px 14px !important;
+        font-size: 13px !important;
+        font-family: 'Inter', sans-serif !important;
+    }
 
     .mobile-wrapper {
         max-width: 640px;
@@ -398,7 +461,7 @@
                     <label class="form-label">Tipo Doc.</label>
                     <select class="select-modern" id="tipo_doc_nuevo">
                         @foreach($tipo_documento as $td)
-                            <option value="{{ $td->id }}">{{ $td->nomb_doc }}</option>
+                            <option value="{{ $td->id }}">{{ $td->nombre }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -602,9 +665,17 @@
 @endsection
 
 @section('js')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
     $(".loader").fadeOut("slow");
+
+    // Inicializar Select2 para Selección de Cliente en Ruta
+    $('#select_cliente').select2({
+        placeholder: "-- Seleccionar Cliente --",
+        allowClear: true,
+        width: '100%'
+    });
 
     // ============================
     // TIPO DE VENTA
@@ -633,7 +704,7 @@ $(document).ready(function() {
             $(this).removeClass('btn-outline-primary').addClass('btn-primary').html('<i class="mdi mdi-close me-1"></i> CANCELAR');
             $('#form_nuevo_cliente').removeClass('d-none');
             $('#wrapper_select_cliente').addClass('d-none');
-            $('#select_cliente').val('');
+            $('#select_cliente').val('').trigger('change');
         } else {
             $(this).removeClass('btn-primary').addClass('btn-outline-primary').html('<i class="mdi mdi-account-plus me-1"></i> NUEVO CLIENTE');
             $('#form_nuevo_cliente').addClass('d-none');
@@ -659,7 +730,7 @@ $(document).ready(function() {
                     // Seleccionar automáticamente si existe en el select
                     $('#select_cliente option').each(function() {
                         if ($(this).data('documento') == doc) {
-                            $('#select_cliente').val($(this).val());
+                            $('#select_cliente').val($(this).val()).trigger('change');
                         }
                     });
                 } else if (res.nombres || (res.original && res.original.nombres)) {

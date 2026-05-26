@@ -843,15 +843,19 @@ class MobileSalesController extends Controller
 
     public function cargarStockProcesar(Request $request)
     {
-        $vendedorId = $request->vendedor_id;
+        $vendedorUserId = $request->vendedor_id; // usuario_id del vendedor (rol_id = 6)
         $productosIds = $request->productos; // array de producto_id
         $cantidades = $request->cantidades; // array de producto_id => cantidad
 
-        if (!$vendedorId || empty($productosIds)) {
+        if (!$vendedorUserId || empty($productosIds)) {
             return redirect()->back()->with('error', 'Debe seleccionar un vendedor y al menos un producto.');
         }
 
-        $vendedor = Vendedor::find($vendedorId);
+        // Buscar por usuario_id para ser consistente con todo el módulo
+        $vendedor = Vendedor::where('usuario_id', $vendedorUserId)->first();
+        if (!$vendedor) {
+            return redirect()->back()->with('error', 'No se encontró el vendedor asociado al usuario seleccionado.');
+        }
         
         DB::beginTransaction();
 
@@ -897,13 +901,15 @@ class MobileSalesController extends Controller
             $traslado->fecha = date('Y-m-d');
             $traslado->hora = date('H:i:s');
             $traslado->serie = 'CAR';
-            $ultimoTraslado = Traslado::where('serie', 'CAR')->orderBy('id', 'desc')->first();
+            // Correlativo independiente por sede para evitar mezclas entre sedes
+            $ultimoTraslado = Traslado::where('serie', 'CAR')->where('sede_id', $idsede)->orderBy('id', 'desc')->first();
             $traslado->correlativo = $ultimoTraslado ? ((int)$ultimoTraslado->correlativo + 1) : 1;
             $traslado->almacen_origen = DB::table('stock_location')->where('id', $origen_id)->value('almacen_id');
             $traslado->almacen_destino = DB::table('stock_location')->where('id', $destino_id)->value('almacen_id');
             $traslado->id_ubicacion_origen = $origen_id;
             $traslado->id_ubicacion_destino = $destino_id;
             $traslado->motivo = 'CARGA DIARIA DE STOCK A MOVILES';
+            $traslado->cliente_id = $vendedor->usuario_id; // Almacenar el ID de usuario vendedor (rol_id = 6) para el historial
             $traslado->estado = 1; // 1 = RECIBIDO
             $traslado->tipo_envio = $envio;
             $traslado->sede_id = $idsede;
@@ -971,6 +977,465 @@ class MobileSalesController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Error al cargar stock: ' . $e->getMessage());
+        }
+    }
+
+    // D. Historial de Carga Diaria de Stock a Furgonetas
+    public function cargarStockHistorial(Request $request)
+    {
+        $idsede = session('key')->sede_id;
+        $servicios = new FuncionesController;
+        $envio = $servicios->tipo_envio_sunat();
+
+        $query = DB::table('traslados as t')
+            ->leftJoin('vendedores as v', 'v.usuario_id', '=', 't.cliente_id')
+            ->leftJoin('users as u', 'u.id', '=', 't.user_id')
+            ->select(
+                't.id',
+                't.fecha',
+                't.hora',
+                't.serie',
+                't.correlativo',
+                't.motivo',
+                't.estado',
+                'v.nombre as vendedor_nombre',
+                'u.name as usuario_nombre'
+            )
+            ->where('t.serie', 'CAR')
+            ->where('t.sede_id', $idsede)
+            ->where('t.tipo_envio', $envio);
+
+        // Filtro por vendedor
+        if ($request->filled('vendedor_id')) {
+            $query->where('t.cliente_id', $request->vendedor_id);
+        }
+
+        // Filtro por fecha
+        if ($request->filled('fecha_desde')) {
+            $query->where('t.fecha', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->where('t.fecha', '<=', $request->fecha_hasta);
+        }
+
+        $cargas = $query->orderBy('t.id', 'desc')->get();
+
+        // Lista de vendedores activos de la sede para el filtro
+        $usuariosVendedoresIds = \App\User::where('sede_id', $idsede)
+            ->where('estado', 1)
+            ->whereHas('roles', function($q) { $q->where('id', 6); })
+            ->pluck('id');
+
+        $vendedores = Vendedor::whereIn('usuario_id', $usuariosVendedoresIds)
+            ->where('estado', 1)
+            ->get();
+
+        return view('ventas_moviles.historial_cargas', compact('cargas', 'vendedores'));
+    }
+
+    public function cargarStockDetalle($id)
+    {
+        $traslado = DB::table('traslados as t')
+            ->leftJoin('vendedores as v', 'v.usuario_id', '=', 't.cliente_id')
+            ->leftJoin('users as u', 'u.id', '=', 't.user_id')
+            ->select(
+                't.id', 't.fecha', 't.hora', 't.serie', 't.correlativo',
+                'v.nombre as vendedor_nombre',
+                'u.name as usuario_nombre'
+            )
+            ->where('t.id', $id)
+            ->first();
+
+        if (!$traslado) {
+            return response()->json(['error' => 'Registro no encontrado.'], 404);
+        }
+
+        $productos = DB::table('detalle_traslado as dt')
+            ->join('productos as p', 'p.id', '=', 'dt.producto_id')
+            ->leftJoin('precios as pr', 'pr.articulo_id', '=', 'p.id')
+            ->select(
+                'p.id',
+                'p.nomb_pro',
+                'dt.cantidad',
+                DB::raw('COALESCE(pr.precio_contado, 0) as precio_unitario'),
+                DB::raw('dt.cantidad * COALESCE(pr.precio_contado, 0) as subtotal')
+            )
+            ->where('dt.traslado_id', $id)
+            ->get();
+
+        return response()->json([
+            'traslado' => $traslado,
+            'productos' => $productos,
+            'total_unidades' => $productos->sum('cantidad'),
+            'total_valor'    => $productos->sum('subtotal'),
+        ]);
+    }
+
+    public function vendedorHistorialCargas(Request $request)
+    {
+        $usuario = Auth::user();
+        $vendedor = $this->resolveVendedor($usuario);
+        
+        $idsede = $usuario->sede_id;
+        $servicios = new FuncionesController;
+        $envio = $servicios->tipo_envio_sunat();
+
+        $query = DB::table('traslados as t')
+            ->leftJoin('users as u', 'u.id', '=', 't.user_id')
+            ->select(
+                't.id',
+                't.fecha',
+                't.hora',
+                't.serie',
+                't.correlativo',
+                't.motivo',
+                't.estado',
+                'u.name as usuario_nombre'
+            )
+            ->where('t.serie', 'CAR')
+            ->where('t.cliente_id', $usuario->id)
+            ->where('t.sede_id', $idsede)
+            ->where('t.tipo_envio', $envio);
+
+        // Filtro por fecha
+        if ($request->filled('fecha_desde')) {
+            $query->where('t.fecha', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->where('t.fecha', '<=', $request->fecha_hasta);
+        }
+
+        $cargas = $query->orderBy('t.id', 'desc')->get();
+
+        return view('ventas_moviles.vendedor_historial_cargas', compact('cargas', 'vendedor'));
+    }
+
+    public function vendedorHistorialVentas(Request $request)
+    {
+        $usuario = Auth::user();
+        $vendedor = $this->resolveVendedor($usuario);
+        
+        $idsede = $usuario->sede_id;
+        $servicios = new FuncionesController;
+        $envio = $servicios->tipo_envio_sunat();
+
+        $query = DB::table('ventas as v')
+            ->join('clientes as c', 'v.cliente_id', '=', 'c.id')
+            ->leftJoin('tipo_comprobantes as tc', 'v.tipo_comprobante_id', '=', 'tc.id')
+            ->leftJoin('tipo_pagos as tp', 'v.tipo_pago_id', '=', 'tp.id')
+            ->select(
+                'v.id',
+                'v.fecha',
+                'v.hora',
+                'v.serie_comprobante',
+                'v.numero_comprobante',
+                'v.monto',
+                'v.tipo_pago_id',
+                'v.venta_estado',
+                'v.estado_liquidacion',
+                'v.fecha_eliminacion',
+                'v.estado_nota',
+                DB::raw("COALESCE(c.razon_social, CONCAT(c.nomb_per, ' ', c.pate_per, ' ', c.mate_per)) as nombre_cliente"),
+                'c.documento as documento_cliente',
+                'tc.descripcion as tipo_comprobante',
+                'tp.descripcion as tipo_pago'
+            )
+            ->where('v.vendedor_id', $vendedor->id)
+            ->where('v.sede_id', $idsede)
+            ->where('v.tipo_envio', $envio);
+
+        // Filtro por fecha
+        if ($request->filled('fecha_desde')) {
+            $query->where('v.fecha', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->where('v.fecha', '<=', $request->fecha_hasta);
+        }
+
+        // Filtro por búsqueda de texto
+        if ($request->filled('buscar')) {
+            $buscar = $request->buscar;
+            $query->where(function ($q) use ($buscar) {
+                $q->where('c.razon_social', 'ilike', "%$buscar%")
+                    ->orWhere('c.nomb_per', 'ilike', "%$buscar%")
+                    ->orWhere('c.pate_per', 'ilike', "%$buscar%")
+                    ->orWhere('c.mate_per', 'ilike', "%$buscar%")
+                    ->orWhere('c.documento', 'like', "%$buscar%")
+                    ->orWhere('v.serie_comprobante', 'like', "%$buscar%")
+                    ->orWhere('v.numero_comprobante', 'like', "%$buscar%");
+            });
+        }
+
+        $ventas = $query->orderBy('v.id', 'desc')->get();
+
+        return view('ventas_moviles.vendedor_historial_ventas', compact('ventas', 'vendedor'));
+    }
+
+    public function vendedorHistorialVentasDetalle($id)
+    {
+        $usuario = Auth::user();
+        $vendedor = $this->resolveVendedor($usuario);
+        $idsede = $usuario->sede_id;
+
+        $venta = DB::table('ventas as v')
+            ->join('clientes as c', 'v.cliente_id', '=', 'c.id')
+            ->leftJoin('tipo_comprobantes as tc', 'v.tipo_comprobante_id', '=', 'tc.id')
+            ->leftJoin('tipo_pagos as tp', 'v.tipo_pago_id', '=', 'tp.id')
+            ->select(
+                'v.id',
+                'v.fecha',
+                'v.hora',
+                'v.serie_comprobante',
+                'v.numero_comprobante',
+                'v.monto',
+                'v.descuento',
+                'v.venta_estado',
+                'v.estado_liquidacion',
+                'v.fecha_eliminacion',
+                'v.estado_nota',
+                DB::raw("COALESCE(c.razon_social, CONCAT(c.nomb_per, ' ', c.pate_per, ' ', c.mate_per)) as nombre_cliente"),
+                'c.documento as documento_cliente',
+                'tc.descripcion as tipo_comprobante',
+                'tp.descripcion as tipo_pago'
+            )
+            ->where('v.id', $id)
+            ->where('v.vendedor_id', $vendedor->id)
+            ->where('v.sede_id', $idsede)
+            ->first();
+
+        if (!$venta) {
+            return response()->json(['error' => 'Venta no encontrada.'], 404);
+        }
+
+        $productos = DB::table('detalle_venta as dv')
+            ->join('productos as p', 'p.id', '=', 'dv.producto_id')
+            ->select(
+                'p.id',
+                'p.nomb_pro',
+                'dv.cantidad',
+                'dv.precio',
+                'dv.subtotal'
+            )
+            ->where('dv.venta_id', $id)
+            ->get();
+
+        return response()->json([
+            'venta' => $venta,
+            'productos' => $productos,
+            'total_unidades' => $productos->sum('cantidad'),
+            'total_monto' => $venta->monto
+        ]);
+    }
+
+    public function vendedorHistorialCobros(Request $request)
+    {
+        $usuario = Auth::user();
+        $vendedor = $this->resolveVendedor($usuario);
+        
+        $idsede = $usuario->sede_id;
+
+        $query = DB::table('recibos as r')
+            ->join('clientes as c', 'r.cliente_id', '=', 'c.id')
+            ->leftJoin('forma_pagos as fp', function($join) {
+                $join->whereRaw('r.fpag_rec = CAST(fp.id AS varchar)');
+            })
+            ->select(
+                'r.id',
+                'r.fech_rec',
+                'r.num_recibo',
+                'r.mont_rec',
+                'r.esta_rec',
+                'r.estado_liquidacion',
+                'r.created_at',
+                DB::raw("COALESCE(c.razon_social, CONCAT(c.nomb_per, ' ', c.pate_per, ' ', c.mate_per)) as nombre_cliente"),
+                'c.documento as documento_cliente',
+                'fp.descripcion as forma_pago'
+            )
+            ->where('r.vendedor_id', $vendedor->id)
+            ->where('r.sede_id', $idsede);
+
+        // Filtro por fecha
+        if ($request->filled('fecha_desde')) {
+            $query->where('r.fech_rec', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->where('r.fech_rec', '<=', $request->fecha_hasta);
+        }
+
+        // Filtro por búsqueda de texto
+        if ($request->filled('buscar')) {
+            $buscar = $request->buscar;
+            $query->where(function ($q) use ($buscar) {
+                $q->where('c.razon_social', 'ilike', "%$buscar%")
+                    ->orWhere('c.nomb_per', 'ilike', "%$buscar%")
+                    ->orWhere('c.pate_per', 'ilike', "%$buscar%")
+                    ->orWhere('c.mate_per', 'ilike', "%$buscar%")
+                    ->orWhere('c.documento', 'like', "%$buscar%")
+                    ->orWhere('r.num_recibo', 'like', "%$buscar%");
+            });
+        }
+
+        $cobros = $query->orderBy('r.id', 'desc')->get();
+
+        return view('ventas_moviles.vendedor_historial_cobros', compact('cobros', 'vendedor'));
+    }
+
+    public function vendedorHistorialCobrosDetalle($id)
+    {
+        $usuario = Auth::user();
+        $vendedor = $this->resolveVendedor($usuario);
+        $idsede = $usuario->sede_id;
+
+        $recibo = DB::table('recibos as r')
+            ->join('clientes as c', 'r.cliente_id', '=', 'c.id')
+            ->leftJoin('forma_pagos as fp', function($join) {
+                $join->whereRaw('r.fpag_rec = CAST(fp.id AS varchar)');
+            })
+            ->select(
+                'r.id',
+                'r.fech_rec',
+                'r.num_recibo',
+                'r.mont_rec',
+                'r.esta_rec',
+                'r.estado_liquidacion',
+                'r.obse_rec',
+                'r.created_at',
+                DB::raw("COALESCE(c.razon_social, CONCAT(c.nomb_per, ' ', c.pate_per, ' ', c.mate_per)) as nombre_cliente"),
+                'c.documento as documento_cliente',
+                'fp.descripcion as forma_pago'
+            )
+            ->where('r.id', $id)
+            ->where('r.vendedor_id', $vendedor->id)
+            ->where('r.sede_id', $idsede)
+            ->first();
+
+        if (!$recibo) {
+            return response()->json(['error' => 'Recibo no encontrado.'], 404);
+        }
+
+        $amortizaciones = DB::table('amortizaciones as a')
+            ->join('cuotas as cu', 'a.cuota_id', '=', 'cu.id')
+            ->join('creditos as cr', 'cu.credito_id', '=', 'cr.id')
+            ->leftJoin('ventas as v', 'cr.id_venta', '=', 'v.id')
+            ->leftJoin('tipo_comprobantes as tc', 'v.tipo_comprobante_id', '=', 'tc.id')
+            ->select(
+                'a.id',
+                'a.mont_amo',
+                'a.capi_amo',
+                'a.inte_amo',
+                'a.saldo_cuo as saldo_restante_cuota',
+                'cu.numero_cuo',
+                'cu.mont_cuo',
+                'cr.id as credito_id',
+                'cr.impo_cre as total_credito',
+                'v.serie_comprobante',
+                'v.numero_comprobante',
+                'tc.descripcion as tipo_comprobante'
+            )
+            ->where('a.recibo_id', $id)
+            ->get();
+
+        return response()->json([
+            'recibo' => $recibo,
+            'amortizaciones' => $amortizaciones,
+            'total_amortizado' => $recibo->mont_rec
+        ]);
+    }
+
+    // -----------------------------------------------------------------------
+    // ANULAR CARGA DE STOCK (revierte movimientos de stock y kardex)
+    // -----------------------------------------------------------------------
+    public function anularCargaStock($id)
+    {
+        DB::beginTransaction();
+        try {
+            $traslado = Traslado::find($id);
+
+            if (!$traslado || $traslado->serie !== 'CAR') {
+                return response()->json(['error' => 'Registro de carga no encontrado.'], 404);
+            }
+
+            if ($traslado->estado == 0) {
+                return response()->json(['error' => 'Esta carga ya fue anulada previamente.'], 422);
+            }
+
+            $servicios  = new FuncionesController;
+            $envio      = $servicios->tipo_envio_sunat();
+            $user_id    = Auth::user()->id;
+
+            $origen_id  = $traslado->id_ubicacion_origen;
+            $destino_id = $traslado->id_ubicacion_destino;
+
+            if (!$origen_id || !$destino_id) {
+                return response()->json(['error' => 'No se pudieron determinar las ubicaciones de origen/destino de esta carga.'], 422);
+            }
+
+            // Obtener nombre del vendedor para el kardex
+            $vendedor = Vendedor::where('usuario_id', $traslado->cliente_id)->first();
+            $vendedorNombre = $vendedor ? $vendedor->nombre : 'Desconocido';
+
+            $codCarga = $traslado->serie . '-' . str_pad($traslado->correlativo, 4, '0', STR_PAD_LEFT);
+
+            $detalles = Detalle_traslado::where('traslado_id', $id)->get();
+
+            foreach ($detalles as $detalle) {
+                $productId = $detalle->producto_id;
+                $cantidad  = $detalle->cantidad;
+
+                // Verificar stock disponible en furgoneta (destino) para poder revertir
+                $stockDestino = Detalle_almacen_productos::where('ubicacion_id', $destino_id)
+                                                         ->where('producto_id', $productId)
+                                                         ->where('tipo_envio', $envio)
+                                                         ->first();
+
+                if (!$stockDestino || $stockDestino->stock < $cantidad) {
+                    $nomProd = DB::table('productos')->where('id', $productId)->value('nomb_pro');
+                    $stockActual = $stockDestino ? $stockDestino->stock : 0;
+                    throw new \Exception(
+                        "No se puede anular: el producto \"{$nomProd}\" tiene solo {$stockActual} unidad(es) en la furgoneta, " .
+                        "pero se necesita revertir {$cantidad}. Es posible que parte del stock ya fue vendido."
+                    );
+                }
+
+                // Revertir stock: descontar de furgoneta (destino)
+                $servicios->aumentar_descontar_stock(0, $destino_id, $productId, $cantidad, $envio);
+
+                // Revertir stock: aumentar en almacén principal (origen)
+                $servicios->aumentar_descontar_stock(1, $origen_id, $productId, $cantidad, $envio);
+
+                $precio_unitario = DB::table('precios')->where('articulo_id', $productId)->value('precio_contado') ?? 0;
+
+                // Kardex: Entrada en origen (regresa al almacén)
+                $servicios->movimiento_kardex_producto(
+                    $origen_id, $productId, $cantidad, 1,
+                    "ANULACIÓN CARGA {$codCarga} (Vendedor: {$vendedorNombre})",
+                    $traslado->serie, $traslado->correlativo,
+                    $precio_unitario, 9, date('Y-m-d'), date('Y-m-d')
+                );
+
+                // Kardex: Salida en destino (sale de la furgoneta)
+                $servicios->movimiento_kardex_producto(
+                    $destino_id, $productId, $cantidad, 2,
+                    "ANULACIÓN CARGA {$codCarga} (Vendedor: {$vendedorNombre})",
+                    $traslado->serie, $traslado->correlativo,
+                    $precio_unitario, 9, date('Y-m-d'), date('Y-m-d')
+                );
+            }
+
+            // Marcar traslado como anulado
+            $traslado->estado = 0;
+            $traslado->user_recepcion = $user_id;
+            $traslado->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => "La carga {$codCarga} fue anulada exitosamente. El stock fue devuelto al almacén principal."
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 }

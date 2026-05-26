@@ -71,6 +71,9 @@
                     <a href="{{ route('admin.retorno') }}" class="btn {{ Request::routeIs('admin.retorno') ? 'btn-primary' : 'btn-light' }} btn-action">
                         <i class="mdi mdi-swap-horizontal-bold me-1"></i> 4. Retorno de Stock
                     </a>
+                    <a href="{{ route('admin.cargar_stock.historial') }}" class="btn {{ Request::routeIs('admin.cargar_stock.historial') ? 'btn-warning' : 'btn-light' }} btn-action">
+                        <i class="mdi mdi-history me-1"></i> Historial de Cargas
+                    </a>
                 </div>
             </div>
         </div>
@@ -119,7 +122,7 @@
                             <select class="form-select" name="vendedor_id" id="vendedor_select" required style="border-radius: 8px;">
                                 <option value="">-- Seleccionar Vendedor --</option>
                                 @foreach($vendedores as $v)
-                                    <option value="{{ $v->id }}" data-furgoneta="{{ $v->stockLocation->name ?? 'Furgoneta' }}">
+                                    <option value="{{ $v->usuario_id }}" data-furgoneta="{{ $v->stockLocation->name ?? 'Furgoneta' }}">
                                         {{ $v->nombre }} ({{ $v->stockLocation->name ?? 'Sin furgoneta' }})
                                     </option>
                                 @endforeach
@@ -160,12 +163,6 @@
                             </button>
                         </div>
 
-                        <!-- Botón Submit Final -->
-                        <div class="d-grid pt-3 border-top mt-4">
-                            <button type="submit" class="btn btn-success btn-lg btn-action py-2" id="btn_confirmar_carga" disabled>
-                                <i class="mdi mdi-check-all me-1"></i> Procesar Carga de Stock
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -197,6 +194,13 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Botón Submit Final -->
+                    <div class="d-flex justify-content-end pt-3 border-top mt-4">
+                        <button type="submit" class="btn btn-success btn-lg btn-action py-2 px-4" id="btn_confirmar_carga" disabled>
+                            <i class="mdi mdi-check-all me-1"></i> Procesar Carga de Stock
+                        </button>
                     </div>
                 </div>
             </div>

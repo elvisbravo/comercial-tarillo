@@ -31,6 +31,14 @@
         background: linear-gradient(135deg, #f12711 0%, #f5af19 100%);
         color: #ffffff;
     }
+    .gradient-pink {
+        background: linear-gradient(135deg, #f857a6 0%, #ff5858 100%);
+        color: #ffffff;
+    }
+    .gradient-cyan {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: #ffffff;
+    }
     .icon-wrapper {
         width: 55px;
         height: 55px;
@@ -214,6 +222,21 @@
         <div class="col-12 col-sm-6">
             <a href="{{ route('vendedor.stock') }}" class="btn quick-action-btn gradient-purple text-white">
                 <i class="mdi mdi-file-table-box-multiple-outline font-size-18"></i> Consultar Mi Stock / Inventario
+            </a>
+        </div>
+        <div class="col-12 col-sm-6">
+            <a href="{{ route('vendedor.historial_cargas') }}" class="btn quick-action-btn gradient-orange text-white">
+                <i class="mdi mdi-history font-size-18"></i> Mi Historial de Cargas
+            </a>
+        </div>
+        <div class="col-12 col-sm-6">
+            <a href="{{ route('vendedor.historial_ventas') }}" class="btn quick-action-btn gradient-pink text-white">
+                <i class="mdi mdi-receipt font-size-18"></i> Mi Historial de Ventas
+            </a>
+        </div>
+        <div class="col-12 col-sm-6">
+            <a href="{{ route('vendedor.historial_cobros') }}" class="btn quick-action-btn gradient-cyan text-white">
+                <i class="mdi mdi-cash-multiple font-size-18"></i> Mi Historial de Cobros
             </a>
         </div>
     </div>

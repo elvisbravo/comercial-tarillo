@@ -144,6 +144,9 @@
                     <a href="{{ route('admin.retorno') }}" class="btn {{ Request::routeIs('admin.retorno') ? 'btn-primary' : 'btn-light' }} btn-action">
                         <i class="mdi mdi-swap-horizontal-bold me-1"></i> 4. Retorno de Stock
                     </a>
+                    <a href="{{ route('admin.cargar_stock.historial') }}" class="btn {{ Request::routeIs('admin.cargar_stock.historial') ? 'btn-warning' : 'btn-light' }} btn-action">
+                        <i class="mdi mdi-history me-1"></i> Historial de Cargas
+                    </a>
                 </div>
             </div>
         </div>

@@ -500,6 +500,9 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('ventas-moviles/retorno-stock/procesar', 'MobileSalesController@retornoStockProcesar')->name('admin.retorno.procesar');
     Route::get('ventas-moviles/cargar-stock', 'MobileSalesController@cargarStockIndex')->name('admin.cargar_stock');
     Route::post('ventas-moviles/cargar-stock/procesar', 'MobileSalesController@cargarStockProcesar')->name('admin.cargar_stock.procesar');
+    Route::get('ventas-moviles/historial-cargas', 'MobileSalesController@cargarStockHistorial')->name('admin.cargar_stock.historial');
+    Route::get('ventas-moviles/historial-cargas/detalle/{id}', 'MobileSalesController@cargarStockDetalle')->name('admin.cargar_stock.detalle');
+    Route::post('ventas-moviles/historial-cargas/anular/{id}', 'MobileSalesController@anularCargaStock')->name('admin.cargar_stock.anular');
     Route::get('ventas-moviles/asignar-ruta', 'MobileSalesController@asignarRutaIndex')->name('admin.asignar');
     Route::post('ventas-moviles/asignar-ruta/guardar', 'MobileSalesController@asignarRutaGuardar')->name('admin.asignar.guardar');
     Route::delete('ventas-moviles/asignar-ruta/eliminar/{id}', 'MobileSalesController@asignarRutaEliminar')->name('admin.asignar.eliminar');
@@ -511,5 +514,15 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('vendedor/cobros', 'MobileSalesController@vendedorCobros')->name('vendedor.cobros');
     Route::post('vendedor/cobros/guardar', 'MobileSalesController@vendedorCobrosGuardar')->name('vendedor.cobros.guardar');
     Route::get('vendedor/stock', 'MobileSalesController@vendedorStock')->name('vendedor.stock');
+    Route::get('vendedor/historial-cargas', 'MobileSalesController@vendedorHistorialCargas')->name('vendedor.historial_cargas');
+    Route::get('vendedor/historial-cargas/detalle/{id}', 'MobileSalesController@cargarStockDetalle')->name('vendedor.historial_cargas.detalle');
+    Route::get('vendedor/historial-ventas', 'MobileSalesController@vendedorHistorialVentas')->name('vendedor.historial_ventas');
+    Route::get('vendedor/historial-ventas/detalle/{id}', 'MobileSalesController@vendedorHistorialVentasDetalle')->name('vendedor.historial_ventas.detalle');
+    Route::get('vendedor/historial-cobros', 'MobileSalesController@vendedorHistorialCobros')->name('vendedor.historial_cobros');
+    Route::get('vendedor/historial-cobros/detalle/{id}', 'MobileSalesController@vendedorHistorialCobrosDetalle')->name('vendedor.historial_cobros.detalle');
+
+    // REPORTES KPI DE CREDITOS
+    Route::get('reportes/kpi-creditos', 'ReporteKpiController@index')->name('reportes.kpi_creditos');
+    Route::get('reportes/kpi-creditos/data', 'ReporteKpiController@getData')->name('reportes.kpi_creditos.data');
 });
 
