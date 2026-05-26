@@ -104,16 +104,25 @@ form.addEventListener("submit", (e) => {
 
     fetch(urlgeneral + "/kardex/guardar", {
         method: "POST",
+        headers: {
+            "Accept": "application/json",
+            "X-Requested-With": "XMLHttpRequest"
+        },
         body: formData,
     })
-        .then((res) => res.json())
+        .then(async (res) => {
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ message: 'Error desconocido del servidor.' }));
+                throw errorData;
+            }
+            return res.json();
+        })
         .then((data) => {
             let html = "";
 
             data.forEach((kardex, index) => {
                 let cantidad_entrada = 0;
                 let cantidad_salida = 0;
-                let descripcion = "";
 
                 if (kardex.tipo == 1) {
                     cantidad_entrada = kardex.cantidad_unitaria;
@@ -144,7 +153,26 @@ form.addEventListener("submit", (e) => {
             `;
             });
 
+            if (data.length === 0) {
+                html = '<tr><td colspan="7" class="text-center text-muted">No se encontraron movimientos para los filtros seleccionados.</td></tr>';
+            }
+
             tabla.innerHTML = html;
+        })
+        .catch((err) => {
+            console.error(err);
+            let errorMessage = "Ocurrió un error al generar el kardex.";
+            if (err.errors) {
+                errorMessage = Object.values(err.errors).map(e => e.join('\n')).join('\n');
+            } else if (err.message) {
+                errorMessage = err.message;
+            }
+            Swal.fire({
+                icon: "error",
+                title: "Atención",
+                text: errorMessage
+            });
+            tabla.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error al cargar los datos.</td></tr>';
         })
         .finally(() => {
             // Restaurar botón al finalizar

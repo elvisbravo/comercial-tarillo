@@ -881,7 +881,7 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.respuesta === 'ok') {
                     $('#modalFinalizarVenta').modal('hide');
-                    $('#link_ticket').attr('href', "{{ url('ventas/ticket') }}/" + response.id);
+                    $('#link_ticket').attr('href', "{{ url('venta/ticket') }}/" + response.id);
                     $('#modalVentaExitosa').modal('show');
                 } else {
                     $('#btn_guardar_venta_final').prop('disabled', false).html('<i class="mdi mdi-check-circle me-2"></i>Confirmar Venta');

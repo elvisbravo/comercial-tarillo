@@ -93,7 +93,7 @@
             <div class="mobile-card p-4 d-flex align-items-center justify-content-between" style="background: linear-gradient(135deg, #1f4068 0%, #162447 100%); color: white;">
                 <div>
                     <span style="font-size: 14px; opacity: 0.8; text-transform: uppercase; font-weight: 600;">Ruta de Hoy</span>
-                    <h2 class="mb-0 font-weight-bold" style="letter-spacing: -0.5px;">¡Hola, {{ $vendedor->nombre }}!</h2>
+                    <h2 class="mb-0 font-weight-bold text-white" style="color: #ffffff; letter-spacing: -0.5px;">¡Hola, {{ $vendedor->nombre }}!</h2>
                     <p class="mb-0 mt-1" style="font-size: 13px; opacity: 0.9;">
                         <i class="mdi mdi-calendar-range me-1"></i> {{ date('d-m-Y') }}
                     </p>
@@ -117,7 +117,7 @@
     <h5 class="section-title">Estadísticas Acumuladas (Hoy)</h5>
     <div class="row">
         <!-- Tarjeta Ventas -->
-        <div class="col-6 col-md-3 mb-3">
+        <div class="col-6 col-md-4 col-lg-3 mb-3">
             <div class="card mobile-card h-100">
                 <div class="card-body">
                     <div class="icon-wrapper bg-soft-success text-success">
@@ -130,7 +130,7 @@
             </div>
         </div>
         <!-- Tarjeta Cobros -->
-        <div class="col-6 col-md-3 mb-3">
+        <div class="col-6 col-md-4 col-lg-3 mb-3">
             <div class="card mobile-card h-100">
                 <div class="card-body">
                     <div class="icon-wrapper bg-soft-info text-info">
@@ -142,8 +142,34 @@
                 </div>
             </div>
         </div>
+        <!-- Tarjeta Por Cobrar en Ruta -->
+        <div class="col-6 col-md-4 col-lg-3 mb-3">
+            <div class="card mobile-card h-100">
+                <div class="card-body">
+                    <div class="icon-wrapper" style="background-color: rgba(231, 76, 60, 0.15); color: #c0392b; width: 55px; height: 55px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 15px;">
+                        <i class="mdi mdi-cash-multiple"></i>
+                    </div>
+                    <span class="text-muted d-block font-size-13 text-truncate">Por Cobrar (Ruta)</span>
+                    <h3 class="mb-0 mt-1 font-weight-bold" style="color: #c0392b;">S/ {{ number_format($totalPorCobrar, 2) }}</h3>
+                    <small class="text-danger font-size-11">En sectores de hoy</small>
+                </div>
+            </div>
+        </div>
+        <!-- Tarjeta Stock en Furgoneta -->
+        <div class="col-6 col-md-4 col-lg-3 mb-3">
+            <div class="card mobile-card h-100">
+                <div class="card-body">
+                    <div class="icon-wrapper" style="background-color: rgba(52, 152, 219, 0.15); color: #2980b9; width: 55px; height: 55px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 15px;">
+                        <i class="mdi mdi-cube-outline"></i>
+                    </div>
+                    <span class="text-muted d-block font-size-13 text-truncate">Mi Stock (Furgoneta)</span>
+                    <h3 class="mb-0 mt-1 font-weight-bold" style="color: #2980b9;">{{ number_format($totalStockUnits, 0) }} uds.</h3>
+                    <small class="text-primary font-size-11">{{ $totalStockItems }} prod. activos</small>
+                </div>
+            </div>
+        </div>
         <!-- Tarjeta Sectores -->
-        <div class="col-6 col-md-3 mb-3">
+        <div class="col-6 col-md-4 col-lg-3 mb-3">
             <div class="card mobile-card h-100">
                 <div class="card-body">
                     <div class="icon-wrapper bg-soft-warning text-warning">
@@ -156,7 +182,7 @@
             </div>
         </div>
         <!-- Tarjeta Furgoneta -->
-        <div class="col-6 col-md-3 mb-3">
+        <div class="col-6 col-md-4 col-lg-3 mb-3">
             <div class="card mobile-card h-100">
                 <div class="card-body">
                     <div class="icon-wrapper bg-soft-purple text-purple">

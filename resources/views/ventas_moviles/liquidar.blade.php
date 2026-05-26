@@ -467,11 +467,10 @@
                     if (res.cobros && res.cobros.length > 0) {
                         res.cobros.forEach(function(c) {
                             sumCobros += parseFloat(c.mont_rec);
-                            let cliNom = c.cliente ? c.cliente.razon_social : 'Cliente Desconocido';
                             htmlCobros += '<tr>';
                             htmlCobros += '<td>' + formatDate(c.fech_rec) + '</td>';
-                            htmlCobros += '<td>' + cliNom + '</td>';
-                            htmlCobros += '<td>' + c.num_recibo + '</td>';
+                            htmlCobros += '<td>' + (c.nombre_cliente || 'Cliente Desconocido') + '</td>';
+                            htmlCobros += '<td>' + (c.num_recibo || '---') + '</td>';
                             htmlCobros += '<td>' + (c.docu_ref || '---') + '</td>';
                             htmlCobros += '<td class="text-end font-weight-bold">S/ ' + parseFloat(c.mont_rec).toFixed(2) + '</td>';
                             htmlCobros += '</tr>';

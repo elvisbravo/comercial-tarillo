@@ -280,6 +280,7 @@ Route::get('impresion-planilla/masivo/{codigo_sector}/{fecha}', 'ImpresionCuotas
 Route::resource('impresion-planilla', 'ImpresionCuotasVencidas');
 
 Route::get('venta/ticket/{id}', 'VentaController@ticket');
+Route::get('ventas/ticket/{id}', 'VentaController@ticket');
 Route::post('consultar_dni_ruc', 'VentaController@consultar_dni_ruc');
 Route::post('generar_venta', 'VentaController@generar_venta');
 Route::post('search-productos-tipo-venta', 'VentaController@search_productos');

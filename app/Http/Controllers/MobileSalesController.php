@@ -33,8 +33,8 @@ class MobileSalesController extends Controller
         $this->middleware(function ($request, $next) {
             $user = $request->user();
             if ($request->is('vendedor/*') || $request->is('vendedor')) {
-                if ($user && !$user->roles()->where('id', 6)->exists()) {
-                    abort(403, 'Acceso denegado. Este módulo es exclusivo para vendedores con perfil ID 6.');
+                if ($user && !$user->roles()->where('id', 6)->exists() && !$user->hasAnyRole(['VENDEDOR', 'COBRADOR', 'vendedor', 'cobrador', 'Vendedor', 'Cobrador'])) {
+                    abort(403, 'Acceso denegado. Este módulo es exclusivo para vendedores o cobradores.');
                 }
             }
             return $next($request);
@@ -144,13 +144,66 @@ class MobileSalesController extends Controller
                                 ->where('estado_liquidacion', 'PENDIENTE')
                                 ->count();
 
+        // Calcular saldo total por cobrar de los clientes de los sectores de hoy
+        $sectoresIds = $sectoresAsignados->pluck('sector_id')->toArray();
+        $clientesIds = Clientes::where('estado_per', '=', '1')
+                               ->whereIn('id_sector', $sectoresIds)
+                               ->pluck('id')
+                               ->toArray();
+
+        $totalPorCobrar = 0;
+        if (!empty($clientesIds)) {
+            $totalPorCobrar = DB::table('cuotas as cu')
+                ->join('creditos as c', 'cu.credito_id', '=', 'c.id')
+                ->where('c.esta_cre', '=', '1')
+                ->whereIn('c.cliente_id', $clientesIds)
+                ->where('cu.esta_cuo', '=', 'PENDIENTE')
+                ->sum('cu.saldo_cuo') ?? 0;
+        }
+
+        // Calcular stock actual en la furgoneta
+        $idsede = session('key')->sede_id;
+        $almacenPrincipal = \App\Almacen::where('sede_id', $idsede)->first();
+        $ubicacionMoviles = DB::table('stock_location')
+                                ->where('almacen_id', $almacenPrincipal->id)
+                                ->where(DB::raw('LOWER(name)'), 'moviles')
+                                ->first();
+        $ubicacion_id = $ubicacionMoviles ? $ubicacionMoviles->id : null;
+
+        $totalStockItems = 0;
+        $totalStockUnits = 0;
+
+        if ($ubicacion_id) {
+            $servicios = new FuncionesController;
+            $envio = $servicios->tipo_envio_sunat();
+
+            $totalStockUnits = DB::table('detalle_almacen_productos as dp')
+                ->join('productos as p', 'dp.producto_id', '=', 'p.id')
+                ->where('dp.ubicacion_id', '=', $ubicacion_id)
+                ->where('dp.tipo_envio', '=', $envio)
+                ->where('p.estado', '=', '1')
+                ->where('dp.stock', '>', 0)
+                ->sum('dp.stock') ?? 0;
+
+            $totalStockItems = DB::table('detalle_almacen_productos as dp')
+                ->join('productos as p', 'dp.producto_id', '=', 'p.id')
+                ->where('dp.ubicacion_id', '=', $ubicacion_id)
+                ->where('dp.tipo_envio', '=', $envio)
+                ->where('p.estado', '=', '1')
+                ->where('dp.stock', '>', 0)
+                ->count();
+        }
+
         return view('ventas_moviles.dashboard', compact(
             'vendedor', 
             'sectoresAsignados', 
             'totalVentas', 
             'totalCobranzas', 
             'cantVentas', 
-            'cantCobranzas'
+            'cantCobranzas',
+            'totalPorCobrar',
+            'totalStockUnits',
+            'totalStockItems'
         ));
     }
 
@@ -323,13 +376,43 @@ class MobileSalesController extends Controller
     {
         if ($request->input('format') == 'json' && $request->vendedor_id) {
             $vendedorId = $request->vendedor_id;
-            $ventas = Venta::where('vendedor_id', $vendedorId)
-                            ->where('estado_liquidacion', 'PENDIENTE')
-                            ->get();
 
-            $cobros = Recibos::with('cliente')->where('vendedor_id', $vendedorId)
-                             ->where('estado_liquidacion', 'PENDIENTE')
-                             ->get();
+            // Ventas con nombre del cliente (join explícito)
+            $ventas = DB::table('ventas as v')
+                ->join('clientes as c', 'v.cliente_id', '=', 'c.id')
+                ->leftJoin('tipo_comprobantes as tc', 'v.tipo_comprobante_id', '=', 'tc.id')
+                ->select(
+                    'v.id',
+                    'v.fecha',
+                    'v.serie_comprobante',
+                    'v.numero_comprobante',
+                    'v.monto',
+                    'v.tipo_pago_id',
+                    'v.estado_liquidacion',
+                    DB::raw("COALESCE(c.razon_social, c.nomb_per, 'Cliente Desconocido') as nombre_cliente"),
+                    'tc.descripcion as tipo_comprobante'
+                )
+                ->where('v.vendedor_id', $vendedorId)
+                ->where('v.estado_liquidacion', 'PENDIENTE')
+                ->orderBy('v.fecha', 'desc')
+                ->get();
+
+            // Cobros (recibos) con nombre del cliente (join explícito)
+            $cobros = DB::table('recibos as r')
+                ->join('clientes as c', 'r.cliente_id', '=', 'c.id')
+                ->select(
+                    'r.id',
+                    'r.fech_rec',
+                    'r.num_recibo',
+                    'r.mont_rec',
+                    'r.docu_ref',
+                    'r.estado_liquidacion',
+                    DB::raw("COALESCE(c.razon_social, c.nomb_per, 'Cliente Desconocido') as nombre_cliente")
+                )
+                ->where('r.vendedor_id', $vendedorId)
+                ->where('r.estado_liquidacion', 'PENDIENTE')
+                ->orderBy('r.fech_rec', 'desc')
+                ->get();
 
             return response()->json([
                 'ventas' => $ventas,
@@ -421,7 +504,7 @@ class MobileSalesController extends Controller
                            ->get();
 
             foreach ($ventas as $venta) {
-                $ventaFormapago = DB::table('venta_formapagos')->where('venta_id', $venta->id)->get();
+                $ventaFormapago = DB::table('venta_formapago')->where('venta_id', $venta->id)->get();
                 foreach ($ventaFormapago as $fp) {
                     DB::table('movimientos')->where('id', $fp->movimiento_id)->update([
                         'estado' => 1,
@@ -453,7 +536,7 @@ class MobileSalesController extends Controller
             }
 
             DB::commit();
-            return redirect()->route('vendedor.dashboard')->with('success', 'La caja del vendedor fue liquidada correctamente.');
+            return redirect()->route('admin.liquidar')->with('success', 'La caja del vendedor fue liquidada correctamente.');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Error al liquidar caja: ' . $e->getMessage());
