@@ -280,6 +280,7 @@ Route::get('impresion-planilla/masivo/{codigo_sector}/{fecha}', 'ImpresionCuotas
 Route::resource('impresion-planilla', 'ImpresionCuotasVencidas');
 
 Route::get('venta/ticket/{id}', 'VentaController@ticket');
+Route::get('venta/ticket-a4/{id}', 'VentaController@ticketA4');
 Route::get('ventas/ticket/{id}', 'VentaController@ticket');
 Route::post('consultar_dni_ruc', 'VentaController@consultar_dni_ruc');
 Route::post('generar_venta', 'VentaController@generar_venta');
@@ -525,4 +526,3 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('reportes/kpi-creditos', 'ReporteKpiController@index')->name('reportes.kpi_creditos');
     Route::get('reportes/kpi-creditos/data', 'ReporteKpiController@getData')->name('reportes.kpi_creditos.data');
 });
-

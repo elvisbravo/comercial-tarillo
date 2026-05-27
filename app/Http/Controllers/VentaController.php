@@ -581,6 +581,107 @@ class VentaController extends Controller
         $pdf->Output('ticket.pdf', 'I');
     }
 
+    public function ticketA4($id)
+    {
+        $empresa = Empresa::first();
+
+        $venta = DB::table('ventas')
+            ->join('clientes', 'ventas.cliente_id', '=', 'clientes.id')
+            ->join('users', 'users.id', '=', 'ventas.user_id')
+            ->join('tipo_comprobantes', 'ventas.tipo_comprobante_id', '=', 'tipo_comprobantes.id')
+            ->where('ventas.id', '=', $id)
+            ->first();
+
+        $detalle = DB::table('detalle_venta')
+            ->join('productos', 'detalle_venta.producto_id', '=', 'productos.id')
+            ->where('detalle_venta.venta_id', '=', $id)
+            ->get();
+
+        $pdf = new Fpdf('P', 'mm', 'A4');
+        $pdf->AddPage();
+
+        $pdf->SetFillColor(242, 242, 242);
+        $pdf->Rect(0, 0, 210, 40, 'F');
+
+        if (file_exists(public_path('img/logo2.jpeg'))) {
+            $pdf->Image(public_path('img/logo2.jpeg'), 20, 10, 45, 30);
+        }
+
+        $pdf->SetXY(70, 12);
+        $pdf->SetFont('Helvetica', 'B', 16);
+        $pdf->Cell(115, 8, utf8_decode($empresa['nombre_comercial']), 0, 1, 'L');
+        $pdf->SetFont('Helvetica', '', 10);
+        $pdf->SetX(70);
+        $pdf->Cell(115, 6, utf8_decode($empresa['razon_social']), 0, 1, 'L');
+        $pdf->SetX(70);
+        $pdf->Cell(115, 6, utf8_decode($empresa['direccion_fiscal']), 0, 1, 'L');
+        $pdf->SetX(70);
+        $pdf->Cell(115, 6, 'RUC: ' . $empresa['ruc'], 0, 1, 'L');
+        $pdf->Ln(4);
+
+        $pdf->SetDrawColor(102, 102, 102);
+        $pdf->SetLineWidth(0.4);
+        $pdf->Line(15, 42, 195, 42);
+        $pdf->Ln(6);
+
+        $pdf->SetFont('Helvetica', 'B', 12);
+        $pdf->SetFillColor(52, 73, 94);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->Cell(0, 10, utf8_decode($venta->descripcion . ' - ' . $venta->serie_comprobante . '-' . $venta->numero_comprobante), 0, 1, 'C', true);
+        $pdf->Ln(4);
+
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('Helvetica', '', 10);
+        $pdf->Cell(95, 6, 'CLIENTE: ' . utf8_decode($venta->razon_social), 0, 0, 'L');
+        $pdf->Cell(0, 6, 'FECHA: ' . date('d/m/Y', strtotime($venta->fecha)), 0, 1, 'R');
+        $pdf->Cell(95, 6, 'DNI/RUC: ' . $venta->documento, 0, 0, 'L');
+        $pdf->Cell(0, 6, 'HORA: ' . substr($venta->hora, 0, 5), 0, 1, 'R');
+        $pdf->MultiCell(0, 6, utf8_decode('DIRECCIÓN: ' . $venta->dire_per), 0, 'L');
+        $pdf->Ln(4);
+
+        $pdf->SetFillColor(232, 236, 241);
+        $pdf->SetFont('Helvetica', 'B', 10);
+        $pdf->Cell(95, 8, utf8_decode('DESCRIPCIÓN'), 1, 0, 'L', true);
+        $pdf->Cell(25, 8, 'CANT.', 1, 0, 'C', true);
+        $pdf->Cell(35, 8, 'P.UNIT.', 1, 0, 'R', true);
+        $pdf->Cell(35, 8, 'TOTAL', 1, 1, 'R', true);
+
+        $pdf->SetFont('Helvetica', '', 10);
+        $total_venta = 0;
+
+        foreach ($detalle as $value) {
+            $subtotal = $value->cantidad * $value->precio;
+            $total_venta += $subtotal;
+            $pdf->Cell(95, 7, utf8_decode(substr($value->nomb_pro, 0, 60)), 1, 0, 'L');
+            $pdf->Cell(25, 7, $value->cantidad, 1, 0, 'C');
+            $pdf->Cell(35, 7, 'S/ ' . number_format($value->precio, 2, ',', ' '), 1, 0, 'R');
+            $pdf->Cell(35, 7, 'S/ ' . number_format($subtotal, 2, ',', ' '), 1, 1, 'R');
+        }
+
+        $pdf->SetFont('Helvetica', 'B', 10);
+        $pdf->Cell(95, 7, '', 0, 0, 'R');
+        $pdf->Cell(25, 7, '', 0, 0, 'R');
+        $pdf->Cell(35, 7, 'SUBTOTAL', 1, 0, 'R');
+        $pdf->Cell(35, 7, 'S/ ' . number_format($total_venta, 2, ',', ' '), 1, 1, 'R');
+        $pdf->Cell(95, 7, '', 0, 0, 'R');
+        $pdf->Cell(25, 7, '', 0, 0, 'R');
+        $pdf->Cell(35, 7, 'DESCUENTO', 1, 0, 'R');
+        $pdf->Cell(35, 7, 'S/ 0.00', 1, 1, 'R');
+        $pdf->Cell(95, 7, '', 0, 0, 'R');
+        $pdf->Cell(25, 7, '', 0, 0, 'R');
+        $pdf->Cell(35, 7, 'TOTAL', 1, 0, 'R');
+        $pdf->Cell(35, 7, 'S/ ' . number_format($total_venta, 2, ',', ' '), 1, 1, 'R');
+
+        $pdf->Ln(10);
+        $pdf->SetFont('Helvetica', '', 10);
+        $pdf->MultiCell(0, 6, utf8_decode('Gracias por su compra. Si necesita el comprobante en formato electrónico, contáctenos por sus canales oficiales.'), 0, 'L');
+        $pdf->Ln(4);
+        $pdf->Cell(0, 6, 'ATENDIDO POR: ' . utf8_decode($venta->name), 0, 1, 'L');
+
+        ob_get_clean();
+        $pdf->Output('venta_a4.pdf', 'I');
+    }
+
     public function traer_candado($monto)
     {
         $candados = candado::where('rango_minimo', '<=', $monto)->where('rango_maximo', '>=', $monto)->first();

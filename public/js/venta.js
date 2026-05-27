@@ -107,7 +107,8 @@ function listadoventas() {
                                 <i class="bx bx-list-ul"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="./venta/ticket/${row.id}" target="_blank">Imprimir Comprobante</a></li>
+                                <li><a class="dropdown-item" href="${urlgeneral}/venta/ticket/${row.id}" target="_blank">Imprimir Comprobante</a></li>
+                                <li><a class="dropdown-item" href="${urlgeneral}/venta/ticket-a4/${row.id}" target="_blank">Ver A4</a></li>
                                 <li><a class="dropdown-item" href="#">Detalle</a></li>
                                 <li><a class="dropdown-item" href="#">Cambiar comprobante</a></li>`;
 
