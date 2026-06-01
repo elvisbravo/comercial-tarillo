@@ -122,8 +122,8 @@
                             <select class="form-select" name="vendedor_id" id="vendedor_select" required style="border-radius: 8px;">
                                 <option value="">-- Seleccionar Vendedor --</option>
                                 @foreach($vendedores as $v)
-                                    <option value="{{ $v->usuario_id }}" data-furgoneta="{{ $v->stockLocation->name ?? 'Furgoneta' }}">
-                                        {{ $v->nombre }} ({{ $v->stockLocation->name ?? 'Sin furgoneta' }})
+                                    <option value="{{ $v->id }}">
+                                        {{ $v->name }}
                                     </option>
                                 @endforeach
                             </select>

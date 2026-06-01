@@ -844,9 +844,23 @@ guardarVenta.addEventListener("click", (e) => {
                 window.location.href = urlgeneral + "/pos";
                 window.open(urlgeneral + "/venta/ticket/" + data.id);
             } else {
-                alert(data.mensaje);
+                if (data.credito_activo && data.credito) {
+                    mostrarCreditoActivo(data.credito, data.mensaje);
+                } else if (data.mensaje) {
+                    alert(data.mensaje);
+                } else if (data.error) {
+                    alert("Error del servidor: " + data.error + "\n\nLínea " + data.linea + " de " + data.archivo);
+                } else {
+                    alert("Error desconocido. Revisa la consola del navegador.");
+                    console.error("Respuesta del servidor:", data);
+                }
                 e.target.disabled = false;
             }
+        })
+        .catch((err) => {
+            alert("Error de comunicación: " + err.message);
+            console.error(err);
+            e.target.disabled = false;
         });
 });
 
@@ -866,3 +880,53 @@ function validar_caja() {
 }
 
 select_ubicacion.addEventListener("change", render_productos);
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function mostrarCreditoActivo(cred, mensaje) {
+    document.getElementById("cred_mensaje").textContent = mensaje || "";
+    document.getElementById("cred_sede").textContent = cred.sede || "-";
+    document.getElementById("cred_comprobante").textContent = cred.comprobante || "-";
+    document.getElementById("cred_fecha_venta").textContent = cred.fecha_venta || "-";
+    document.getElementById("cred_fecha_credito").textContent = cred.fecha_credito || "-";
+    document.getElementById("cred_monto_total").textContent = "S/ " + (parseFloat(cred.monto_total) || 0).toFixed(2);
+    document.getElementById("cred_saldo_pendiente").textContent = "S/ " + (parseFloat(cred.saldo_pendiente) || 0).toFixed(2);
+    document.getElementById("cred_cuotas_vencidas").textContent = cred.cuotas_vencidas || 0;
+    document.getElementById("cred_cuotas_totales").textContent = cred.cuotas_totales || 0;
+
+    const tbodyProd = document.getElementById("cred_tbody_productos");
+    if (cred.productos && cred.productos.length) {
+        tbodyProd.innerHTML = cred.productos.map(p =>
+            `<tr>
+                <td>${escapeHtml(p.nombre || "")}</td>
+                <td class="text-right">${p.cantidad}</td>
+                <td class="text-right">S/ ${(parseFloat(p.precio) || 0).toFixed(2)}</td>
+                <td class="text-right">S/ ${(parseFloat(p.importe) || 0).toFixed(2)}</td>
+            </tr>`
+        ).join("");
+    } else {
+        tbodyProd.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Sin productos registrados</td></tr>';
+    }
+
+    const tbodyCuo = document.getElementById("cred_tbody_cuotas");
+    if (cred.cuotas && cred.cuotas.length) {
+        tbodyCuo.innerHTML = cred.cuotas.map(c => {
+            const clase = c.vencida ? "table-danger" : "";
+            const atraso = c.dias_atraso > 0 ? c.dias_atraso + " días" : "-";
+            return `<tr class="${clase}">
+                <td>${c.numero}</td>
+                <td>${escapeHtml(c.fecha_vencimiento || "")}</td>
+                <td class="text-right">S/ ${(parseFloat(c.monto) || 0).toFixed(2)}</td>
+                <td class="text-right">S/ ${(parseFloat(c.saldo) || 0).toFixed(2)}</td>
+                <td>${escapeHtml(c.estado || "")}</td>
+                <td class="text-right">${atraso}</td>
+            </tr>`;
+        }).join("");
+    } else {
+        tbodyCuo.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin cuotas registradas</td></tr>';
+    }
+
+    $("#modal_credito_activo").modal("show");
+}

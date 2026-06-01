@@ -390,6 +390,116 @@ Pos
     </div>
 </div>
 
+<div class="modal fade" tabindex="-1" role="dialog" aria-labelledby="modalCreditoActivoLabel" aria-hidden="true" id="modal_credito_activo">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="modalCreditoActivoLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Cliente con crédito activo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3" id="cred_mensaje"></p>
+
+                <div class="card mb-3">
+                    <div class="card-header"><strong>Información del crédito</strong></div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3"><strong>Sede:</strong> <span id="cred_sede">-</span></div>
+                            <div class="col-md-3"><strong>Comprobante:</strong> <span id="cred_comprobante">-</span></div>
+                            <div class="col-md-3"><strong>Fecha venta:</strong> <span id="cred_fecha_venta">-</span></div>
+                            <div class="col-md-3"><strong>Fecha crédito:</strong> <span id="cred_fecha_credito">-</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <div class="card border-primary">
+                            <div class="card-body text-center">
+                                <small class="text-muted">Monto total</small>
+                                <h5 class="mb-0" id="cred_monto_total">S/ 0.00</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <small class="text-muted">Saldo pendiente</small>
+                                <h5 class="mb-0" id="cred_saldo_pendiente">S/ 0.00</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-danger">
+                            <div class="card-body text-center">
+                                <small class="text-muted">Cuotas vencidas</small>
+                                <h5 class="mb-0" id="cred_cuotas_vencidas">0</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-secondary">
+                            <div class="card-body text-center">
+                                <small class="text-muted">Total cuotas</small>
+                                <h5 class="mb-0" id="cred_cuotas_totales">0</h5>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header"><strong>Productos de la venta</strong></div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th class="text-right">Cantidad</th>
+                                        <th class="text-right">Precio</th>
+                                        <th class="text-right">Importe</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cred_tbody_productos">
+                                    <tr><td colspan="4" class="text-center text-muted">Sin productos registrados</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><strong>Cuotas</strong></div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Vencimiento</th>
+                                        <th class="text-right">Monto</th>
+                                        <th class="text-right">Saldo</th>
+                                        <th>Estado</th>
+                                        <th class="text-right">Días atraso</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cred_tbody_cuotas">
+                                    <tr><td colspan="6" class="text-center text-muted">Sin cuotas registradas</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('js')

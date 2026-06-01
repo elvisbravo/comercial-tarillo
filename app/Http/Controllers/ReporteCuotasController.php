@@ -45,11 +45,12 @@ class ReporteCuotasController extends Controller
             })
             ->select(
                 'c.id as credito_id',
+                'c.mont_cre as monto_credito',
                 'cl.razon_social',
                 'cl.dire_per',
                 'cl.telefono',
                 'sc.nomb_sec as sector',
-                DB::raw('SUM(cu_venc.mont_cuo) as monto_total'),
+                DB::raw('COUNT(cu_venc.id) as cuotas_vencidas_count'),
                 DB::raw('SUM(cu_venc.saldo_cuo) as saldo_total'),
                 DB::raw('MIN(cu_venc.numero_cuo) as primera_cuota_vencida'),
                 DB::raw('MIN(cu_venc.fven_cuo) as proxima_fecha')
@@ -88,17 +89,18 @@ class ReporteCuotasController extends Controller
                 ->max('am.created_at');
 
             $datos[] = [
-                'credito_id'     => $cred->credito_id,
-                'cliente'        => $cred->razon_social,
-                'direccion'      => $cred->dire_per,
-                'sector'         => $cred->sector ?? 'S/N',
-                'telefono'       => $cred->telefono ?? '-',
-                'monto_total'    => $cred->monto_total,
-                'saldo_total'    => $cred->saldo_total,
-                'cuotas_pagadas' => $cuotas_pagadas,
-                'total_cuotas'   => $total_cuotas,
-                'proxima_fecha'  => $cred->proxima_fecha,
-                'ultima_pago'    => $ultima_pago ? date('d/m/Y', strtotime($ultima_pago)) : '-',
+                'credito_id'      => $cred->credito_id,
+                'cliente'         => $cred->razon_social,
+                'direccion'       => $cred->dire_per,
+                'sector'          => $cred->sector ?? 'S/N',
+                'telefono'        => $cred->telefono ?? '-',
+                'monto_total'     => $cred->monto_credito,
+                'saldo_total'     => $cred->saldo_total,
+                'cuotas_vencidas' => (int) $cred->cuotas_vencidas_count,
+                'cuotas_pagadas'  => $cuotas_pagadas,
+                'total_cuotas'    => $total_cuotas,
+                'proxima_fecha'   => $cred->proxima_fecha,
+                'ultima_pago'     => $ultima_pago ? date('d/m/Y', strtotime($ultima_pago)) : '-',
             ];
         }
 

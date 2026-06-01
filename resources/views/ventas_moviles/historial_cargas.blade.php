@@ -199,11 +199,11 @@
                 </div>
                 <div class="col-md-3 col-sm-6">
                     <label class="form-label font-weight-bold text-dark mb-1" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Desde</label>
-                    <input type="date" name="fecha_desde" class="form-control" value="{{ request('fecha_desde') }}" style="border-radius: 8px; font-size: 13px;">
+                    <input type="date" name="fecha_desde" class="form-control" value="{{ request('fecha_desde', date('Y-m-d')) }}" style="border-radius: 8px; font-size: 13px;">
                 </div>
                 <div class="col-md-3 col-sm-6">
                     <label class="form-label font-weight-bold text-dark mb-1" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Hasta</label>
-                    <input type="date" name="fecha_hasta" class="form-control" value="{{ request('fecha_hasta') }}" style="border-radius: 8px; font-size: 13px;">
+                    <input type="date" name="fecha_hasta" class="form-control" value="{{ request('fecha_hasta', date('Y-m-d')) }}" style="border-radius: 8px; font-size: 13px;">
                 </div>
                 <div class="col-md-2 col-sm-6 d-flex gap-2">
                     <button type="submit" class="btn btn-primary btn-action w-100">
@@ -464,12 +464,6 @@
 <script>
 $(document).ready(function () {
     $(".loader").fadeOut("slow");
-
-    // Preseleccionar fecha de hoy si no hay filtros activos
-    @if(!request()->hasAny(['vendedor_id','fecha_desde','fecha_hasta']))
-    $('input[name="fecha_desde"]').val('{{ date('Y-m-d') }}');
-    $('input[name="fecha_hasta"]').val('{{ date('Y-m-d') }}');
-    @endif
 
     // Ver Detalle
     $(document).on('click', '.btn-ver-detalle', function () {

@@ -161,7 +161,7 @@ class MobileSalesController extends Controller
                 ->sum('cu.saldo_cuo') ?? 0;
         }
 
-        // Calcular stock actual en la furgoneta
+        // Calcular stock actual en la furgoneta (productos cargados HOY a este vendedor)
         $idsede = session('key')->sede_id;
         $almacenPrincipal = \App\Almacen::where('sede_id', $idsede)->first();
         $ubicacionMoviles = DB::table('stock_location')
@@ -177,21 +177,45 @@ class MobileSalesController extends Controller
             $servicios = new FuncionesController;
             $envio = $servicios->tipo_envio_sunat();
 
-            $totalStockUnits = DB::table('detalle_almacen_productos as dp')
-                ->join('productos as p', 'dp.producto_id', '=', 'p.id')
-                ->where('dp.ubicacion_id', '=', $ubicacion_id)
-                ->where('dp.tipo_envio', '=', $envio)
-                ->where('p.estado', '=', '1')
-                ->where('dp.stock', '>', 0)
-                ->sum('dp.stock') ?? 0;
+            // Cargado HOY a este vendedor, agrupado por producto
+            $loadedByProduct = DB::table('detalle_traslado as dt')
+                ->join('traslados as t', 't.id', '=', 'dt.traslado_id')
+                ->where('t.serie', '=', 'CAR')
+                ->where('t.cliente_id', '=', $usuario->id)
+                ->where('t.fecha', '=', $fechaHoy)
+                ->where('t.estado', '=', 1)
+                ->where('dt.estado', '=', 1)
+                ->groupBy('dt.producto_id')
+                ->select('dt.producto_id', DB::raw('SUM(dt.cantidad) as total'))
+                ->pluck('total', 'dt.producto_id')
+                ->toArray();
 
-            $totalStockItems = DB::table('detalle_almacen_productos as dp')
-                ->join('productos as p', 'dp.producto_id', '=', 'p.id')
-                ->where('dp.ubicacion_id', '=', $ubicacion_id)
-                ->where('dp.tipo_envio', '=', $envio)
-                ->where('p.estado', '=', '1')
-                ->where('dp.stock', '>', 0)
-                ->count();
+            // Vendido HOY por este vendedor, agrupado por producto (solo ventas activas)
+            $soldByProduct = [];
+            if ($vendedor) {
+                $soldByProduct = DB::table('detalle_venta as dv')
+                    ->join('ventas as v', 'v.id', '=', 'dv.venta_id')
+                    ->where('v.vendedor_id', '=', $vendedor->id)
+                    ->where('v.fecha', '=', $fechaHoy)
+                    ->where('v.venta_estado', '=', 1)
+                    ->where('v.tipo_envio', '=', $envio)
+                    ->groupBy('dv.producto_id')
+                    ->select('dv.producto_id', DB::raw('SUM(dv.cantidad) as total'))
+                    ->pluck('total', 'dv.producto_id')
+                    ->toArray();
+            }
+
+            // Stock neto real por producto = cargado - vendido
+            $totalStockUnits = 0;
+            $totalStockItems = 0;
+            foreach ($loadedByProduct as $prodId => $loadedQty) {
+                $soldQty = (int) ($soldByProduct[$prodId] ?? 0);
+                $net = max(0, (int) $loadedQty - $soldQty);
+                $totalStockUnits += $net;
+                if ($net > 0) {
+                    $totalStockItems++;
+                }
+            }
         }
 
         return view('ventas_moviles.dashboard', compact(
@@ -228,19 +252,36 @@ class MobileSalesController extends Controller
         $servicios = new FuncionesController;
         $envio = $servicios->tipo_envio_sunat();
 
-        // Productos con stock en la furgoneta
-        $productos = DB::table('productos as p')
-            ->join('detalle_almacen_productos as dp', 'dp.producto_id', '=', 'p.id')
-            ->leftJoin('precios as pr', 'p.id', '=', 'pr.articulo_id')
-            ->select('p.id', 'p.nomb_pro', 'dp.stock', 'pr.precio_contado', 'pr.precio_credito')
-            ->where('dp.ubicacion_id', '=', $ubicacion_id)
-            ->where('dp.tipo_envio', '=', $envio)
+        // Productos cargados HOY a la furgoneta de este vendedor (solo de la fecha actual)
+        $fechaHoy = date('Y-m-d');
+        $productos = DB::table('detalle_traslado as dt')
+            ->join('traslados as t', 't.id', '=', 'dt.traslado_id')
+            ->join('productos as p', 'p.id', '=', 'dt.producto_id')
+            ->leftJoin('detalle_almacen_productos as dp', function($join) use ($ubicacion_id, $envio) {
+                $join->on('dp.producto_id', '=', 'p.id')
+                     ->where('dp.ubicacion_id', '=', $ubicacion_id)
+                     ->where('dp.tipo_envio', '=', $envio);
+            })
+            ->leftJoin('precios as pr', 'pr.articulo_id', '=', 'p.id')
+            ->select(
+                'p.id',
+                'p.nomb_pro',
+                DB::raw('COALESCE(dp.stock, 0) as stock'),
+                'pr.precio_contado',
+                'pr.precio_credito'
+            )
+            ->where('t.serie', '=', 'CAR')
+            ->where('t.cliente_id', '=', $usuario->id)
+            ->where('t.fecha', '=', $fechaHoy)
+            ->where('t.estado', '=', 1)
+            ->where('dt.estado', '=', 1)
             ->where('p.estado', '=', '1')
-            ->where('dp.stock', '>', 0)
+            ->where(DB::raw('COALESCE(dp.stock, 0)'), '>', 0)
+            ->distinct()
+            ->orderBy('p.nomb_pro', 'asc')
             ->get();
 
         // Clientes de los sectores asignados para hoy
-        $fechaHoy = date('Y-m-d');
         $sectoresIds = VendedorSector::where('vendedor_id', $usuario->id)
                                     ->where('fecha', $fechaHoy)
                                     ->pluck('sector_id')
@@ -825,25 +866,19 @@ class MobileSalesController extends Controller
             ->orderBy('p.nomb_pro', 'asc')
             ->get();
 
-        // Obtener usuarios activos de esta sede con rol ID 6
-        $usuariosVendedoresIds = \App\User::where('sede_id', $idsede)
+        // Obtener usuarios activos de esta sede con rol ID 6 (vendedores)
+        $vendedores = \App\User::where('sede_id', $idsede)
             ->where('estado', 1)
             ->whereHas('roles', function($q) {
                 $q->where('id', 6);
-            })->pluck('id');
-
-        $vendedores = Vendedor::with('stockLocation')
-                              ->whereIn('usuario_id', $usuariosVendedoresIds)
-                              ->whereNotNull('stock_location_id')
-                              ->where('estado', 1)
-                              ->get();
+            })->orderBy('name', 'asc')->get();
 
         return view('ventas_moviles.cargar_stock', compact('vendedores', 'productos', 'ubicacionOrigen'));
     }
 
     public function cargarStockProcesar(Request $request)
     {
-        $vendedorUserId = $request->vendedor_id; // usuario_id del vendedor (rol_id = 6)
+        $vendedorUserId = $request->vendedor_id; // users.id del vendedor (rol_id = 6)
         $productosIds = $request->productos; // array de producto_id
         $cantidades = $request->cantidades; // array de producto_id => cantidad
 
@@ -851,10 +886,23 @@ class MobileSalesController extends Controller
             return redirect()->back()->with('error', 'Debe seleccionar un vendedor y al menos un producto.');
         }
 
-        // Buscar por usuario_id para ser consistente con todo el módulo
-        $vendedor = Vendedor::where('usuario_id', $vendedorUserId)->first();
+        // Buscar al usuario con rol de vendedor (rol_id = 6) en la tabla users
+        $vendedor = \App\User::where('id', $vendedorUserId)
+            ->where('estado', 1)
+            ->whereHas('roles', function($q) {
+                $q->where('id', 6);
+            })->first();
         if (!$vendedor) {
-            return redirect()->back()->with('error', 'No se encontró el vendedor asociado al usuario seleccionado.');
+            return redirect()->back()->with('error', 'El usuario seleccionado no es un vendedor activo válido.');
+        }
+
+        // Validar que el vendedor tenga rutas asignadas para la fecha actual
+        $fechaHoy = date('Y-m-d');
+        $tieneRutasHoy = VendedorSector::where('vendedor_id', $vendedor->id)
+                                       ->where('fecha', $fechaHoy)
+                                       ->exists();
+        if (!$tieneRutasHoy) {
+            return redirect()->back()->with('error', 'El vendedor "' . $vendedor->name . '" no tiene rutas asignadas para la fecha actual (' . $fechaHoy . '). Debe asignarle sus rutas antes de poder cargar stock.');
         }
         
         DB::beginTransaction();
@@ -909,7 +957,7 @@ class MobileSalesController extends Controller
             $traslado->id_ubicacion_origen = $origen_id;
             $traslado->id_ubicacion_destino = $destino_id;
             $traslado->motivo = 'CARGA DIARIA DE STOCK A MOVILES';
-            $traslado->cliente_id = $vendedor->usuario_id; // Almacenar el ID de usuario vendedor (rol_id = 6) para el historial
+            $traslado->cliente_id = $vendedor->id; // users.id del vendedor (rol_id = 6) para el historial
             $traslado->estado = 1; // 1 = RECIBIDO
             $traslado->tipo_envio = $envio;
             $traslado->sede_id = $idsede;
@@ -956,11 +1004,11 @@ class MobileSalesController extends Controller
 
                 // Registrar Kardex Salida (Origen)
                 $precio_unitario = DB::table('precios')->where('articulo_id', $productId)->value('precio_contado') ?? 0;
-                $descripSalida = 'CARGA DIARIA A MOVILES (Vendedor: ' . $vendedor->nombre . ')';
+                $descripSalida = 'CARGA DIARIA A MOVILES (Vendedor: ' . $vendedor->name . ')';
                 $servicios->movimiento_kardex_producto($origen_id, $productId, $cantidad, 2, $descripSalida, $traslado->serie, $traslado->correlativo, $precio_unitario, 9, date('Y-m-d'), date('Y-m-d'));
 
                 // Registrar Kardex Entrada (Destino)
-                $descripEntrada = 'CARGA DIARIA RECIBIDA EN MOVILES (Vendedor: ' . $vendedor->nombre . ')';
+                $descripEntrada = 'CARGA DIARIA RECIBIDA EN MOVILES (Vendedor: ' . $vendedor->name . ')';
                 $servicios->movimiento_kardex_producto($destino_id, $productId, $cantidad, 1, $descripEntrada, $traslado->serie, $traslado->correlativo, $precio_unitario, 9, date('Y-m-d'), date('Y-m-d'));
 
                 // Crear detalle del traslado
@@ -973,7 +1021,7 @@ class MobileSalesController extends Controller
             }
 
             DB::commit();
-            return redirect()->back()->with('success', 'El stock fue cargado exitosamente a la furgoneta de ' . $vendedor->nombre . '.');
+            return redirect()->back()->with('success', 'El stock fue cargado exitosamente a la furgoneta de ' . $vendedor->name . '.');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Error al cargar stock: ' . $e->getMessage());
@@ -1010,13 +1058,11 @@ class MobileSalesController extends Controller
             $query->where('t.cliente_id', $request->vendedor_id);
         }
 
-        // Filtro por fecha
-        if ($request->filled('fecha_desde')) {
-            $query->where('t.fecha', '>=', $request->fecha_desde);
-        }
-        if ($request->filled('fecha_hasta')) {
-            $query->where('t.fecha', '<=', $request->fecha_hasta);
-        }
+        // Filtro por fecha (por defecto: hoy, para que coincida con los inputs)
+        $fecha_desde = $request->filled('fecha_desde') ? $request->fecha_desde : date('Y-m-d');
+        $fecha_hasta = $request->filled('fecha_hasta') ? $request->fecha_hasta : date('Y-m-d');
+        $query->where('t.fecha', '>=', $fecha_desde)
+              ->where('t.fecha', '<=', $fecha_hasta);
 
         $cargas = $query->orderBy('t.id', 'desc')->get();
 

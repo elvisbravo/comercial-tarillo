@@ -363,6 +363,111 @@ class FuncionesController
         return response()->json($resp);*/
     }
 
+    /**
+     * Consulta DNI/RUC en facturalahoy.com.
+     * $tipo: 1 = DNI, 6 = RUC
+     *
+     * Respuesta típica DNI:
+     * {
+     *   "encontrado": true,
+     *   "api": true,
+     *   "data": {
+     *     "nombres": "JEAN PIERRE",
+     *     "ap_paterno": "TORRES",
+     *     "ap_materno": "RADO",
+     *     "nombre": "JEAN PIERRE TORRES RADO",
+     *     "dni": "70167129",
+     *     "sexo": "Masculino",
+     *     "fecha_nacimiento": "17/08/1998"
+     *   }
+     * }
+     *
+     * Respuesta típica RUC:
+     * {
+     *   "respuesta": "ok",
+     *   "encontrado": true,
+     *   "api": true,
+     *   "data": {
+     *     "ruc": "20491222922",
+     *     "razon_social": "\"IEIP LA SEMILLA E.I.R.L.\"",
+     *     "nombre_comercial": "\"IEIP LA SEMILLA E.I.R.L.\"",
+     *     "telefono": "",
+     *     "direccion": "AV. INFANCIA  NRO. 560   CUSCO -  CUSCO -  WANCHAQ",
+     *     "only_direccion": "AV. INFANCIA  NRO. 560",
+     *     "codigo_ubigeo": "080108",
+     *     "estado": "ACTIVO",
+     *     "condicion": "HABIDO"
+     *   },
+     *   "texto_ubigeo": "Cusco - Cusco - Wanchaq"
+     * }
+     *
+     * Nota: facturalahoy.com envía razon_social y nombre_comercial envueltos en
+     * comillas dobles literales (ej: "\"IEIP...\""). Esta función las limpia
+     * automáticamente antes de devolver el JSON.
+     */
+    public function api_dni_ruc($tipo, $numero)
+    {
+        $token = "facturalaya_erickpeso_05jFE7sAOudi8j0";
+
+        if ($tipo == 1) {
+            $curl = curl_init();
+
+            curl_setopt_array($curl, array(
+                CURLOPT_URL            => "https://facturalahoy.com/api/persona/{$numero}/{$token}/completa",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING       => '',
+                CURLOPT_MAXREDIRS      => 10,
+                CURLOPT_TIMEOUT        => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST  => 'GET',
+                CURLOPT_SSL_VERIFYPEER => false,
+            ));
+
+            $response = curl_exec($curl);
+            curl_close($curl);
+
+            $data = json_decode($response, true);
+            return response()->json($data);
+        } elseif ($tipo == 6) {
+            $curl = curl_init();
+
+            curl_setopt_array($curl, array(
+                CURLOPT_URL            => "https://facturalahoy.com/api/empresa/{$numero}/{$token}/completa",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING       => '',
+                CURLOPT_MAXREDIRS      => 10,
+                CURLOPT_TIMEOUT        => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST  => 'GET',
+                CURLOPT_SSL_VERIFYPEER => false,
+            ));
+
+            $response = curl_exec($curl);
+            curl_close($curl);
+
+            $data = json_decode($response, true);
+
+            if (is_array($data) && isset($data['data']) && is_array($data['data'])) {
+                foreach (['razon_social', 'nombre_comercial'] as $campo) {
+                    if (!empty($data['data'][$campo]) && is_string($data['data'][$campo])) {
+                        $data['data'][$campo] = trim($data['data'][$campo], '"');
+                    }
+                }
+            }
+
+            return response()->json($data);
+        }
+
+        $json = array(
+            "respuesta" => "error",
+            "mensaje"   => "Tipo de Documento Desconocido"
+        );
+
+        return response()->json($json);
+    }
+
     public function total_ingresos_caja_fisica($id_caja)
     {
         $idsede = session('key')->sede_id;

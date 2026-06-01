@@ -6,66 +6,106 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use App\User;
+use App\Vendedor;
 
 class AuthController extends Controller
 {
     /**
-     * Autenticar al usuario para la aplicación móvil
+     * POST /api/login
+     * Body: { "email": "...", "password": "..." }
+     * Devuelve api_token (guardar en el cliente) + user + vendedor (si aplica)
      */
     public function login(Request $request)
     {
-        // 1. Validar los datos recibidos
         $validator = Validator::make($request->all(), [
-            'email' => 'required|string', // Puede ser email o username dependiendo de cómo se loguean
+            'email'    => 'required|string',
             'password' => 'required|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => false,
+                'status'  => false,
                 'message' => 'Errores de validación',
-                'errors' => $validator->errors()
+                'errors'  => $validator->errors(),
             ], 422);
         }
 
-        // 2. Intentar autenticar con email o username
         $credentials = [
-            'email' => $request->email,
-            'password' => $request->password
+            'email'    => $request->email,
+            'password' => $request->password,
         ];
 
-        // Alternativa por si usan username en lugar de email para loguearse:
-        // $credentials = ['username' => $request->email, 'password' => $request->password];
-
         if (Auth::attempt($credentials)) {
-            // Autenticación exitosa
             $user = Auth::user();
-            
-            // Verificar si el usuario está activo (suponiendo que 'estado' indica si está activo)
+
             if (isset($user->estado) && $user->estado != 1 && $user->estado != 'Activo') {
+                Auth::logout();
                 return response()->json([
-                    'status' => false,
-                    'message' => 'El usuario se encuentra inactivo.'
+                    'status'  => false,
+                    'message' => 'El usuario se encuentra inactivo.',
                 ], 403);
             }
 
-            // Cargar la relación sede para obtener el nombre
             $user->load('sede');
 
+            // Rotar token (invalida sesiones anteriores)
+            $user->api_token = Str::random(60);
+            $user->save();
+
+            $vendedor = Vendedor::where('usuario_id', $user->id)->first();
+
             return response()->json([
-                'status' => true,
+                'status'  => true,
                 'message' => 'Inicio de sesión exitoso',
-                'data' => [
-                    'user' => $user
-                ]
+                'data'    => [
+                    'user'       => $user,
+                    'vendedor'   => $vendedor,
+                    'api_token'  => $user->api_token,
+                ],
             ], 200);
-        } else {
-            // Autenticación fallida
-            return response()->json([
-                'status' => false,
-                'message' => 'Credenciales incorrectas. Verifique su correo/usuario y contraseña.'
-            ], 401);
         }
+
+        return response()->json([
+            'status'  => false,
+            'message' => 'Credenciales incorrectas.',
+        ], 401);
+    }
+
+    /**
+     * POST /api/logout
+     * Invalida el token actual (lo pone en null).
+     */
+    public function logout(Request $request)
+    {
+        $user = $request->user();
+        if ($user) {
+            $user->api_token = null;
+            $user->save();
+        }
+        return response()->json([
+            'status'  => true,
+            'message' => 'Sesión cerrada',
+        ]);
+    }
+
+    /**
+     * GET /api/me
+     * Devuelve el usuario autenticado (útil para validar el token al iniciar la app).
+     */
+    public function me(Request $request)
+    {
+        $user = $request->user();
+        $user->load('sede');
+        $vendedor = Vendedor::where('usuario_id', $user->id)->first();
+
+        return response()->json([
+            'status' => true,
+            'data'   => [
+                'user'     => $user,
+                'vendedor' => $vendedor,
+            ],
+        ]);
     }
 }

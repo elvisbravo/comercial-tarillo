@@ -195,7 +195,7 @@ Route::resource('precios', 'PreciosController');
 //CONTROLADOR CLIENTE
 Route::get('clientes/listado/{estado}', 'ClientesController@listado');
 Route::get('clientes/sector', 'ClientesController@sector');
-Route::resource('clientes', 'ClientesController');
+Route::resource('clientes', 'ClientesController')->where(['cliente' => '[0-9]+']);
 Route::post('clientes/crear', 'ClientesController@crear');
 Route::post('clientes/modificardir', 'ClientesController@guardardireccion');
 Route::post('clientes/modificardatos', 'ClientesController@update');
@@ -525,4 +525,10 @@ Route::group(['middleware' => ['auth']], function () {
     // REPORTES KPI DE CREDITOS
     Route::get('reportes/kpi-creditos', 'ReporteKpiController@index')->name('reportes.kpi_creditos');
     Route::get('reportes/kpi-creditos/data', 'ReporteKpiController@getData')->name('reportes.kpi_creditos.data');
+
+    // LISTA NEGRA DE CLIENTES
+    Route::get('clientes/lista-negra', 'ListaNegraController@index')->name('clientes.lista_negra');
+    Route::get('clientes/lista-negra/buscar', 'ListaNegraController@buscarClientes')->name('clientes.lista_negra.buscar');
+    Route::post('clientes/lista-negra/agregar', 'ListaNegraController@agregar')->name('clientes.lista_negra.agregar');
+    Route::post('clientes/lista-negra/quitar/{registroId}', 'ListaNegraController@quitar')->name('clientes.lista_negra.quitar');
 });

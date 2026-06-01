@@ -10,6 +10,7 @@ use App\Tipo_comprobantes;
 use App\Detalle_venta;
 use App\Venta;
 use App\Clientes;
+use App\Creditos;
 use App\Precios;
 use App\Empresa;
 use App\Correlativos;
@@ -239,6 +240,19 @@ class VentaController extends Controller
         try {
             $post = $request->all();
 
+            // Idempotencia: si la app móvil envía id_local y ya existe, devolver esa venta
+            if (!empty($post['id_local'])) {
+                $existente = \App\Venta::where('id_local', $post['id_local'])->first();
+                if ($existente) {
+                    return response()->json([
+                        'id' => $existente->id,
+                        'mensaje' => 'Venta ya registrada',
+                        'respuesta' => 'ok',
+                        'idempotente' => true,
+                    ]);
+                }
+            }
+
             //echo "<pre>"; print_r($post);exit;
 
             if ($post['forma_pago'] == 9) {
@@ -312,6 +326,74 @@ class VentaController extends Controller
                 $cliente_->save();
             }
 
+            // Si es venta a crédito, bloquear si el cliente ya tiene un crédito activo en cualquier sede
+            if ($post['tipo_venta'] == 2) {
+                $creditoActivo = Creditos::with('Detalle')
+                    ->where('cliente_id', $id_cliente)
+                    ->where('esta_cre', '1')
+                    ->whereNull('f_anulacion')
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+                if ($creditoActivo) {
+                    DB::rollBack();
+
+                    $sede = $creditoActivo->sede_id ? Sede::find($creditoActivo->sede_id) : null;
+
+                    $venta = $creditoActivo->id_venta
+                        ? DB::table('ventas')->where('id', $creditoActivo->id_venta)->first()
+                        : null;
+
+                    $productos = $creditoActivo->id_venta
+                        ? DB::table('detalle_venta as dv')
+                            ->join('productos as p', 'p.id', '=', 'dv.producto_id')
+                            ->where('dv.venta_id', $creditoActivo->id_venta)
+                            ->select('p.nomb_pro as nombre', 'dv.cantidad', 'dv.precio', 'dv.subtotal as importe')
+                            ->get()
+                        : collect();
+
+                    $hoy = date('Y-m-d');
+                    $cuotasDetalle = $creditoActivo->Detalle->map(function ($c) use ($hoy) {
+                        $vencida = $c->esta_cuo === 'PENDIENTE' && $c->fven_cuo < $hoy;
+                        $dias = $vencida
+                            ? (int) ((strtotime($hoy) - strtotime($c->fven_cuo)) / 86400)
+                            : 0;
+                        return [
+                            'numero'            => (int) $c->numero_cuo,
+                            'fecha_vencimiento' => $c->fven_cuo,
+                            'monto'             => (float) $c->mont_cuo,
+                            'saldo'             => (float) $c->saldo_cuo,
+                            'estado'            => $c->esta_cuo,
+                            'dias_atraso'       => $dias,
+                            'vencida'           => $vencida,
+                        ];
+                    });
+
+                    $cuotasVencidas = $cuotasDetalle->where('vencida', true)->count();
+                    $saldoPendiente = $cuotasDetalle->where('estado', 'PENDIENTE')->sum('saldo');
+
+                    $json = array(
+                        "respuesta"      => "error",
+                        "credito_activo" => true,
+                        "mensaje"        => "El cliente ya tiene un crédito activo, no se puede registrar otra venta a crédito.",
+                        "credito"        => array(
+                            "id"              => $creditoActivo->id,
+                            "sede"            => $sede ? $sede->nombre : 'Desconocida',
+                            "fecha_credito"   => $creditoActivo->fech_cre,
+                            "fecha_venta"     => $venta ? $venta->fecha : null,
+                            "comprobante"     => $venta ? ($venta->serie_comprobante . '-' . $venta->numero_comprobante) : null,
+                            "monto_total"     => (float) $creditoActivo->mont_cre,
+                            "saldo_pendiente" => (float) $saldoPendiente,
+                            "cuotas_vencidas" => $cuotasVencidas,
+                            "cuotas_totales"  => $cuotasDetalle->count(),
+                            "productos"       => $productos,
+                            "cuotas"          => $cuotasDetalle->values()->all(),
+                        ),
+                    );
+                    return response()->json($json);
+                }
+            }
+
             $envio = $servicios->tipo_envio_sunat();
 
 
@@ -336,6 +418,8 @@ class VentaController extends Controller
             $venta->cliente_id = $id_cliente;
             $venta->descuento = '0';
             $venta->vendedor_id = $post['vendedor'];
+            $venta->id_local = $post['id_local'] ?? null;
+            $venta->fecha_offline_created = !empty($post['fecha_offline_created']) ? $post['fecha_offline_created'] : null;
             if (isset($post['es_movil']) && $post['es_movil']) {
                 $venta->estado_liquidacion = 'PENDIENTE';
             } else {
@@ -430,10 +514,16 @@ class VentaController extends Controller
 
             return response()->json($json);
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('generar_venta exception', [
+                'message' => $e->getMessage(),
+                'line'    => $e->getLine(),
+                'file'    => $e->getFile(),
+            ]);
             return response()->json([
-                'error' => $e->getMessage(),
-                'linea' => $e->getLine(),
-                'archivo' => $e->getFile()
+                'respuesta' => 'error',
+                'mensaje'   => $e->getMessage(),
+                'linea'     => $e->getLine(),
+                'archivo'   => $e->getFile(),
             ]);
         }
     }

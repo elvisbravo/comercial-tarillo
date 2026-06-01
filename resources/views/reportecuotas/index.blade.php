@@ -338,7 +338,7 @@ Reporte Cuotas Vencidas
                     <td>${row.sector}</td>
                     <td class="text-end">${formatMoney(row.monto_total)}</td>
                     <td class="text-end fw-bold text-danger">${formatMoney(row.saldo_total)}</td>
-                    <td class="text-center"><span class="badge-cuotas">${row.cuotas_pagadas} / ${row.total_cuotas}</span></td>
+                    <td class="text-center"><span class="badge-cuotas">${row.cuotas_vencidas} / ${row.total_cuotas}</span></td>
                     <td class="text-center text-muted small">${row.ultima_pago}</td>
                     <td class="text-center small">${proxFecha}</td>
                     <td class="text-center">${row.telefono}</td>

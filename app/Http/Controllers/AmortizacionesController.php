@@ -138,7 +138,17 @@ class AmortizacionesController extends Controller
 
             // return $amortizado->monto;
 
-
+            // Idempotencia: si la app móvil envía id_local y ya existe, devolver ese recibo
+            if (!empty($request->id_local)) {
+                $existente = \App\Recibos::where('id_local', $request->id_local)->first();
+                if ($existente) {
+                    return response()->json([
+                        'status' => 'OK',
+                        'id' => $existente->id,
+                        'idempotente' => true,
+                    ]);
+                }
+            }
 
             $user = Auth::user();
 
@@ -188,9 +198,9 @@ class AmortizacionesController extends Controller
             $es_movil = $request->input('es_movil', false);
 
             $recibo = new Recibos;
-            $recibo->mont_rec = $request->mont_rec; //$amortizado->monto;// 
-            $recibo->fech_rec = $request->fech_rec; //Date('Y-m-d');/// 
-            $recibo->cliente_id = $request->cliente_id; //$amortizado->cliente_id; // 
+            $recibo->mont_rec = $request->mont_rec; //$amortizado->monto;//
+            $recibo->fech_rec = $request->fech_rec; //Date('Y-m-d');///
+            $recibo->cliente_id = $request->cliente_id; //$amortizado->cliente_id; //
             $recibo->fpag_rec = $request->fpag_rec; //$amortizado->fecha;//
             $recibo->obse_rec = $request->obse_rec;
             $recibo->vendedor_id = $request->vendedor_id;
@@ -199,6 +209,8 @@ class AmortizacionesController extends Controller
             $recibo->insercion = 'MANUAL';
             $recibo->usuario = $user->name;
             $recibo->num_recibo = $result[0];
+            $recibo->id_local = $request->id_local ?? null;
+            $recibo->fecha_offline_created = !empty($request->fecha_offline_created) ? $request->fecha_offline_created : null;
 
             if ($es_movil) {
                 $recibo->estado_liquidacion = 'PENDIENTE';
