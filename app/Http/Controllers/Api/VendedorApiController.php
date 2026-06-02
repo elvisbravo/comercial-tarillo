@@ -31,6 +31,13 @@ class VendedorApiController extends Controller
     {
         $user = Auth::user();
 
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'No autenticado.',
+            ], 401);
+        }
+
         if (!$this->esVendedor($user)) {
             return response()->json([
                 'status'  => false,
@@ -40,7 +47,7 @@ class VendedorApiController extends Controller
 
         $vendedor = $this->resolveVendedor($user);
         $fechaHoy = date('Y-m-d');
-        $idsede   = $user->sede_id;
+        $idsede   = $user->sede_id ?? 0;
 
         // 1) Sectores asignados hoy
         $sectoresAsignados = VendedorSector::where('vendedor_id', $user->id)
@@ -133,7 +140,7 @@ class VendedorApiController extends Controller
 
         $vendedor = $this->resolveVendedor($user);
         $fechaHoy = date('Y-m-d');
-        $idsede   = $user->sede_id;
+        $idsede   = $user->sede_id ?? 0;
 
         list($totalStockUnits, $totalStockItems, $stockDetalle) =
             $this->calcularStock($user, $vendedor, $idsede, $fechaHoy);
@@ -203,9 +210,12 @@ class VendedorApiController extends Controller
             return [0, 0, []];
         }
 
-        $envio = (new FuncionesController)->tipo_envio_sunat();
+        // Obtener tipo_envio directamente de la sede (sin usar session)
+        $sede = DB::table('sedes')->where('id', $idsede)->first();
+        $envio = $sede->tipo_envio ?? 1;
 
-        $loadedByProduct = DB::table('detalle_traslado as dt')
+        // Cargar productos del día (traslados CAR)
+        $loadedRaw = DB::table('detalle_traslado as dt')
             ->join('traslados as t', 't.id', '=', 'dt.traslado_id')
             ->where('t.serie', 'CAR')
             ->where('t.cliente_id', $user->id)
@@ -213,18 +223,29 @@ class VendedorApiController extends Controller
             ->where('t.estado', 1)
             ->where('dt.estado', 1)
             ->groupBy('dt.producto_id')
-            ->pluck(DB::raw('SUM(dt.cantidad)'), 'dt.producto_id')
-            ->toArray();
+            ->select('dt.producto_id', DB::raw('SUM(dt.cantidad) as total_cargado'))
+            ->get();
 
-        $soldByProduct = DB::table('detalle_venta as dv')
+        $loadedByProduct = [];
+        foreach ($loadedRaw as $row) {
+            $loadedByProduct[$row->producto_id] = $row->total_cargado;
+        }
+
+        // Productos vendidos hoy
+        $soldRaw = DB::table('detalle_venta as dv')
             ->join('ventas as v', 'v.id', '=', 'dv.venta_id')
             ->where('v.vendedor_id', $vendedor->id)
             ->where('v.fecha', $fechaHoy)
             ->where('v.venta_estado', 1)
             ->where('v.tipo_envio', $envio)
             ->groupBy('dv.producto_id')
-            ->pluck(DB::raw('SUM(dv.cantidad)'), 'dv.producto_id')
-            ->toArray();
+            ->select('dv.producto_id', DB::raw('SUM(dv.cantidad) as total_vendido'))
+            ->get();
+
+        $soldByProduct = [];
+        foreach ($soldRaw as $row) {
+            $soldByProduct[$row->producto_id] = $row->total_vendido;
+        }
 
         $nombres = [];
         if (!empty($loadedByProduct)) {

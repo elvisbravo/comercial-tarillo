@@ -49,12 +49,12 @@ class VentaApiController extends Controller
             'productos'            => $productosHoy['items'] ?? [],
             'moviles_ubicacion_id' => $productosHoy['_moviles_ubicacion_id'] ?? 0,
             'clientes'             => $this->clientesPorSectores($sectoresIds),
-            'comprobantes'     => Tipo_comprobantes::whereIn('id', [1, 2, 9])->get(['id', 'nombre']),
+            'comprobantes'     => Tipo_comprobantes::whereIn('id', [1, 2, 9])->get(['id', 'descripcion as nombre']),
             'tipo_documentos'  => Tipo_documento::all(['id', 'nombre']),
-            'forma_pagos'      => DB::table('forma_pagos')->orderBy('id')->get(['id', 'nombre']),
+            'forma_pagos'      => DB::table('forma_pagos')->orderBy('id')->get(['id', 'descripcion as nombre']),
             'bancos'           => DB::table('cuentas_bancarias as cb')
                 ->join('bancos as b', 'b.id', '=', 'cb.banco_id')
-                ->select('cb.id', 'b.nombre as banco', 'cb.numero_cuenta', 'cb.cci')
+                ->select('cb.id', 'b.nombre as banco', 'cb.cuenta_corriente as numero_cuenta', 'cb.cuenta_cci as cci')
                 ->get(),
             'sectores'         => Sector::where('estado', 'ACTIVO')
                 ->get(['id', 'nomb_sec'])
@@ -213,7 +213,7 @@ class VentaApiController extends Controller
                 $j->on('dp.producto_id', '=', 'p.id')
                   ->where('dp.ubicacion_id', '=', $ubicacion->id);
             })
-            ->leftJoin('precios as pr', 'pr.producto_id', '=', 'p.id')
+            ->leftJoin('precios as pr', 'pr.articulo_id', '=', 'p.id')
             ->where('t.serie', 'CAR')
             ->where('t.cliente_id', $user->id)
             ->where('t.fecha', $fechaHoy)

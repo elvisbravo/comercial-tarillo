@@ -120,10 +120,10 @@ class CobrosApiController extends Controller
                 'nombre' => $vendedor->nombre,
             ],
             'creditos'     => $creditos,
-            'forma_pagos'  => DB::table('forma_pagos')->orderBy('id')->get(['id', 'nombre']),
+            'forma_pagos'  => DB::table('forma_pagos')->orderBy('id')->get(['id', 'descripcion as nombre']),
             'bancos'       => DB::table('cuentas_bancarias as cb')
                 ->join('bancos as b', 'b.id', '=', 'cb.banco_id')
-                ->select('cb.id', 'b.nombre as banco', 'cb.numero_cuenta', 'cb.cci')
+                ->select('cb.id', 'b.nombre as banco', 'cb.cuenta_corriente as numero_cuenta', 'cb.cuenta_cci as cci')
                 ->get(),
             'sectores'     => Sector::where('estado', 'ACTIVO')
                 ->get(['id', 'nomb_sec'])
@@ -231,6 +231,7 @@ class CobrosApiController extends Controller
         $request->merge([
             'es_movil'    => true,
             'vendedor_id' => $vendedor->id,
+            'forma_pago_id' => $request->forma_pago_id ?? 1, // Default a 1 (Efectivo) si no se envía
         ]);
 
         // Inyectar la sesión "key" para que AmortizacionesController@crear

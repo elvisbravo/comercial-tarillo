@@ -220,7 +220,7 @@ class AmortizacionesController extends Controller
 
             $serviciomovimiento = new FuncionesController;
             $estado_mov = $es_movil ? 0 : 1;
-            $recibo->id_movimiento = $serviciomovimiento->generar_movimiento("INGRESO", $request->fpag_rec, 1, $request->mont_rec, "PAGO DE CUOTAS DE CREDITO", 1, 1, $result[0], $estado_mov);
+            $recibo->id_movimiento = $serviciomovimiento->generar_movimiento("INGRESO", $request->forma_pago_id ?? 1, 1, $request->mont_rec, "PAGO DE CUOTAS DE CREDITO", 1, 1, $result[0], $estado_mov);
             $recibo->sede_id = $idsede;
             Log::info('Contenido del Recibo antes de guardar', $recibo->toArray());
             $recibo->save();
