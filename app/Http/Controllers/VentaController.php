@@ -92,7 +92,8 @@ class VentaController extends Controller
                 'ventas.tipo_comprobante_id',
                 'ventas.estado_nota',
                 'ventas.serie_nota_credito',
-                'ventas.numero_nota_credito'
+                'ventas.numero_nota_credito',
+                'ventas.tipo_pago_id'
             )
             ->where('ventas.tipo_envio', '=', $envio)
             ->where('ventas.sede_id', '=', $idsede);

@@ -47,6 +47,7 @@
                                     <th>COMPROBANTE</th>
                                     <th>CLIENTE</th>
                                     <th>MONTO</th>
+                                    <th>TIPO VENTA</th>
                                     <th>ACEPTADO SUNAT</th>
                                     <th>ACCIONES</th>
                                 </tr>

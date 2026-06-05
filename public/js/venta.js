@@ -76,6 +76,17 @@ function listadoventas() {
                 defaultContent: "",
             },
             {
+                data: "tipo_pago_id",
+                className: "text-left align-middle",
+                render: function (data, type, row) {
+                    if (row.tipo_pago_id == 1) {
+                        return '<div class="badge badge-soft-success font-size-12">CONTADO</div>';
+                    } else {
+                        return '<div class="badge badge-soft-warning font-size-12">CREDITO</div>';
+                    }
+                },
+            },
+            {
                 data: "aceptado_sunat",
                 className: "text-left align-middle",
                 render: function (data, type, row) {
