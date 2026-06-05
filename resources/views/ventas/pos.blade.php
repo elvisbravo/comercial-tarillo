@@ -393,11 +393,11 @@ Pos
 <div class="modal fade" tabindex="-1" role="dialog" aria-labelledby="modalCreditoActivoLabel" aria-hidden="true" id="modal_credito_activo">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
+            <div class="modal-header bg-warning">
                 <h5 class="modal-title" id="modalCreditoActivoLabel">
                     <i class="fas fa-exclamation-triangle"></i> Cliente con crédito activo
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <p class="mb-3" id="cred_mensaje"></p>
@@ -494,7 +494,10 @@ Pos
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" id="btnProcederCredito">
+                    <i class="fas fa-check"></i> Proceder con la venta al crédito
+                </button>
             </div>
         </div>
     </div>

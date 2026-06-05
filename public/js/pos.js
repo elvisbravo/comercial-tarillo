@@ -817,10 +817,15 @@ total_recibido.addEventListener("keyup", (e) => {
 });
 
 guardarVenta.addEventListener("click", (e) => {
-    e.target.disabled = true;
+    enviarVenta(e.target, false);
+});
+
+function enviarVenta(btn, confirmarCredito) {
+    btn.disabled = true;
 
     if (documento.value === "2" && tipoDocumentoIdentidad.value != "6") {
         alert("Para Facturas es necesario ingresar un ruc");
+        btn.disabled = false;
         return false;
     }
 
@@ -832,6 +837,9 @@ guardarVenta.addEventListener("click", (e) => {
     }
 
     formData1.append("_token", csrf);
+    if (confirmarCredito) {
+        formData1.append("confirmar_credito", "1");
+    }
 
     fetch(urlgeneral + "/generar_venta", {
         method: "POST",
@@ -843,6 +851,8 @@ guardarVenta.addEventListener("click", (e) => {
                 $("#view_modal_cobrar").modal("hide");
                 window.location.href = urlgeneral + "/pos";
                 window.open(urlgeneral + "/venta/ticket/" + data.id);
+            } else if (data.respuesta == "warning" && data.credito_activo && data.credito) {
+                mostrarCreditoActivo(data.credito, data.mensaje);
             } else {
                 if (data.credito_activo && data.credito) {
                     mostrarCreditoActivo(data.credito, data.mensaje);
@@ -854,15 +864,15 @@ guardarVenta.addEventListener("click", (e) => {
                     alert("Error desconocido. Revisa la consola del navegador.");
                     console.error("Respuesta del servidor:", data);
                 }
-                e.target.disabled = false;
+                btn.disabled = false;
             }
         })
         .catch((err) => {
             alert("Error de comunicación: " + err.message);
             console.error(err);
-            e.target.disabled = false;
+            btn.disabled = false;
         });
-});
+}
 
 function validar_caja() {
     fetch(urlgeneral + "/caja/validar")
@@ -930,3 +940,8 @@ function mostrarCreditoActivo(cred, mensaje) {
 
     $("#modal_credito_activo").modal("show");
 }
+
+document.getElementById("btnProcederCredito").addEventListener("click", () => {
+    $("#modal_credito_activo").modal("hide");
+    enviarVenta(guardarVenta, true);
+});

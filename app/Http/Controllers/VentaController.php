@@ -327,7 +327,7 @@ class VentaController extends Controller
                 $cliente_->save();
             }
 
-            // Si es venta a crédito, bloquear si el cliente ya tiene un crédito activo en cualquier sede
+            // Si es venta a crédito, advertir si el cliente ya tiene un crédito activo en cualquier sede
             if ($post['tipo_venta'] == 2) {
                 $creditoActivo = Creditos::with('Detalle')
                     ->where('cliente_id', $id_cliente)
@@ -337,8 +337,6 @@ class VentaController extends Controller
                     ->first();
 
                 if ($creditoActivo) {
-                    DB::rollBack();
-
                     $sede = $creditoActivo->sede_id ? Sede::find($creditoActivo->sede_id) : null;
 
                     $venta = $creditoActivo->id_venta
@@ -373,25 +371,31 @@ class VentaController extends Controller
                     $cuotasVencidas = $cuotasDetalle->where('vencida', true)->count();
                     $saldoPendiente = $cuotasDetalle->where('estado', 'PENDIENTE')->sum('saldo');
 
-                    $json = array(
-                        "respuesta"      => "error",
-                        "credito_activo" => true,
-                        "mensaje"        => "El cliente ya tiene un crédito activo, no se puede registrar otra venta a crédito.",
-                        "credito"        => array(
-                            "id"              => $creditoActivo->id,
-                            "sede"            => $sede ? $sede->nombre : 'Desconocida',
-                            "fecha_credito"   => $creditoActivo->fech_cre,
-                            "fecha_venta"     => $venta ? $venta->fecha : null,
-                            "comprobante"     => $venta ? ($venta->serie_comprobante . '-' . $venta->numero_comprobante) : null,
-                            "monto_total"     => (float) $creditoActivo->mont_cre,
-                            "saldo_pendiente" => (float) $saldoPendiente,
-                            "cuotas_vencidas" => $cuotasVencidas,
-                            "cuotas_totales"  => $cuotasDetalle->count(),
-                            "productos"       => $productos,
-                            "cuotas"          => $cuotasDetalle->values()->all(),
-                        ),
-                    );
-                    return response()->json($json);
+                    // Si el front no confirma explícitamente, devolvemos una advertencia
+                    // en lugar de bloquear la venta al crédito.
+                    if (empty($post['confirmar_credito'])) {
+                        DB::rollBack();
+
+                        $json = array(
+                            "respuesta"      => "warning",
+                            "credito_activo" => true,
+                            "mensaje"        => "El cliente ya tiene un crédito activo. ¿Desea proceder con la venta al crédito de todas formas?",
+                            "credito"        => array(
+                                "id"              => $creditoActivo->id,
+                                "sede"            => $sede ? $sede->nombre : 'Desconocida',
+                                "fecha_credito"   => $creditoActivo->fech_cre,
+                                "fecha_venta"     => $venta ? $venta->fecha : null,
+                                "comprobante"     => $venta ? ($venta->serie_comprobante . '-' . $venta->numero_comprobante) : null,
+                                "monto_total"     => (float) $creditoActivo->mont_cre,
+                                "saldo_pendiente" => (float) $saldoPendiente,
+                                "cuotas_vencidas" => $cuotasVencidas,
+                                "cuotas_totales"  => $cuotasDetalle->count(),
+                                "productos"       => $productos,
+                                "cuotas"          => $cuotasDetalle->values()->all(),
+                            ),
+                        );
+                        return response()->json($json);
+                    }
                 }
             }
 
