@@ -91,17 +91,18 @@ function listadoventas() {
                 className: "text-left align-middle",
                 render: function (data, type, row) {
                     let html = "";
-                    if (row.aceptado_sunat == 1) {
-                        html +=
-                            '<div class="badge badge-soft-success font-size-12">SI</div> ';
-                    } else {
-                        html +=
-                            '<div class="badge badge-soft-danger font-size-12">NO</div> ';
-                    }
 
-                    if (row.tipo_comprobante_id == 5 && row.estado_nota == 2) {
-                        html +=
-                            '<div class="badge badge-soft-danger font-size-12">ELIMINADO</div>';
+                    // Verificar si está eliminada
+                    let eliminada = row.venta_estado == 0 || row.estado_nota == 2 || row.fecha_eliminacion;
+
+                    if (eliminada) {
+                        html += '<div class="badge badge-soft-danger font-size-12">ELIMINADO</div>';
+                    } else {
+                        if (row.aceptado_sunat == 1) {
+                            html += '<div class="badge badge-soft-success font-size-12">SI</div> ';
+                        } else {
+                            html += '<div class="badge badge-soft-danger font-size-12">NO</div> ';
+                        }
                     }
                     return html;
                 },
@@ -127,11 +128,19 @@ function listadoventas() {
                         row.tipo_comprobante_id == 1 ||
                         row.tipo_comprobante_id == 2
                     ) {
-                        if (row.aceptado_sunat != 1) {
-                            actions += `<li><a class="dropdown-item" href="#" onclick="enviar_comprobante(event, ${row.id})">Enviar Sunat</a></li>`;
-                        }
-                        if (row.aceptado_sunat == 1) {
-                            actions += `<li><a class="dropdown-item" href="#" onclick="generarNotaCredito(event, ${row.id})">Crear nota de crédito</a></li>`;
+                        // Verificar si está eliminada
+                        let eliminada = row.venta_estado == 0 || row.estado_nota == 2 || row.fecha_eliminacion;
+
+                        if (!eliminada) {
+                            if (row.aceptado_sunat != 1) {
+                                actions += `<li><a class="dropdown-item" href="#" onclick="enviar_comprobante(event, ${row.id})">Enviar Sunat</a></li>`;
+                                if (typeof canDelete !== "undefined" && canDelete) {
+                                    actions += `<li><a class="dropdown-item text-danger" href="#" onclick="eliminarVenta(event, ${row.id})">Eliminar Venta</a></li>`;
+                                }
+                            }
+                            if (row.aceptado_sunat == 1) {
+                                actions += `<li><a class="dropdown-item" href="#" onclick="generarNotaCredito(event, ${row.id})">Crear nota de crédito</a></li>`;
+                            }
                         }
                     } else {
                         if (row.estado_nota == 1) {
@@ -256,6 +265,63 @@ function generarNotaVenta(e, id) {
                             showConfirmButton: false,
                         });
                     }
+                });
+        }
+    });
+}
+
+function eliminarVenta(e, id) {
+    e.preventDefault();
+    Swal.fire({
+        title: "¿Dese eliminar esta venta?",
+        text: "Se devolverá el stock al almacén y se registrará en el kardex. No podrás revertir esto!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Si, eliminar!",
+        cancelButtonText: "Cancelar",
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $("#modalEnviar").modal("show");
+            document.getElementById("mensajeConfirmacion").textContent =
+                "Eliminando Venta";
+            fetch(urlgeneral + "/eliminar-venta/" + id)
+                .then((res) => res.json())
+                .then((data) => {
+                    $("#modalEnviar").modal("hide");
+                    if (data.respuesta == "ok") {
+                        Swal.fire({
+                            position: "top-center",
+                            icon: "success",
+                            title: data.mensaje,
+                            showConfirmButton: false,
+                            timer: 2500,
+                        });
+                        // Recargar manteniendo paginación actual
+                        $("#datatable").DataTable().ajax.reload(null, false);
+                    } else {
+                        Swal.fire({
+                            position: "top-center",
+                            icon: "error",
+                            title: data.mensaje || "Intente de nuevo o comuniquese con el administrador del sistema",
+                            showConfirmButton: false,
+                        }).then(() => {
+                            // Recargar tabla también en error para sincronizar estado
+                            $("#datatable").DataTable().ajax.reload(null, false);
+                        });
+                    }
+                })
+                .catch(() => {
+                    $("#modalEnviar").modal("hide");
+                    Swal.fire({
+                        position: "top-center",
+                        icon: "error",
+                        title: "Error de conexión. Intente de nuevo.",
+                        showConfirmButton: false,
+                    }).then(() => {
+                        $("#datatable").DataTable().ajax.reload(null, false);
+                    });
                 });
         }
     });

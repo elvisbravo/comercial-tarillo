@@ -1316,6 +1316,113 @@ class VentaController extends Controller
     }
 
     /**
+     * Eliminar una venta (Factura, Boleta) - devuelve stock y registra kardex
+     * Validación: Si la venta tiene crédito asociado con cuotas pendientes, no permite eliminar
+     */
+    public function eliminarVenta($id)
+    {
+        DB::beginTransaction();
+        try {
+            $venta = Venta::find($id);
+
+            if (!$venta) {
+                return response()->json([
+                    'respuesta' => 'error',
+                    'mensaje' => 'Venta no encontrada'
+                ]);
+            }
+
+            // Verificar que no esté ya eliminada (por otro usuario o sesión)
+            if ($venta->venta_estado == 0 || $venta->estado_nota == 2 || !empty($venta->fecha_eliminacion)) {
+                return response()->json([
+                    'respuesta' => 'error',
+                    'mensaje' => 'Esta venta ya fue eliminada por otro usuario. Recargue la página.'
+                ]);
+            }
+
+            // Validar si la venta tiene crédito asociado con cuotas pendientes
+            $credito = Creditos::where('id_venta', '=', $id)
+                ->where('esta_cre', '=', '1')
+                ->whereNull('f_anulacion')
+                ->first();
+
+            if ($credito) {
+                // Verificar si hay cuotas pendientes
+                $cuotasPendientes = Cuotas::where('credito_id', '=', $credito->id)
+                    ->where('esta_cuo', '=', 'PENDIENTE')
+                    ->count();
+
+                if ($cuotasPendientes > 0) {
+                    DB::rollBack();
+                    return response()->json([
+                        'respuesta' => 'error',
+                        'mensaje' => "No se puede eliminar la venta. Existe un crédito activo con $cuotasPendientes cuota(s) pendiente(s) de cobro. Primero debe cobrar o anular las cuotas pendientes."
+                    ]);
+                }
+
+                // Si no hay cuotas pendientes, cancelar el crédito
+                $credito->esta_cre = '2'; // Cancelado
+                $credito->f_anulacion = date('Y-m-d');
+                $credito->cancelacion = 'ANULACION_VENTA';
+                $credito->save();
+            }
+
+            // Marcar como eliminada
+            $venta->fecha_eliminacion = date('Y-m-d');
+            $venta->user_eliminacion = session('key')->id;
+            $venta->venta_estado = 0; // Marcar como anulada
+            $venta->save();
+
+            $servicios = new FuncionesController;
+
+            // Restaurar stock y registrar kardex para cada producto
+            $detalle_venta = Detalle_venta::where('venta_id', '=', $id)->get();
+
+            foreach ($detalle_venta as $value) {
+                // Restaurar stock (tipo=1 para aumentar)
+                $servicios->aumentar_descontar_stock(1, $value->ubicacion_id, $value->producto_id, $value->cantidad, $venta->tipo_envio);
+
+                // Registrar movimiento en kardex (tipo=1 entrada, tipo_comprobante=5 para anulación)
+                $servicios->movimiento_kardex_producto(
+                    $value->ubicacion_id,
+                    $value->producto_id,
+                    $value->cantidad,
+                    1, // tipo=1 entrada
+                    "ANULACION VENTA",
+                    $venta->serie_comprobante,
+                    $venta->numero_comprobante,
+                    $value->precio,
+                    5, // tipo_comprobante=5 (anulación)
+                    date('Y-m-d'),
+                    date('Y-m-d')
+                );
+            }
+
+            // Anular el movimiento de caja asociado si existe
+            $forma_pago = Venta_formapago::where('venta_id', '=', $id)->first();
+            if ($forma_pago && $forma_pago->movimiento_id) {
+                DB::table('movimientos')->where('id', $forma_pago->movimiento_id)->update(['estado' => 0]);
+            }
+
+            DB::commit();
+
+            $mensajeCredito = $credito ? ' Crédito asociado cancelado.' : '';
+
+            return response()->json([
+                'respuesta' => 'ok',
+                'mensaje' => 'Venta eliminada correctamente. Stock devuelto y kardex registrado.' . $mensajeCredito
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'respuesta' => 'error',
+                'mensaje' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request

@@ -293,6 +293,7 @@ Route::resource('ventas', 'VentaController');
 Route::get('enviar-comprobante/{id}', 'VentaController@enviar_comprobante');
 Route::post('generar-nota-credito', 'VentaController@generarNotaCredito');
 Route::get('delete-nota-venta/{id}', 'VentaController@deleteNotaVenta');
+Route::get('eliminar-venta/{id}', 'VentaController@eliminarVenta');
 
 
 //CONTROLADOR HISTORICO CAJA
