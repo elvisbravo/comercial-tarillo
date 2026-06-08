@@ -39,6 +39,7 @@ Route::get('sedes/correlativos/{id}', 'SedeController@correlativos');
 Route::post('sedes/select_comprobante', 'SedeController@select_comprobante');
 Route::post('sedes/guardar_correlativos', 'SedeController@guardar_correlativos');
 Route::post('sedes/seleccionar_sede', 'SedeController@seleccionar_sede');
+Route::get('sedes/eliminar_correlativo/{id}', 'SedeController@eliminar_correlativo');
 
 //CONTROLADOR PARA ALMACENES
 Route::get('almacenes/render', 'AlmacenController@render');
@@ -505,6 +506,8 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('ventas-moviles/historial-cargas', 'MobileSalesController@cargarStockHistorial')->name('admin.cargar_stock.historial');
     Route::get('ventas-moviles/historial-cargas/detalle/{id}', 'MobileSalesController@cargarStockDetalle')->name('admin.cargar_stock.detalle');
     Route::post('ventas-moviles/historial-cargas/anular/{id}', 'MobileSalesController@anularCargaStock')->name('admin.cargar_stock.anular');
+    Route::post('ventas-moviles/historial-cargas/agregar-productos', 'MobileSalesController@agregarProductosCarga')->name('admin.cargar_stock.agregar_productos');
+    Route::get('ventas-moviles/productos-stock', 'MobileSalesController@productosStockAlmacen')->name('admin.cargar_stock.productos_stock');
     Route::get('ventas-moviles/asignar-ruta', 'MobileSalesController@asignarRutaIndex')->name('admin.asignar');
     Route::post('ventas-moviles/asignar-ruta/guardar', 'MobileSalesController@asignarRutaGuardar')->name('admin.asignar.guardar');
     Route::delete('ventas-moviles/asignar-ruta/eliminar/{id}', 'MobileSalesController@asignarRutaEliminar')->name('admin.asignar.eliminar');
@@ -513,6 +516,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('vendedor/dashboard', 'MobileSalesController@vendedorDashboard')->name('vendedor.dashboard');
     Route::get('vendedor/venta', 'MobileSalesController@vendedorVenta')->name('vendedor.venta');
     Route::post('vendedor/venta/guardar', 'MobileSalesController@vendedorVentaGuardar')->name('vendedor.venta.guardar');
+    Route::get('vendedor/credito-parametros', 'MobileSalesController@vendedorCreditoParametros')->name('vendedor.credito.parametros');
     Route::get('vendedor/cobros', 'MobileSalesController@vendedorCobros')->name('vendedor.cobros');
     Route::post('vendedor/cobros/guardar', 'MobileSalesController@vendedorCobrosGuardar')->name('vendedor.cobros.guardar');
     Route::get('vendedor/stock', 'MobileSalesController@vendedorStock')->name('vendedor.stock');

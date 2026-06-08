@@ -304,6 +304,14 @@
                                     </button>
                                     @if($carga->estado == 1)
                                     <button type="button"
+                                            class="btn btn-outline-success btn-agregar-productos"
+                                            data-id="{{ $carga->id }}"
+                                            data-vendedor="{{ $carga->vendedor_nombre ?? 'Sin registro' }}"
+                                            data-codigo="{{ $carga->serie }}-{{ str_pad($carga->correlativo, 4, '0', STR_PAD_LEFT) }}"
+                                            title="Agregar más productos a esta carga">
+                                        <i class="mdi mdi-plus-circle-outline me-1"></i> Agregar
+                                    </button>
+                                    <button type="button"
                                             class="btn btn-outline-danger btn-anular-carga"
                                             data-id="{{ $carga->id }}"
                                             data-codigo="{{ $carga->serie }}-{{ str_pad($carga->correlativo, 4, '0', STR_PAD_LEFT) }}"
@@ -411,6 +419,64 @@
                         <i class="mdi mdi-close me-1"></i> Cerrar
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Agregar Productos --}}
+<div class="modal fade" id="modalAgregarProductos" tabindex="-1" aria-labelledby="modalAgregarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #065f46, #10b981); border-radius: 16px 16px 0 0; padding: 20px 24px;">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <i class="mdi mdi-plus-circle-outline" style="font-size: 22px; color: white;"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0 fw-bold text-white" id="modalAgregarLabel">Agregar Productos a la Carga</h5>
+                        <small style="color: rgba(255,255,255,0.75);">Código: <span id="agregar_codigo">—</span></small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="agregar_traslado_id" value="">
+                <input type="hidden" id="agregar_vendedor_id" value="">
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Vendedor</label>
+                    <input type="text" class="form-control" id="agregar_vendedor_nombre" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Buscar Producto</label>
+                    <select id="select_producto_buscar" class="form-select" style="border-radius: 8px;">
+                        <option value="">— Seleccionar producto —</option>
+                    </select>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm mb-0">
+                        <thead style="background: #f1f5f9;">
+                            <tr>
+                                <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b;">Producto</th>
+                                <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; width: 100px;">Cantidad</th>
+                                <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="agregar_productos_lista">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0 d-flex gap-2 justify-content-end">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                    <i class="mdi mdi-close me-1"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-success" id="btn_confirmar_agregar" style="border-radius: 10px; font-weight: 600;">
+                    <i class="mdi mdi-check-circle me-1"></i> Agregar Productos
+                </button>
             </div>
         </div>
     </div>
@@ -585,6 +651,114 @@ $(document).ready(function () {
     $('#modalAnularCarga').on('hidden.bs.modal', function () {
         $('.anular-error-msg').remove();
         anularCargaId = null;
+    });
+
+    // ---- AGREGAR PRODUCTOS ----
+    let productosAgregar = [];
+
+    $(document).on('click', '.btn-agregar-productos', function () {
+        const id = $(this).data('id');
+        const codigo = $(this).data('codigo');
+        const vendedor = $(this).data('vendedor');
+
+        $('#agregar_traslado_id').val(id);
+        $('#agregar_codigo').text(codigo);
+        $('#agregar_vendedor_nombre').val(vendedor);
+        $('#agregar_productos_lista').html('');
+        productosAgregar = [];
+
+        // Cargar productos disponibles en el almacén Stock
+        $('#select_producto_buscar').html('<option value="">Cargando...</option>');
+        $.ajax({
+            url: '{{ url("ventas-moviles/productos-stock") }}',
+            type: 'GET',
+            success: function (res) {
+                let html = '<option value="">— Seleccionar producto —</option>';
+                res.forEach(function (p) {
+                    html += '<option value="' + p.id + '" data-precio="' + p.precio_contado + '">' + p.nomb_pro + ' (Stock: ' + p.stock + ')</option>';
+                });
+                $('#select_producto_buscar').html(html);
+            },
+            error: function () {
+                $('#select_producto_buscar').html('<option value="">Error al cargar</option>');
+            }
+        });
+
+        $('#modalAgregarProductos').modal('show');
+    });
+
+    // Agregar producto a la lista
+    $('#select_producto_buscar').on('change', function () {
+        const val = $(this).val();
+        if (!val) return;
+
+        const text = $(this).find('option:selected').text();
+        const precio = $(this).find('option:selected').data('precio');
+        const nombre = text.split(' (Stock:')[0].trim();
+
+        // Verificar si ya está en la lista
+        if (productosAgregar.find(p => p.id == val)) {
+            alert('Este producto ya está en la lista');
+            return;
+        }
+
+        productosAgregar.push({ id: val, nombre: nombre, cantidad: 1, precio: precio });
+        renderListaAgregar();
+        $(this).val('');
+    });
+
+    function renderListaAgregar() {
+        let html = '';
+        productosAgregar.forEach(function (p, i) {
+            html += '<tr>';
+            html += '<td class="fw-bold text-dark" style="font-size: 13px;">' + p.nombre + '</td>';
+            html += '<td><input type="number" class="form-control form-control-sm text-center" value="' + p.cantidad + '" min="1" onchange="productosAgregar[' + i + '].cantidad = parseInt(this.value) || 1"></td>';
+            html += '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="productosAgregar.splice(' + i + ', 1); renderListaAgregar();"><i class="mdi mdi-trash-can-outline"></i></button></td>';
+            html += '</tr>';
+        });
+
+        if (productosAgregar.length === 0) {
+            html = '<tr><td colspan="3" class="text-center text-muted" style="padding: 20px;">Agregue productos usando el buscador</td></tr>';
+        }
+
+        $('#agregar_productos_lista').html(html);
+    }
+
+    // Confirmar agregar productos
+    $('#btn_confirmar_agregar').on('click', function () {
+        if (productosAgregar.length === 0) {
+            alert('Agregue al menos un producto');
+            return;
+        }
+
+        const $btn = $(this);
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Procesando...');
+
+        const formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('traslado_id', $('#agregar_traslado_id').val());
+        formData.append('productos', JSON.stringify(productosAgregar));
+
+        $.ajax({
+            url: '{{ url("ventas-moviles/historial-cargas/agregar-productos") }}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (res) {
+                $('#modalAgregarProductos').modal('hide');
+                var alertHtml = '<div class="alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3 shadow-lg" style="z-index:9999; border-radius:12px; min-width:360px;">' +
+                    '<i class="mdi mdi-check-circle me-2"></i> ' + res.success +
+                    '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+                $('body').prepend(alertHtml);
+                setTimeout(function () { location.reload(); }, 1800);
+            },
+            error: function (xhr) {
+                $btn.prop('disabled', false).html('<i class="mdi mdi-check-circle me-1"></i> Agregar Productos');
+                const msg = xhr.responseJSON ? xhr.responseJSON.error : 'Error desconocido';
+                alert(msg);
+            }
+        });
     });
 });
 </script>

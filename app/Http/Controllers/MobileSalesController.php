@@ -17,6 +17,7 @@ use App\StokLocation;
 use App\Detalle_almacen_productos;
 use App\Traslado;
 use App\Detalle_traslado;
+use App\StockVendedor;
 use App\Almacen;
 use App\Tipo_comprobantes;
 use App\Tipo_documento;
@@ -252,34 +253,28 @@ class MobileSalesController extends Controller
         $servicios = new FuncionesController;
         $envio = $servicios->tipo_envio_sunat();
 
-        // Productos cargados HOY a la furgoneta de este vendedor (solo de la fecha actual)
+        // Productos cargados HOY a la furgoneta de este vendedor (de stock_vendedor)
         $fechaHoy = date('Y-m-d');
-        $productos = DB::table('detalle_traslado as dt')
-            ->join('traslados as t', 't.id', '=', 'dt.traslado_id')
-            ->join('productos as p', 'p.id', '=', 'dt.producto_id')
-            ->leftJoin('detalle_almacen_productos as dp', function($join) use ($ubicacion_id, $envio) {
-                $join->on('dp.producto_id', '=', 'p.id')
-                     ->where('dp.ubicacion_id', '=', $ubicacion_id)
-                     ->where('dp.tipo_envio', '=', $envio);
-            })
+        $productos = DB::table('stock_vendedor as sv')
+            ->join('productos as p', 'p.id', '=', 'sv.producto_id')
             ->leftJoin('precios as pr', 'pr.articulo_id', '=', 'p.id')
             ->select(
                 'p.id',
                 'p.nomb_pro',
-                DB::raw('COALESCE(dp.stock, 0) as stock'),
+                DB::raw('SUM(sv.cantidad_disponible) as stock'),
                 'pr.precio_contado',
                 'pr.precio_credito'
             )
-            ->where('t.serie', '=', 'CAR')
-            ->where('t.cliente_id', '=', $usuario->id)
-            ->where('t.fecha', '=', $fechaHoy)
-            ->where('t.estado', '=', 1)
-            ->where('dt.estado', '=', 1)
+            ->where('sv.vendedor_id', '=', $usuario->id)
+            ->where('sv.fecha_carga', '=', $fechaHoy)
+            ->where('sv.estado', '=', 1) // solo activos
             ->where('p.estado', '=', '1')
-            ->where(DB::raw('COALESCE(dp.stock, 0)'), '>', 0)
-            ->distinct()
+            ->groupBy('p.id', 'p.nomb_pro', 'pr.precio_contado', 'pr.precio_credito')
             ->orderBy('p.nomb_pro', 'asc')
             ->get();
+
+        // Filtrar solo productos con stock disponible > 0
+        $productos = $productos->filter(function($p) { return $p->stock > 0; })->values();
 
         // Clientes de los sectores asignados para hoy
         $sectoresIds = VendedorSector::where('vendedor_id', $usuario->id)
@@ -292,7 +287,7 @@ class MobileSalesController extends Controller
                             ->get();
 
         // Tipos de comprobante
-        $comprobantes = Tipo_comprobantes::whereIn('id', [1, 2, 9])->get(); // Boleta, Factura, Nota de Venta
+        $comprobantes = Tipo_comprobantes::whereIn('id', [1, 2, 5])->orderBy('id', 'asc')->get(); // Boleta, Factura, Nota de Venta
 
         // Documentos de identidad
         $tipo_documento = Tipo_documento::all();
@@ -307,11 +302,12 @@ class MobileSalesController extends Controller
         $sectores = Sector::where('estado', 'ACTIVO')->get();
 
         return view('ventas_moviles.venta', compact(
-            'vendedor', 
-            'productos', 
-            'clientes', 
-            'comprobantes', 
-            'tipo_documento', 
+            'vendedor',
+            'usuario',
+            'productos',
+            'clientes',
+            'comprobantes',
+            'tipo_documento',
             'ubicacion_id',
             'forma_pagos',
             'bancos',
@@ -328,6 +324,25 @@ class MobileSalesController extends Controller
         // Reutilizar la lógica de venta existente para mantener la integridad de la base de datos
         $ventaController = new VentaController;
         return $ventaController->generar_venta($request);
+    }
+
+    public function vendedorCreditoParametros(Request $request)
+    {
+        // Obtener parámetros de crédito definidos por la empresa (candados)
+        $candados = DB::table('candados')
+            ->where('estado', 1)
+            ->orderBy('rango_minimo', 'asc')
+            ->get(['rango_minimo', 'rango_maximo', 'nmeses', 'monto_inicial']);
+
+        // Obtener conceptos de crédito
+        $conceptos = DB::table('concepto_credito')
+            ->where('estado', 1)
+            ->get(['id', 'name']);
+
+        return response()->json([
+            'candados' => $candados,
+            'conceptos' => $conceptos
+        ]);
     }
 
     public function vendedorCobros(Request $request)
@@ -749,6 +764,14 @@ class MobileSalesController extends Controller
                 }
             }
 
+            // 3. Marcar todos los traslados CAR del día como cerrados (para que no aparezcan en venta del vendedor)
+            DB::table('traslados')
+                ->where('cliente_id', $vendedor->usuario_id)
+                ->where('serie', 'CAR')
+                ->where('fecha', date('Y-m-d'))
+                ->where('estado', 1)
+                ->update(['estado' => 0]);
+
             DB::commit();
             return redirect()->route('vendedor.dashboard')->with('success', 'El retorno de mercadería fue procesado con éxito.');
         } catch (\Exception $e) {
@@ -760,23 +783,27 @@ class MobileSalesController extends Controller
     // C. Asignación de Ruta
     public function asignarRutaIndex(Request $request)
     {
-        // Obtener sede activa de la sesión
         $idsede = session('key')->sede_id;
 
-        // Obtener usuarios activos de esta sede con rol ID 6 y asegurar que tengan registro de vendedor creado/activo
-        $usuariosVendedores = \App\User::where('sede_id', $idsede)
-            ->where('estado', 1)
-            ->whereHas('roles', function($q) {
-                $q->where('id', 6);
-            })->get();
+        // Obtener usuarios directamente de la tabla users unidos con model_has_roles para rol_id = 6
+        $usuariosVendedores = DB::table('users')
+            ->join('model_has_roles', 'model_has_roles.model_id', '=', 'users.id')
+            ->where('model_has_roles.role_id', 6)
+            ->where('users.sede_id', $idsede)
+            ->where('users.estado', 1)
+            ->select('users.*')
+            ->get();
 
+        // Asegurar que cada usuario tenga registro en vendedores
         foreach ($usuariosVendedores as $u) {
             $this->resolveVendedor($u);
         }
 
+        // Obtener vendedores activos cuyo usuario_id esté en la lista de usuarios con rol 6
         $vendedores = Vendedor::where('estado', 1)
-                              ->whereIn('usuario_id', $usuariosVendedores->pluck('id'))
+                              ->whereIn('usuario_id', collect($usuariosVendedores)->pluck('id'))
                               ->get();
+
         $sectores = Sector::where('estado', 'ACTIVO')->get();
 
         $historial = VendedorSector::with(['vendedor', 'sector'])
@@ -944,28 +971,59 @@ class MobileSalesController extends Controller
             
             $destino_id = $ubicacionDestino->id;
 
-            // 1. Crear documento de traslado para auditoría de la carga
-            $traslado = new Traslado;
-            $traslado->fecha = date('Y-m-d');
-            $traslado->hora = date('H:i:s');
-            $traslado->serie = 'CAR';
-            // Correlativo independiente por sede para evitar mezclas entre sedes
-            $ultimoTraslado = Traslado::where('serie', 'CAR')->where('sede_id', $idsede)->orderBy('id', 'desc')->first();
-            $traslado->correlativo = $ultimoTraslado ? ((int)$ultimoTraslado->correlativo + 1) : 1;
-            $traslado->almacen_origen = DB::table('stock_location')->where('id', $origen_id)->value('almacen_id');
-            $traslado->almacen_destino = DB::table('stock_location')->where('id', $destino_id)->value('almacen_id');
-            $traslado->id_ubicacion_origen = $origen_id;
-            $traslado->id_ubicacion_destino = $destino_id;
-            $traslado->motivo = 'CARGA DIARIA DE STOCK A MOVILES';
-            $traslado->cliente_id = $vendedor->id; // users.id del vendedor (rol_id = 6) para el historial
-            $traslado->estado = 1; // 1 = RECIBIDO
-            $traslado->tipo_envio = $envio;
-            $traslado->sede_id = $idsede;
-            $traslado->user_id = $user_id;
-            $traslado->user_recepcion = $user_id;
-            $traslado->fecha_recibido = date('Y-m-d');
-            $traslado->hora_recibido = date('H:i:s');
-            $traslado->save();
+            // 1. Verificar si ya existe un traslado CAR para este vendedor hoy
+            // Buscar por cliente_id y fecha sin filtrar por serie (la serie viene de correlativos)
+            $trasladoExistente = Traslado::where('cliente_id', $vendedor->id)
+                ->where('fecha', $fechaHoy)
+                ->where('estado', 1)
+                ->where('sede_id', $idsede)
+                ->first();
+
+            if ($trasladoExistente) {
+                // Reutilizar traslado existente
+                $traslado = $trasladoExistente;
+            } else {
+                // Obtener correlativo de la tabla correlativos según GUIA INTERNA (tipo_comprobante_id = 7)
+                $correlativoRecord = DB::table('correlativos')
+                    ->where('sede_id', $idsede)
+                    ->where('tipo_envio', $envio)
+                    ->where('tipo_comprobante_id', 7) // GUIA INTERNA
+                    ->first();
+
+                if (!$correlativoRecord) {
+                    throw new \Exception("No existe correlativo configurado para GUIA INTERNA en esta sede. Debe configurar el correlativo primero.");
+                }
+
+                // Usar la serie del correlativo (ej: CAR1, CAR, etc según lo configurado)
+                $serieTraslado = $correlativoRecord->serie;
+                $nuevoCorrelativo = $correlativoRecord->correlativo + 1;
+
+                // Actualizar correlativo
+                DB::table('correlativos')
+                    ->where('id', $correlativoRecord->id)
+                    ->update(['correlativo' => $nuevoCorrelativo]);
+
+                // Crear nuevo documento de traslado
+                $traslado = new Traslado;
+                $traslado->fecha = date('Y-m-d');
+                $traslado->hora = date('H:i:s');
+                $traslado->serie = $serieTraslado;
+                $traslado->correlativo = $nuevoCorrelativo;
+                $traslado->almacen_origen = DB::table('stock_location')->where('id', $origen_id)->value('almacen_id');
+                $traslado->almacen_destino = DB::table('stock_location')->where('id', $destino_id)->value('almacen_id');
+                $traslado->id_ubicacion_origen = $origen_id;
+                $traslado->id_ubicacion_destino = $destino_id;
+                $traslado->motivo = 'CARGA DIARIA DE STOCK A MOVILES';
+                $traslado->cliente_id = $vendedor->id; // users.id del vendedor (rol_id = 6) para el historial
+                $traslado->estado = 1; // 1 = RECIBIDO
+                $traslado->tipo_envio = $envio;
+                $traslado->sede_id = $idsede;
+                $traslado->user_id = $user_id;
+                $traslado->user_recepcion = $user_id;
+                $traslado->fecha_recibido = date('Y-m-d');
+                $traslado->hora_recibido = date('H:i:s');
+                $traslado->save();
+            }
 
             // 2. Procesar productos
             foreach ($productosIds as $productId) {
@@ -986,38 +1044,64 @@ class MobileSalesController extends Controller
                 // Descontar del origen (Almacén Principal)
                 $servicios->aumentar_descontar_stock(0, $origen_id, $productId, $cantidad, $envio);
 
-                // Aumentar en el destino (Moviles)
-                $stockDestinoRecord = Detalle_almacen_productos::where('ubicacion_id', $destino_id)
-                                                               ->where('producto_id', $productId)
-                                                               ->where('tipo_envio', $envio)
-                                                               ->first();
-                if (!$stockDestinoRecord) {
-                    $stockDestinoRecord = new Detalle_almacen_productos;
-                    $stockDestinoRecord->ubicacion_id = $destino_id;
-                    $stockDestinoRecord->producto_id = $productId;
-                    $stockDestinoRecord->tipo_envio = $envio;
-                    $stockDestinoRecord->stock = 0;
-                    $stockDestinoRecord->save();
-                }
-
-                $servicios->aumentar_descontar_stock(1, $destino_id, $productId, $cantidad, $envio);
-
                 // Registrar Kardex Salida (Origen)
                 $precio_unitario = DB::table('precios')->where('articulo_id', $productId)->value('precio_contado') ?? 0;
                 $descripSalida = 'CARGA DIARIA A MOVILES (Vendedor: ' . $vendedor->name . ')';
                 $servicios->movimiento_kardex_producto($origen_id, $productId, $cantidad, 2, $descripSalida, $traslado->serie, $traslado->correlativo, $precio_unitario, 9, date('Y-m-d'), date('Y-m-d'));
 
-                // Registrar Kardex Entrada (Destino)
+                // Verificar si el producto ya existe en el detalle_traslado de este traslado
+                $detalleExistente = Detalle_traslado::where('traslado_id', $traslado->id)
+                    ->where('producto_id', $productId)
+                    ->where('estado', 1)
+                    ->first();
+
+                if ($detalleExistente) {
+                    // Sumar a la cantidad existente
+                    $detalleExistente->cantidad += $cantidad;
+                    $detalleExistente->save();
+                } else {
+                    // Crear nuevo detalle del traslado
+                    $detalle = new Detalle_traslado;
+                    $detalle->producto_id = $productId;
+                    $detalle->traslado_id = $traslado->id;
+                    $detalle->cantidad = $cantidad;
+                    $detalle->estado = 1;
+                    $detalle->save();
+                }
+
+                // Registrar en stock_vendedor (NO en detalle_almacen_productos de moviles)
+                // Verificar si ya existe un registro para este producto en stock_vendedor del traslado actual
+                $stockVendedorExistente = StockVendedor::where('vendedor_id', $vendedor->id)
+                    ->where('producto_id', $productId)
+                    ->where('traslado_id', $traslado->id)
+                    ->where('estado', 1)
+                    ->first();
+
+                if ($stockVendedorExistente) {
+                    // Actualizar cantidades
+                    $stockVendedorExistente->cantidad_cargada += $cantidad;
+                    $stockVendedorExistente->cantidad_disponible += $cantidad;
+                    $stockVendedorExistente->save();
+                } else {
+                    // Crear nuevo registro en stock_vendedor
+                    StockVendedor::create([
+                        'vendedor_id' => $vendedor->id,
+                        'producto_id' => $productId,
+                        'traslado_id' => $traslado->id,
+                        'detalle_traslado_id' => $detalle->id,
+                        'cantidad_cargada' => $cantidad,
+                        'cantidad_vendida' => 0,
+                        'cantidad_disponible' => $cantidad,
+                        'sede_id' => $idsede,
+                        'tipo_envio' => $envio,
+                        'fecha_carga' => $fechaHoy,
+                        'estado' => 1,
+                    ]);
+                }
+
+                // Registrar Kardex Entrada (Destino - ubicación móviles)
                 $descripEntrada = 'CARGA DIARIA RECIBIDA EN MOVILES (Vendedor: ' . $vendedor->name . ')';
                 $servicios->movimiento_kardex_producto($destino_id, $productId, $cantidad, 1, $descripEntrada, $traslado->serie, $traslado->correlativo, $precio_unitario, 9, date('Y-m-d'), date('Y-m-d'));
-
-                // Crear detalle del traslado
-                $detalle = new Detalle_traslado;
-                $detalle->producto_id = $productId;
-                $detalle->traslado_id = $traslado->id;
-                $detalle->cantidad = $cantidad;
-                $detalle->estado = 1;
-                $detalle->save();
             }
 
             DB::commit();
@@ -1035,6 +1119,14 @@ class MobileSalesController extends Controller
         $servicios = new FuncionesController;
         $envio = $servicios->tipo_envio_sunat();
 
+        // Obtener las series configuradas para GUIA INTERNA (tipo_comprobante_id = 7) en correlativos
+        $seriesGuia = DB::table('correlativos')
+            ->where('sede_id', $idsede)
+            ->where('tipo_envio', $envio)
+            ->where('tipo_comprobante_id', 7)
+            ->pluck('serie')
+            ->toArray();
+
         $query = DB::table('traslados as t')
             ->leftJoin('vendedores as v', 'v.usuario_id', '=', 't.cliente_id')
             ->leftJoin('users as u', 'u.id', '=', 't.user_id')
@@ -1049,9 +1141,16 @@ class MobileSalesController extends Controller
                 'v.nombre as vendedor_nombre',
                 'u.name as usuario_nombre'
             )
-            ->where('t.serie', 'CAR')
             ->where('t.sede_id', $idsede)
-            ->where('t.tipo_envio', $envio);
+            ->where('t.tipo_envio', $envio)
+            ->where('t.motivo', 'CARGA DIARIA DE STOCK A MOVILES');
+
+        // Filtrar por series de correlativos si existen, sino buscar por serie que contenga 'CAR'
+        if (!empty($seriesGuia)) {
+            $query->whereIn('t.serie', $seriesGuia);
+        } else {
+            $query->where('t.serie', 'LIKE', 'CAR%');
+        }
 
         // Filtro por vendedor
         if ($request->filled('vendedor_id')) {
@@ -1115,6 +1214,160 @@ class MobileSalesController extends Controller
             'total_unidades' => $productos->sum('cantidad'),
             'total_valor'    => $productos->sum('subtotal'),
         ]);
+    }
+
+    // Productos disponibles en el almacén Stock (para agregar a una carga)
+    public function productosStockAlmacen()
+    {
+        $idsede = session('key')->sede_id;
+        $servicios = new FuncionesController;
+        $envio = $servicios->tipo_envio_sunat();
+
+        $almacenPrincipal = Almacen::where('sede_id', $idsede)->first();
+        $ubicacionStock = DB::table('stock_location')
+            ->where('almacen_id', $almacenPrincipal->id)
+            ->where('name', 'Stock')
+            ->first();
+
+        if (!$ubicacionStock) {
+            return response()->json([]);
+        }
+
+        $productos = DB::table('detalle_almacen_productos as dp')
+            ->join('productos as p', 'dp.producto_id', '=', 'p.id')
+            ->leftJoin('precios as pr', 'pr.articulo_id', '=', 'p.id')
+            ->select(
+                'p.id',
+                'p.nomb_pro',
+                'dp.stock',
+                DB::raw('COALESCE(pr.precio_contado, 0) as precio_contado')
+            )
+            ->where('dp.ubicacion_id', '=', $ubicacionStock->id)
+            ->where('dp.tipo_envio', '=', $envio)
+            ->where('p.estado', '=', '1')
+            ->where('dp.stock', '>', 0)
+            ->orderBy('p.nomb_pro', 'asc')
+            ->get();
+
+        return response()->json($productos);
+    }
+
+    // Agregar productos a una carga existente
+    public function agregarProductosCarga(Request $request)
+    {
+        $trasladoId = $request->traslado_id;
+        $productosData = json_decode($request->productos, true);
+
+        if (!$trasladoId || empty($productosData)) {
+            return response()->json(['error' => 'Datos incompletos'], 400);
+        }
+
+        $traslado = Traslado::find($trasladoId);
+        if (!$traslado) {
+            return response()->json(['error' => 'Traslado no encontrado'], 404);
+        }
+
+        if ($traslado->estado != 1) {
+            return response()->json(['error' => 'No se puede modificar una carga anulada'], 400);
+        }
+
+        $idsede = session('key')->sede_id;
+        $user_id = Auth::user()->id;
+        $servicios = new FuncionesController;
+        $envio = $servicios->tipo_envio_sunat();
+
+        // Obtener ubicación Stock
+        $almacenPrincipal = Almacen::where('sede_id', $idsede)->first();
+        $ubicacionStock = DB::table('stock_location')
+            ->where('almacen_id', $almacenPrincipal->id)
+            ->where('name', 'Stock')
+            ->first();
+
+        if (!$ubicacionStock) {
+            return response()->json(['error' => 'No se encontró la ubicación Stock'], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            foreach ($productosData as $item) {
+                $productoId = $item['id'];
+                $cantidad = (int) $item['cantidad'];
+
+                if ($cantidad <= 0) continue;
+
+                // Validar stock disponible en Stock
+                $stockOrigen = Detalle_almacen_productos::where('ubicacion_id', $ubicacionStock->id)
+                    ->where('producto_id', $productoId)
+                    ->where('tipo_envio', $envio)
+                    ->first();
+
+                if (!$stockOrigen || $stockOrigen->stock < $cantidad) {
+                    $nomProd = DB::table('productos')->where('id', $productoId)->value('nomb_pro');
+                    throw new \Exception("Stock insuficiente para el producto: $nomProd. Disponible: " . ($stockOrigen->stock ?? 0));
+                }
+
+                // Descontar del almacén Stock
+                $servicios->aumentar_descontar_stock(0, $ubicacionStock->id, $productoId, $cantidad, $envio);
+
+                // Generar Kardex de salida
+                $precioUnitario = DB::table('precios')->where('articulo_id', $productoId)->value('precio_contado') ?? 0;
+                $descrip = 'CARGA ADICIONAL A MOVILES (Traslado: ' . $traslado->serie . '-' . str_pad($traslado->correlativo, 4, '0', STR_PAD_LEFT) . ')';
+                $servicios->movimiento_kardex_producto($ubicacionStock->id, $productoId, $cantidad, 2, $descrip, $traslado->serie, $traslado->correlativo, $precioUnitario, 9, date('Y-m-d'), date('Y-m-d'));
+
+                // Agregar a detalle_traslado
+                $detalleExistente = Detalle_traslado::where('traslado_id', $trasladoId)
+                    ->where('producto_id', $productoId)
+                    ->where('estado', 1)
+                    ->first();
+
+                if ($detalleExistente) {
+                    $detalleExistente->cantidad += $cantidad;
+                    $detalleExistente->save();
+                    $detalleTrasladoId = $detalleExistente->id;
+                } else {
+                    $detalle = new Detalle_traslado;
+                    $detalle->producto_id = $productoId;
+                    $detalle->traslado_id = $trasladoId;
+                    $detalle->cantidad = $cantidad;
+                    $detalle->estado = 1;
+                    $detalle->save();
+                    $detalleTrasladoId = $detalle->id;
+                }
+
+                // Agregar a stock_vendedor
+                $stockVendedorExistente = StockVendedor::where('vendedor_id', $traslado->cliente_id)
+                    ->where('producto_id', $productoId)
+                    ->where('traslado_id', $trasladoId)
+                    ->where('estado', 1)
+                    ->first();
+
+                if ($stockVendedorExistente) {
+                    $stockVendedorExistente->cantidad_cargada += $cantidad;
+                    $stockVendedorExistente->cantidad_disponible += $cantidad;
+                    $stockVendedorExistente->save();
+                } else {
+                    StockVendedor::create([
+                        'vendedor_id' => $traslado->cliente_id,
+                        'producto_id' => $productoId,
+                        'traslado_id' => $trasladoId,
+                        'detalle_traslado_id' => $detalleTrasladoId ?? null,
+                        'cantidad_cargada' => $cantidad,
+                        'cantidad_vendida' => 0,
+                        'cantidad_disponible' => $cantidad,
+                        'sede_id' => $idsede,
+                        'tipo_envio' => $envio,
+                        'fecha_carga' => date('Y-m-d'),
+                        'estado' => 1,
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return response()->json(['success' => 'Productos agregados correctamente a la carga']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
     }
 
     public function vendedorHistorialCargas(Request $request)

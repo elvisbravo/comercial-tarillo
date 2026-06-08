@@ -198,8 +198,8 @@
               <thead>
                 <tr>
                   <th>COMPROBANTE</th>
-                  <th>PRUEBA</th>
-                  <th>PRODUCCION</th>
+                  <th>SERIE</th>
+                  <th>CORRELATIVO</th>
                   <th></th>
                 </tr>
               </thead>

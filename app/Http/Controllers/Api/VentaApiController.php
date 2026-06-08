@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\VentaController;
+use App\Http\Controllers\servicios\FuncionesController;
 use App\Almacen;
 use App\Clientes;
 use App\Sector;
@@ -116,13 +117,136 @@ class VentaApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
         }
 
+        // Configurar la sesión para que VentaController pueda acceder a session('key')->sede_id
+        session(['key' => $user]);
+
         $vendedor = $this->resolveVendedor($user);
+
+        // Obtener ubicacion_id de moviles
+        $idsede = $user->sede_id;
+        $almacen = Almacen::where('sede_id', $idsede)->first();
+        $ubicacion = $almacen
+            ? DB::table('stock_location')
+                ->where('almacen_id', $almacen->id)
+                ->where(DB::raw('LOWER(name)'), 'moviles')
+                ->first()
+            : null;
+        $movilesUbicacionId = $ubicacion ? (int) $ubicacion->id : 0;
+
         $request->merge([
             'es_movil' => true,
             'vendedor' => $vendedor->id,
+            'ubicacion_id' => $movilesUbicacionId,
         ]);
 
-        return (new VentaController)->generar_venta($request);
+        // Asegurar que existe registro en detalle_almacen_productos para cada producto
+        // (porque cargarStockProcesar no lo crea, solo el KARDEX)
+        if ($movilesUbicacionId > 0) {
+            $this->asegurarStockEnAlmacen($request, $movilesUbicacionId);
+        }
+
+        $response = (new VentaController)->generar_venta($request);
+
+        // Si la venta fue exitosa, actualizar stock_vendedor
+        if ($response->getStatusCode() == 200) {
+            $body = json_decode($response->getContent(), true);
+            if (isset($body['respuesta']) && $body['respuesta'] == 'ok') {
+                $this->actualizarStockVendedor($user->id, $request->all());
+            }
+        }
+
+        return $response;
+    }
+
+    /**
+     * Asegura que existe registro en detalle_almacen_productos para la ubicación moviles
+     * SIEMPRE sincroniza el stock desde stock_vendedor (crea o actualiza)
+     */
+    private function asegurarStockEnAlmacen(Request $request, $movilesUbicacionId)
+    {
+        if ($movilesUbicacionId == 0) return;
+
+        $servicios = new FuncionesController;
+        $envio = $servicios->tipo_envio_sunat();
+
+        $productos = $request->input('idproducto', []);
+        $fechaHoy = date('Y-m-d');
+        $vendedorId = $request->input('vendedor');
+
+        for ($i = 0; $i < count($productos); $i++) {
+            $productoId = $productos[$i];
+
+            // Obtener stock actual desde stock_vendedor
+            $stockVendedor = DB::table('stock_vendedor')
+                ->where('vendedor_id', $vendedorId)
+                ->where('producto_id', $productoId)
+                ->where('fecha_carga', $fechaHoy)
+                ->where('estado', 1)
+                ->first();
+
+            $stockActual = $stockVendedor ? ($stockVendedor->cantidad_disponible ?? 0) : 0;
+
+            // Buscar registro existente
+            $existe = DB::table('detalle_almacen_productos')
+                ->where('ubicacion_id', $movilesUbicacionId)
+                ->where('producto_id', $productoId)
+                ->first();
+
+            if ($existe) {
+                // Actualizar stock existente
+                DB::table('detalle_almacen_productos')
+                    ->where('id', $existe->id)
+                    ->update([
+                        'stock' => $stockActual,
+                        'tipo_envio' => $envio,
+                        'updated_at' => now(),
+                    ]);
+            } else {
+                // Crear nuevo registro solo si hay stock
+                if ($stockActual > 0) {
+                    DB::table('detalle_almacen_productos')->insert([
+                        'ubicacion_id' => $movilesUbicacionId,
+                        'producto_id' => $productoId,
+                        'stock' => $stockActual,
+                        'tipo_envio' => $envio,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Actualiza stock_vendedor después de una venta exitosa
+     */
+    private function actualizarStockVendedor($vendedorUserId, $data)
+    {
+        $productos = $data['idproducto'] ?? [];
+        $cantidades = $data['quanty'] ?? [];
+
+        for ($i = 0; $i < count($productos); $i++) {
+            $productoId = $productos[$i];
+            $cantidad = $cantidades[$i];
+
+            // Buscar registro en stock_vendedor para este vendedor y producto del día
+            $stockVendedor = DB::table('stock_vendedor')
+                ->where('vendedor_id', $vendedorUserId)
+                ->where('producto_id', $productoId)
+                ->where('fecha_carga', date('Y-m-d'))
+                ->where('estado', 1)
+                ->first();
+
+            if ($stockVendedor) {
+                // Actualizar cantidades
+                DB::table('stock_vendedor')
+                    ->where('id', $stockVendedor->id)
+                    ->update([
+                        'cantidad_vendida' => ($stockVendedor->cantidad_vendida ?? 0) + $cantidad,
+                        'cantidad_disponible' => max(0, ($stockVendedor->cantidad_disponible ?? 0) - $cantidad),
+                    ]);
+            }
+        }
     }
 
     // =================== helpers ===================
@@ -206,45 +330,40 @@ class VentaApiController extends Controller
             return ['_moviles_ubicacion_id' => $movilesUbicacionId, 'items' => []];
         }
 
-        $items = DB::table('detalle_traslado as dt')
-            ->join('traslados as t', 't.id', '=', 'dt.traslado_id')
-            ->join('productos as p', 'p.id', '=', 'dt.producto_id')
-            ->leftJoin('detalle_almacen_productos as dp', function ($j) use ($ubicacion) {
-                $j->on('dp.producto_id', '=', 'p.id')
-                  ->where('dp.ubicacion_id', '=', $ubicacion->id);
-            })
+        $vendedor = $this->resolveVendedor($user);
+
+        // Productos del stock_vendedor (misma lógica que vendedorVenta web)
+        $productos = DB::table('stock_vendedor as sv')
+            ->join('productos as p', 'p.id', '=', 'sv.producto_id')
             ->leftJoin('precios as pr', 'pr.articulo_id', '=', 'p.id')
-            ->where('t.serie', 'CAR')
-            ->where('t.cliente_id', $user->id)
-            ->where('t.fecha', $fechaHoy)
-            ->where('t.estado', 1)
-            ->where('dt.estado', 1)
-            ->where('p.estado', 1)
-            ->where(function ($q) {
-                $q->whereNull('dp.stock')->orWhere('dp.stock', '>', 0);
-            })
             ->select(
                 'p.id',
                 'p.nomb_pro as nombre',
                 'p.codigo_barras',
-                DB::raw('COALESCE(dp.stock, 0) as stock'),
+                DB::raw('SUM(sv.cantidad_disponible) as stock'),
                 'pr.precio_contado',
                 'pr.precio_credito'
             )
-            ->orderBy('p.nomb_pro')
-            ->get()
-            ->map(function ($p) {
-                return [
-                    'id'             => (int) $p->id,
-                    'nombre'         => $p->nombre,
-                    'codigo_barras'  => $p->codigo_barras,
-                    'stock'          => (int) $p->stock,
-                    'precio_contado' => (float) ($p->precio_contado ?? 0),
-                    'precio_credito' => (float) ($p->precio_credito ?? 0),
-                ];
-            })
-            ->values()
-            ->all();
+            ->where('sv.vendedor_id', '=', $user->id)
+            ->where('sv.fecha_carga', '=', $fechaHoy)
+            ->where('sv.estado', '=', 1)
+            ->where('p.estado', '=', '1')
+            ->groupBy('p.id', 'p.nomb_pro', 'p.codigo_barras', 'pr.precio_contado', 'pr.precio_credito')
+            ->orderBy('p.nomb_pro', 'asc')
+            ->get();
+
+        // Filtrar productos con stock > 0
+        $items = $productos->filter(fn ($p) => $p->stock > 0)->map(function ($p) use ($movilesUbicacionId) {
+            return [
+                'id'             => (int) $p->id,
+                'nombre'         => $p->nombre,
+                'codigo_barras'  => $p->codigo_barras,
+                'stock'          => (int) $p->stock,
+                'precio_contado' => (float) ($p->precio_contado ?? 0),
+                'precio_credito' => (float) ($p->precio_credito ?? 0),
+                'ubicacion_id'   => $movilesUbicacionId,
+            ];
+        })->values()->all();
 
         return [
             '_moviles_ubicacion_id' => $movilesUbicacionId,

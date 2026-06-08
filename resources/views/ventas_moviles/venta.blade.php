@@ -582,35 +582,22 @@
                         <label class="form-label">Comprobante</label>
                         <select class="select-modern" name="documento" id="select_documento" required>
                             @foreach($comprobantes as $comp)
-                                <option value="{{ $comp->id }}" {{ $comp->id == 9 ? 'selected' : '' }}>{{ $comp->descripcion }}</option>
+                                <option value="{{ $comp->id }}" {{ $comp->id == 5 ? 'selected' : '' }}>{{ $comp->descripcion }}</option>
                             @endforeach
                         </select>
                     </div>
 
-                    <div class="form-group-modern">
-                        <label class="form-label">Forma de Pago</label>
-                        <select class="select-modern" name="forma_pago" id="select_forma_pago" required>
-                            @foreach($forma_pagos as $fp)
-                                <option value="{{ $fp->id }}">{{ $fp->descripcion }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="bank-wrapper" id="pago_operacion_wrapper">
+                    <div id="forma_pago_wrapper">
                         <div class="form-group-modern">
-                            <label class="form-label">Banco</label>
-                            <select class="select-modern" name="banco_venta" id="select_banco">
-                                <option value="">-- Seleccionar Banco --</option>
-                                @foreach($bancos as $b)
-                                    <option value="{{ $b->id }}">{{ $b->abreviatura }} · {{ $b->cuenta_corriente }}</option>
+                            <label class="form-label">Forma de Pago</label>
+                            <select class="select-modern" name="forma_pago" id="select_forma_pago" required>
+                                @foreach($forma_pagos as $fp)
+                                    <option value="{{ $fp->id }}">{{ $fp->descripcion }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="form-group-modern">
-                            <label class="form-label">N° Operación</label>
-                            <input type="text" class="input-modern" name="numero_operacion" id="input_operacion">
-                        </div>
                     </div>
+
 
                     <div id="efectivo_calculo_wrapper">
                         <div class="row g-2">
@@ -625,6 +612,61 @@
                         </div>
                         <input type="hidden" name="vuelto" id="input_vuelto" value="0">
                     </div>
+
+                    {{-- SECCIÓN CRÉDITO - solo visible cuando tipo_venta == 2 --}}
+                    <div id="credito_config_section" class="d-none mt-3">
+                        <hr style="border-top: 1px solid rgba(255,255,255,0.1);">
+                        <h6 class="text-white mb-3"><i class="mdi mdi-calendar-clock me-1"></i>Configuración de Crédito</h6>
+
+                        <div class="form-group-modern">
+                            <label class="form-label">Concepto de Crédito</label>
+                            <select class="select-modern" name="concepto_credito_id" id="select_concepto_credito">
+                                <option value="">-- Seleccionar --</option>
+                            </select>
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label">N° Cuotas</label>
+                                <select class="select-modern" name="num_cuotas" id="select_num_cuotas">
+                                    <option value="1">1 cuota</option>
+                                    <option value="2">2 cuotas</option>
+                                    <option value="3">3 cuotas</option>
+                                    <option value="4">4 cuotas</option>
+                                    <option value="6">6 cuotas</option>
+                                    <option value="12">12 cuotas</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Fecha Primera Cuota</label>
+                                <input type="date" class="input-modern" name="fecha_primera_cuota" id="input_fecha_primera_cuota">
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mt-2">
+                            <div class="col-4">
+                                <label class="form-label">Inicial (S/)</label>
+                                <input type="number" step="0.01" class="input-modern" name="cuota_inicial" id="input_cuota_inicial" value="0" min="0">
+                            </div>
+                            <div class="col-4" id="wrapper_inicial_forma_pago" style="display:none;">
+                                <label class="form-label">Forma Pago Inicial</label>
+                                <select class="select-modern" name="inicial_forma_pago" id="select_inicial_forma_pago">
+                                    @foreach($forma_pagos as $fp)
+                                        <option value="{{ $fp->id }}">{{ $fp->descripcion }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-4" id="wrapper_inicial_operacion" style="display:none;">
+                                <label class="form-label">N° Operación Inicial</label>
+                                <input type="text" class="input-modern" name="inicial_numero_operacion" id="input_inicial_operacion">
+                            </div>
+                        </div>
+
+                        <div id="cuotas_preview" class="mt-3">
+                            {{-- Generado dinámicamente por JavaScript --}}
+                        </div>
+                        <input type="hidden" name="cuotas_data" id="input_cuotas_data">
+                    </div>
                 </div>
                 <div class="modal-footer-light">
                     <button type="button" class="btn btn-outline-secondary w-100 mb-2" data-bs-dismiss="modal">Atrás</button>
@@ -633,6 +675,70 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL CRÉDITO ACTIVO --}}
+<div class="modal fade" id="modalCreditoActivo" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header-grad d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="modal-title"><i class="mdi mdi-alert-circle me-2"></i>Cliente con Crédito Activo</div>
+                    <small style="opacity:0.7; font-size:12px;">Este cliente ya tiene un crédito en curso</small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="alert alert-warning">
+                    <i class="mdi mdi-information me-1"></i>
+                    <span id="credito_warning_msg"></span>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card" style="border-radius: 10px;">
+                            <div class="card-body">
+                                <h6 class="fw-bold text-dark"><i class="mdi mdi-file-document me-1"></i>Datos del Crédito</h6>
+                                <table class="table table-sm mt-2" style="font-size: 12px;">
+                                    <tr><td class="text-muted">Código:</td><td class="fw-bold" id="credito_codigo"></td></tr>
+                                    <tr><td class="text-muted">Sede:</td><td id="credito_sede"></td></tr>
+                                    <tr><td class="text-muted">Fecha:</td><td id="credito_fecha"></td></tr>
+                                    <tr><td class="text-muted">Comprobante:</td><td id="credito_comprobante"></td></tr>
+                                    <tr><td class="text-muted">Monto Total:</td><td class="fw-bold text-primary" id="credito_monto"></td></tr>
+                                    <tr><td class="text-muted">Saldo Pendiente:</td><td class="fw-bold text-danger" id="credito_saldo"></td></tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card" style="border-radius: 10px;">
+                            <div class="card-body">
+                                <h6 class="fw-bold text-dark"><i class="mdi mdi-cash-multiple me-1"></i>Cuotas Pendientes</h6>
+                                <table class="table table-sm mt-2" style="font-size: 12px;">
+                                    <thead><tr><th>#</th><th>Monto</th><th>Vencimiento</th><th>Estado</th></tr></thead>
+                                    <tbody id="credito_cuotas_table"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <h6 class="fw-bold text-dark"><i class="mdi mdi-package me-1"></i>Productos de la Venta Anterior</h6>
+                    <table class="table table-sm" style="font-size: 12px;">
+                        <thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Importe</th></tr></thead>
+                        <tbody id="credito_productos_table"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer-light">
+                <button type="button" class="btn btn-outline-secondary w-100 mb-2" data-bs-dismiss="modal">Cancelar Venta</button>
+                <button type="button" class="btn btn-warning w-100" id="btn_proceder_credito">
+                    <i class="mdi mdi-check-circle me-2"></i> Proceder con Venta al Crédito de Todas Formas
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -650,6 +756,9 @@
                 <div class="d-grid gap-2">
                     <a href="#" id="link_ticket" target="_blank" class="btn btn-primary btn-lg" style="border-radius: 12px;">
                         <i class="mdi mdi-receipt me-2"></i> Ver / Imprimir Ticket
+                    </a>
+                    <a href="#" id="link_contrato" target="_blank" class="btn btn-info btn-lg d-none" style="border-radius: 12px;">
+                        <i class="mdi mdi-file-document me-2"></i> Ver Contrato
                     </a>
                     <button type="button" class="btn btn-outline-success" style="border-radius: 12px;" onclick="window.location.reload();">
                         <i class="mdi mdi-plus me-1"></i> Registrar Otra Venta
@@ -685,13 +794,173 @@ $(document).ready(function() {
         if (tipo == 1) {
             $('#btn_contado').addClass('active-contado').removeClass('active-credito');
             $('#btn_credito').removeClass('active-contado active-credito');
+            $('#credito_config_section').addClass('d-none');
+            // Mostrar forma de pago y efectivo para contado
+            $('#forma_pago_wrapper').show();
+            $('#efectivo_calculo_wrapper').show();
+            // Resetear forma de pago a efectivo
+            $('#select_forma_pago').val('1');
         } else {
             $('#btn_credito').addClass('active-credito').removeClass('active-contado');
             $('#btn_contado').removeClass('active-contado active-credito');
-        }
+            $('#credito_config_section').removeClass('d-none');
+            // Ocultar forma de pago y efectivo para crédito
+            $('#forma_pago_wrapper').hide();
+            $('#efectivo_calculo_wrapper').hide();
+            fetchCreditoParametros();
+ }
         updateTotals();
     }
     window.setTipoVenta = setTipoVenta;
+    // Mostrar/ocultar campos de pago inicial segun el valor
+    $(document).on("input", "#input_cuota_inicial", function() {
+        var inicial = parseFloat($(this).val()) || 0;
+        if (inicial > 0) {
+            $("#wrapper_inicial_forma_pago").show();
+            $("#wrapper_inicial_operacion").show();
+        } else {
+            $("#wrapper_inicial_forma_pago").hide();
+            $("#wrapper_inicial_operacion").hide();
+        }
+    });
+    // ============================
+    // CRÉDITO - Funciones
+    // ============================
+    function fetchCreditoParametros() {
+        $.get("{{ route('vendedor.credito.parametros') }}", function(data) {
+            // Poblar conceptos
+            let opts = '<option value="">-- Seleccionar --</option>';
+            data.conceptos.forEach(function(c) {
+                opts += '<option value="' + c.id + '">' + c.name + '</option>';
+            });
+            $('#select_concepto_credito').html(opts);
+
+            // Establecer fecha primera cuota por defecto (30 días)
+            let primeraFecha = new Date();
+            primeraFecha.setDate(primeraFecha.getDate() + 30);
+            $('#input_fecha_primera_cuota').val(primeraFecha.toISOString().split('T')[0]);
+
+            generateCuotasPreview();
+        });
+    }
+
+    function generateCuotasPreview() {
+        let numCuotas = parseInt($('#select_num_cuotas').val()) || 1;
+        let totalVenta = parseFloat($('#modal_total_display').text().replace('S/ ', '').replace(',', '')) || 0;
+        let inicial = parseFloat($('#input_cuota_inicial').val()) || 0;
+        let capital = Math.max(0, totalVenta - inicial);
+        let montoCuota = (capital / numCuotas).toFixed(2);
+        let primeraFecha = $('#input_fecha_primera_cuota').val() || new Date().toISOString().split('T')[0];
+
+        let html = '<div class="text-white mb-2" style="font-size:12px;"><i class="mdi mdi-format-list-numbered me-1"></i> Cronograma de Cuotas</div>';
+        html += '<table class="table table-sm table-dark" style="font-size:11px;"><thead><tr><th>#</th><th>Monto</th><th>Fecha Vencimiento</th></tr></thead><tbody>';
+
+        // Si hay inicial, mostrar como cuota 0
+        if (inicial > 0) {
+            let fechaHoy = new Date().toISOString().split('T')[0];
+            html += '<tr>';
+            html += '<td>Ini.</td>';
+            html += '<td>S/ ' + inicial.toFixed(2) + '</td>';
+            html += '<td><input type="date" class="input-modern" name="cuota_fecha_0" value="' + fechaHoy + '" style="padding: 2px 6px; font-size: 11px; width: 110px;"></td>';
+            html += '</tr>';
+        }
+
+        let currentDate = new Date(primeraFecha);
+        for (let i = 1; i <= numCuotas; i++) {
+            let fechaFormateada = currentDate.toISOString().split('T')[0];
+            html += '<tr>';
+            html += '<td>Cuota ' + i + '</td>';
+            html += '<td>S/ ' + montoCuota + '</td>';
+            html += '<td><input type="date" class="input-modern" name="cuota_fecha_' + i + '" value="' + fechaFormateada + '" style="padding: 2px 6px; font-size: 11px; width: 110px;"></td>';
+            html += '</tr>';
+            currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+        html += '</tbody></table>';
+
+        $('#cuotas_preview').html(html);
+    }
+
+    // Eventos para regenerar preview de cuotas
+    $(document).on('change', '#select_num_cuotas', generateCuotasPreview);
+    $(document).on('change', '#input_fecha_primera_cuota', generateCuotasPreview);
+    $(document).on('change', '#input_cuota_inicial', generateCuotasPreview);
+
+    // Mostrar/ocultar campos de pago inicial según el valor
+    $(document).on('input', '#input_cuota_inicial', function() {
+        let inicial = parseFloat($(this).val()) || 0;
+        if (inicial > 0) {
+            $('#wrapper_inicial_forma_pago').show();
+            $('#wrapper_inicial_operacion').show();
+        } else {
+            $('#wrapper_inicial_forma_pago').hide();
+            $('#wrapper_inicial_operacion').hide();
+        }
+    });
+
+    // Botón proceder con crédito activo
+    $(document).on('click', '#btn_proceder_credito', function() {
+        let originalData = $(this).data('original_data');
+        // Asegurar que vendedor esté presente
+        if (!originalData.vendedor && currentVendedorId) {
+            originalData.vendedor = currentVendedorId;
+        }
+        originalData.confirmar_credito = true;
+
+        $('#modalCreditoActivo').modal('hide');
+        $('#btn_guardar_venta_final').prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin me-2"></i>Guardando...');
+
+        $.ajax({
+            url: "{{ route('vendedor.venta.guardar') }}",
+            type: 'POST',
+            data: originalData,
+            success: function(response) {
+                if (response.respuesta === 'ok') {
+                    $('#link_ticket').attr('href', "{{ url('venta/ticket') }}/" + response.id);
+                    if (response.credito_id) { $("#link_contrato").attr("href", "{{ url("creditos/contrato") }}/" + response.credito_id).removeClass("d-none"); } else { $("#link_contrato").addClass("d-none"); }
+                    $('#modalVentaExitosa').modal('show');
+                } else {
+                    $('#btn_guardar_venta_final').prop('disabled', false).html('<i class="mdi mdi-check-circle me-2"></i>Confirmar Venta');
+                    alert('Error: ' + (response.mensaje || response.error));
+                }
+            },
+            error: function(xhr) {
+                $('#btn_guardar_venta_final').prop('disabled', false).html('<i class="mdi mdi-check-circle me-2"></i>Confirmar Venta');
+                let msg = 'Error en el servidor.';
+                try { let r = xhr.responseJSON; msg = r.error || r.mensaje || msg; } catch(ex) {}
+                alert(msg);
+            }
+        });
+    });
+
+    // Función para recolectar datos de cuotas
+    function collectCuotasData() {
+        let numCuotas = parseInt($('#select_num_cuotas').val()) || 1;
+        let totalVenta = parseFloat($('#modal_total_display').text().replace('S/ ', '').replace(',', '')) || 0;
+        let inicial = parseFloat($('#input_cuota_inicial').val()) || 0;
+        let capital = Math.max(0, totalVenta - inicial);
+        let montoCuota = (capital / numCuotas).toFixed(2);
+        let cuotasData = [];
+
+        // Si hay inicial, agregarla como cuota 0
+        if (inicial > 0) {
+            let fechaInicial = $('input[name="cuota_fecha_0"]').val() || new Date().toISOString().split('T')[0];
+            cuotasData.push({
+                numero: 0,
+                monto: inicial.toFixed(2),
+                fecha_vencimiento: fechaInicial
+            });
+        }
+
+        for (let i = 1; i <= numCuotas; i++) {
+            let fecha = $('input[name="cuota_fecha_' + i + '"]').val();
+            cuotasData.push({
+                numero: i,
+                monto: montoCuota,
+                fecha_vencimiento: fecha
+            });
+        }
+        return JSON.stringify(cuotasData);
+    }
 
     // ============================
     // CLIENTE
@@ -750,6 +1019,8 @@ $(document).ready(function() {
     // CARRITO
     // ============================
     let cart = {};
+    // Variable global para el usuario vendedor actual
+    var currentVendedorId = {{ $usuario->id ?? 'null' }};
 
     // Buscar productos
     $('#buscar_producto').on('input', function() {
@@ -840,11 +1111,10 @@ $(document).ready(function() {
     // ============================
     $('#select_forma_pago').on('change', function() {
         let val = $(this).val();
+        // Si es efectivo (id=1) mostrar monto recibido y vuelto, sino ocultar
         if (val === '1') {
-            $('#pago_operacion_wrapper').hide();
             $('#efectivo_calculo_wrapper').show();
         } else {
-            $('#pago_operacion_wrapper').show();
             $('#efectivo_calculo_wrapper').hide();
         }
     });
@@ -931,16 +1201,19 @@ $(document).ready(function() {
             total_venta: totalVentaVal,
             total_recibido: $('#input_recibido').val(),
             vuelto: $('#input_vuelto').val(),
-            numero_operacion: $('#input_operacion').val() || '',
-            banco_venta: $('#select_banco').val() || '',
             fecha_venta: "{{ date('Y-m-d') }}",
-            vendedor: "{{ $vendedor->id }}",
+            vendedor: currentVendedorId,
             quanty: quanty,
             idproducto: idproducto,
             priceproducto: priceproducto,
             nameproducto: nameproducto,
             importe: importe,
-            ubicacion: ubicacion
+            ubicacion: ubicacion,
+            concepto_credito_id: tipoVenta == "2" ? $("#select_concepto_credito").val() : "",
+            cuotas_data: tipoVenta == "2" ? collectCuotasData() : "[]",
+            cuota_inicial: tipoVenta == "2" ? $('#input_cuota_inicial').val() || 0 : 0,
+            inicial_forma_pago: tipoVenta == "2" ? $('#select_inicial_forma_pago').val() || '' : '',
+            inicial_numero_operacion: tipoVenta == "2" ? $('#input_inicial_operacion').val() || '' : ''
         };
 
         $('#btn_guardar_venta_final').prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin me-2"></i>Guardando...');
@@ -953,7 +1226,41 @@ $(document).ready(function() {
                 if (response.respuesta === 'ok') {
                     $('#modalFinalizarVenta').modal('hide');
                     $('#link_ticket').attr('href', "{{ url('venta/ticket') }}/" + response.id);
+                    if (response.credito_id) { $("#link_contrato").attr("href", "{{ url("creditos/contrato") }}/" + response.credito_id).removeClass("d-none"); } else { $("#link_contrato").addClass("d-none"); }
                     $('#modalVentaExitosa').modal('show');
+                } else if (response.respuesta === 'warning' && response.credito_activo) {
+                    // Mostrar modal de crédito activo
+                    $('#btn_guardar_venta_final').prop('disabled', false).html('<i class="mdi mdi-check-circle me-2"></i>Confirmar Venta');
+                    $('#modalFinalizarVenta').modal('hide');
+
+                    let cred = response.credito;
+                    $('#credito_warning_msg').text(response.mensaje);
+                    $('#credito_codigo').text(cred.id);
+                    $('#credito_sede').text(cred.sede);
+                    $('#credito_fecha').text(cred.fecha_credito);
+                    $('#credito_comprobante').text(cred.comprobante || '-');
+                    $('#credito_monto').text('S/ ' + parseFloat(cred.monto_total).toFixed(2));
+                    $('#credito_saldo').text('S/ ' + parseFloat(cred.saldo_pendiente).toFixed(2));
+
+                    // Cuotas
+                    let cuotasHtml = '';
+                    cred.cuotas.forEach(function(c) {
+                        let estadoClass = c.estado === 'COBRADA' ? 'bg-success' : 'bg-danger';
+                        cuotasHtml += '<tr><td>' + (c.numero === 0 ? 'Ini.' : c.numero) + '</td><td>S/ ' + parseFloat(c.monto).toFixed(2) + '</td><td>' + c.fecha_vencimiento + '</td><td><span class="badge ' + estadoClass + '">' + c.estado + '</span></td></tr>';
+                    });
+                    $('#credito_cuotas_table').html(cuotasHtml);
+
+                    // Productos
+                    let prodsHtml = '';
+                    cred.productos.forEach(function(p) {
+                        prodsHtml += '<tr><td>' + p.nombre + '</td><td>' + p.cantidad + '</td><td>S/ ' + parseFloat(p.precio).toFixed(2) + '</td><td>S/ ' + parseFloat(p.importe).toFixed(2) + '</td></tr>';
+                    });
+                    $('#credito_productos_table').html(prodsHtml);
+
+                    // Guardar data para proceder
+                    $('#btn_proceder_credito').data('original_data', dataToSend);
+
+                    $('#modalCreditoActivo').modal('show');
                 } else {
                     $('#btn_guardar_venta_final').prop('disabled', false).html('<i class="mdi mdi-check-circle me-2"></i>Confirmar Venta');
                     alert('Error: ' + (response.mensaje || response.error));

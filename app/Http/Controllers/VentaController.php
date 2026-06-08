@@ -11,6 +11,7 @@ use App\Detalle_venta;
 use App\Venta;
 use App\Clientes;
 use App\Creditos;
+use App\Cuotas;
 use App\Precios;
 use App\Empresa;
 use App\Correlativos;
@@ -21,6 +22,7 @@ use App\Categorias;
 use App\Forma_pago;
 use App\Venta_formapago;
 use App\Vendedor;
+use App\StockVendedor;
 use App\Sector;
 use App\Sede;
 use Spatie\Permission\Models\Role;
@@ -422,7 +424,13 @@ class VentaController extends Controller
             $venta->tipo_envio = $envio;
             $venta->cliente_id = $id_cliente;
             $venta->descuento = '0';
-            $venta->vendedor_id = $post['vendedor'];
+            // Si es venta móvil, $post['vendedor'] contiene users.id, necesitamos vendedores.id
+            if (isset($post['es_movil']) && $post['es_movil']) {
+                $vendedor = Vendedor::where('usuario_id', $post['vendedor'])->first();
+                $venta->vendedor_id = $vendedor ? $vendedor->id : 1;
+            } else {
+                $venta->vendedor_id = $post['vendedor'] ?? 1;
+            }
             $venta->id_local = $post['id_local'] ?? null;
             $venta->fecha_offline_created = !empty($post['fecha_offline_created']) ? $post['fecha_offline_created'] : null;
             if (isset($post['es_movil']) && $post['es_movil']) {
@@ -435,6 +443,49 @@ class VentaController extends Controller
 
             $id_venta = $venta->id;
 
+            // Si es venta al crédito, crear registro de crédito y cuotas
+            if ($post['tipo_venta'] == 2 && !empty($post['cuotas_data'])) {
+                $cuotasData = json_decode($post['cuotas_data'], true);
+
+                // Crear registro de crédito
+                $credito = new Creditos;
+                $credito->mont_cre = $post['total_venta'];
+                $credito->esta_cre = '1';
+                $credito->fech_cre = date('Y-m-d');
+                $credito->inte_cre = 0;
+                $credito->impo_cre = $post['total_venta'];
+                $credito->fpag_cre = $cuotasData[0]['fecha_vencimiento'] ?? date('Y-m-d'); // Fecha primer pago
+                $credito->peri_cre = count($cuotasData);
+                $credito->cliente_id = $id_cliente;
+                $credito->obse_cre = '';
+                $credito->usuario = $user_id;
+                $credito->tipo_doc = $post['tipoDocumentoIdentidad'] ?? 1;
+                $credito->id_venta = $id_venta;
+                $credito->periodo_pago = 'MENSUAL';
+                $credito->sede_id = $idsede;
+                $credito->id_con = $post['concepto_credito_id'] ?? 1;
+                $credito->save();
+
+                // Crear cuotas
+                foreach ($cuotasData as $cuotaInfo) {
+                    $cuota = new Cuotas;
+                    $cuota->mont_cuo = $cuotaInfo['monto'];
+                    $cuota->fven_cuo = $cuotaInfo['fecha_vencimiento'];
+                    $cuota->saldo_cuo = $cuotaInfo['monto'];
+                    $cuota->capi_cuo = $cuotaInfo['monto'];
+                    $cuota->credito_id = $credito->id;
+                    $cuota->esta_cuo = 'PENDIENTE';
+                    $cuota->numero_cuo = $cuotaInfo['numero'];
+                    $cuota->sald_cap = $cuotaInfo['monto'];
+                    $cuota->version = 1;
+                    $cuota->save();
+                }
+
+                // Actualizar estado de venta a "crédito registrado"
+                $venta->venta_estado = 2;
+                $venta->save();
+            }
+
             $cantidades = $post['quanty'];
             $productos = $post['idproducto'];
             $precios = $post['priceproducto'];
@@ -445,6 +496,35 @@ class VentaController extends Controller
             $hasta = count($cantidades);
 
             for ($i = 0; $i < $hasta; $i++) {
+                $es_movil = isset($post['es_movil']) && $post['es_movil'];
+
+                // Validar stock disponible para ventas móviles ANTES de guardar
+                if ($es_movil && $tipo_comprobante != 9) {
+                    $fechaHoy = date('Y-m-d');
+                    // Para móviles, usamos users.id para buscar en stock_vendedor
+                    $usersId = !empty($post['vendedor']) ? $post['vendedor'] : Auth::user()->id;
+                    $productoId = $productos[$i];
+                    $cantidadSolicitada = $cantidades[$i];
+
+                    // Obtener stock disponible de stock_vendedor
+                    $stockDisponible = DB::table('stock_vendedor')
+                        ->where('vendedor_id', $usersId)
+                        ->where('producto_id', $productoId)
+                        ->where('fecha_carga', $fechaHoy)
+                        ->where('estado', 1)
+                        ->sum('cantidad_disponible') ?? 0;
+
+                    if ($cantidadSolicitada > $stockDisponible) {
+                        $nombreProducto = $descripcion[$i] ?? "Producto ID $productoId";
+                        DB::rollBack();
+                        $json = array(
+                            "respuesta" => "error",
+                            "mensaje" => "Stock insuficiente para el producto \"$nombreProducto\". Disponible: $stockDisponible, Solicitado: $cantidadSolicitada"
+                        );
+                        return response()->json($json);
+                    }
+                }
+
                 $detalle = new Detalle_venta;
 
                 $detalle->producto_id = $productos[$i];
@@ -457,9 +537,70 @@ class VentaController extends Controller
 
                 $detalle->save();
 
-                $es_movil = isset($post['es_movil']) && $post['es_movil'];
-                if ($tipo_comprobante != 9 || $es_movil) {
-                    $servicios->aumentar_descontar_stock(0, $ubicaciones[$i], $productos[$i], $cantidades[$i], $envio);
+                // Solo NO descuenta stock si es cotización (id=9)
+                if ($tipo_comprobante != 9) {
+                    \Log::info("DESCUENTO STOCK", [
+                        'es_movil' => $es_movil,
+                        'tipo_comprobante' => $tipo_comprobante,
+                        'ubicacion_id' => $ubicaciones[$i],
+                        'producto_id' => $productos[$i],
+                        'cantidad' => $cantidades[$i],
+                        'tipo_envio' => $envio,
+                    ]);
+
+                    if ($es_movil) {
+                        // Para ventas móviles, descontar de stock_vendedor
+                        $fechaHoy = date('Y-m-d');
+                        $vendedorId = $post['vendedor'];
+
+                        // Descontar del stock_vendedor (primero en entrar, primero en salir - FIFO)
+                        $stockVendedorItems = DB::table('stock_vendedor')
+                            ->where('vendedor_id', $vendedorId)
+                            ->where('producto_id', $productos[$i])
+                            ->where('fecha_carga', $fechaHoy)
+                            ->where('estado', 1)
+                            ->where('cantidad_disponible', '>', 0)
+                            ->orderBy('id', 'asc')
+                            ->get();
+
+                        $cantidadRestante = $cantidades[$i];
+
+                        foreach ($stockVendedorItems as $item) {
+                            if ($cantidadRestante <= 0) break;
+
+                            if ($item->cantidad_disponible >= $cantidadRestante) {
+                                // Descontar del item actual
+                                DB::table('stock_vendedor')
+                                    ->where('id', $item->id)
+                                    ->update([
+                                        'cantidad_vendida' => $item->cantidad_vendida + $cantidadRestante,
+                                        'cantidad_disponible' => $item->cantidad_disponible - $cantidadRestante,
+                                    ]);
+                                $cantidadRestante = 0;
+                            } else {
+                                // Descontar todo lo disponible del item actual y continuar con el siguiente
+                                $cantidadRestante -= $item->cantidad_disponible;
+                                DB::table('stock_vendedor')
+                                    ->where('id', $item->id)
+                                    ->update([
+                                        'cantidad_vendida' => $item->cantidad_vendida + $item->cantidad_disponible,
+                                        'cantidad_disponible' => 0,
+                                    ]);
+                            }
+                        }
+
+                        if ($cantidadRestante > 0) {
+                            \Log::warning("Stock insuficiente al descontar stock_vendedor", [
+                                'vendedor_id' => $vendedorId,
+                                'producto_id' => $productos[$i],
+                                'cantidad_solicitada' => $cantidades[$i],
+                                'cantidad_restante_sin_descontar' => $cantidadRestante,
+                            ]);
+                        }
+                    } else {
+                        // Para ventas normales, descontar de detalle_almacen_productos
+                        $servicios->aumentar_descontar_stock(0, $ubicaciones[$i], $productos[$i], $cantidades[$i], $envio);
+                    }
                     $servicios->movimiento_kardex_producto($ubicaciones[$i], $productos[$i], $cantidades[$i], 2, "VENTA", $serie, $numero, $precios[$i], $tipo_comprobante, date('Y-m-d'), date('Y-m-d'));
                 }
             }
@@ -474,8 +615,26 @@ class VentaController extends Controller
                 }
             }
 
+            // Registrar pago de inicial si existe (para ventas al crédito)
+            $cuotaInicial = !empty($post['cuota_inicial']) ? floatval($post['cuota_inicial']) : 0;
+            if ($cuotaInicial > 0 && $post['tipo_venta'] == 2) {
+                $inicialFormaPago = !empty($post['inicial_forma_pago']) ? $post['inicial_forma_pago'] : 1;
+                $inicialOperacion = !empty($post['inicial_numero_operacion']) ? $post['inicial_numero_operacion'] : '';
 
-            if ($post['forma_pago'] != 9) {
+                $movimientoInicial = $servicios->generar_movimiento("INGRESO", $inicialFormaPago, 9, $cuotaInicial, "PAGO INICIAL CREDITO", $tipo_comprobante, 1, $serie . "-" . $numero, 0);
+
+                $formaInicial = new Venta_formapago;
+                $formaInicial->venta_id = $id_venta;
+                $formaInicial->forma_pago_id = $inicialFormaPago;
+                $formaInicial->monto = $cuotaInicial;
+                $formaInicial->numero_operacion = $inicialOperacion;
+                $formaInicial->banco_id = null;
+                $formaInicial->movimiento_id = $movimientoInicial;
+                $formaInicial->save();
+            }
+
+            // Para ventas al crédito, no crear registro de forma_pago (se maneja con cuota_inicial)
+            if ($post['forma_pago'] != 9 && $post['tipo_venta'] != 2) {
                 $forma_venta = new Venta_formapago;
 
                 $movimiento_id = $servicios->generar_movimiento("INGRESO", $post['forma_pago'], 9, $post['total_venta'], "VENTA DE MERCADERIA", $tipo_comprobante, 1, $serie . "-" . $numero, $estado_mov);
@@ -483,8 +642,8 @@ class VentaController extends Controller
                 $forma_venta->venta_id = $id_venta;
                 $forma_venta->forma_pago_id = $post['forma_pago'];
                 $forma_venta->monto = $post['total_venta'];
-                $forma_venta->numero_operacion = $post['numero_operacion'];
-                $forma_venta->banco_id = $post['banco_venta'];
+                $forma_venta->numero_operacion = $post['numero_operacion'] ?? null;
+                $forma_venta->banco_id = $post['banco_venta'] ?? null;
                 $forma_venta->movimiento_id = $movimiento_id;
 
                 $forma_venta->save();
@@ -502,8 +661,8 @@ class VentaController extends Controller
                     $forma_venta->venta_id = $id_venta;
                     $forma_venta->forma_pago_id = $formaId[$i];
                     $forma_venta->monto = $formaMonto[$i];
-                    $forma_venta->numero_operacion = $formaNumero[$i];
-                    $forma_venta->banco_id = $formaBanco[$i];
+                    $forma_venta->numero_operacion = $formaNumero[$i] ?? null;
+                    $forma_venta->banco_id = $formaBanco[$i] ?? null;
                     $forma_venta->movimiento_id = $movimiento_id;
                     $forma_venta->save();
                 }
@@ -511,6 +670,7 @@ class VentaController extends Controller
 
             $json = array(
                 "id" => $id_venta,
+                "credito_id" => isset($credito) ? $credito->id : null,
                 "mensaje" =>  "Se registro correctamente la venta",
                 "respuesta" => "ok"
             );
@@ -531,6 +691,17 @@ class VentaController extends Controller
                 'archivo'   => $e->getFile(),
             ]);
         }
+    }
+
+    private function getUbicacionMoviles($idsede)
+    {
+        $almacenPrincipal = \App\Almacen::where('sede_id', $idsede)->first();
+        if (!$almacenPrincipal) return null;
+        $ubicacion = DB::table('stock_location')
+            ->where('almacen_id', $almacenPrincipal->id)
+            ->where(DB::raw('LOWER(name)'), 'moviles')
+            ->first();
+        return $ubicacion ? $ubicacion->id : null;
     }
 
     public function consultar_dni_ruc(Request $request)

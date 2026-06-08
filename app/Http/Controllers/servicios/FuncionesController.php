@@ -672,11 +672,32 @@ class FuncionesController
 
     public function aumentar_descontar_stock($tipo, $idubicacion, $idproducto, $cantidad, $tipo_envio)
     {
-        //DB::beginTransaction();
+        \Log::info("aumentar_descontar_stockcalled", [
+            'tipo' => $tipo,
+            'idubicacion' => $idubicacion,
+            'idproducto' => $idproducto,
+            'cantidad' => $cantidad,
+            'tipo_envio' => $tipo_envio,
+        ]);
 
-        // try{
+        // Buscar por ubicacion + producto (sin filtro tipo_envio pois los traslados no siempre lo setean bien)
+        $data_almacen = Detalle_almacen_productos::where('ubicacion_id', '=', $idubicacion)
+            ->where('producto_id', '=', $idproducto)
+            ->first();
 
-        $data_almacen = Detalle_almacen_productos::where('ubicacion_id', '=', $idubicacion)->where('producto_id', '=', $idproducto)->where('tipo_envio', '=', $tipo_envio)->first();
+        \Log::info("detalle_almacen_productos encontrado", [
+            'encontrado' => $data_almacen ? 'SI' : 'NO',
+            'stock_actual' => $data_almacen ? $data_almacen->stock : null,
+        ]);
+
+        if (!$data_almacen) {
+            \Log::warning("NO se encontro detalle_almacen_productos para descontar stock", [
+                'ubicacion_id' => $idubicacion,
+                'producto_id' => $idproducto,
+                'tipo_envio' => $tipo_envio,
+            ]);
+            return null;
+        }
 
         if ($tipo == 0) {
             $stock = $data_almacen['stock'] - $cantidad;
@@ -685,19 +706,14 @@ class FuncionesController
         }
 
         $data_almacen->stock = $stock;
-
         $data_almacen->save();
 
-        //DB::commit();
+        \Log::info("Stock descontado exitosamente", [
+            'stock_anterior' => $data_almacen['stock'] + $cantidad,
+            'stock_nuevo' => $stock,
+        ]);
 
         return $stock;
-        // }catch (Exception $e) {
-
-        //return  response()->json($e);
-
-        //}
-
-
     }
 
     public function ubicacion_almacen_interno($almacen_id, $tipo)

@@ -191,14 +191,30 @@ class SedeController extends Controller
 
     public function correlativos($id)
     {
-        $correlativos = DB::table('correlativos as co')->select('co.id','co.serie','co.correlativo','co.sede_id','co.tipo_comprobante_id','co.tipo_envio','tc.descripcion')->join('tipo_comprobantes as tc','co.tipo_comprobante_id','=','tc.id')->where('co.sede_id','=',$id)->get();
+        $tipoEnvio = request()->get('tipo_envio');
+        $query = DB::table('correlativos as co')
+            ->select('co.id','co.serie','co.correlativo','co.sede_id','co.tipo_comprobante_id','co.tipo_envio','tc.descripcion')
+            ->join('tipo_comprobantes as tc','co.tipo_comprobante_id','=','tc.id')
+            ->where('co.sede_id','=',$id);
+
+        if ($tipoEnvio !== null) {
+            $query->where('co.tipo_envio', '=', $tipoEnvio);
+        }
+
+        $correlativos = $query->get();
 
         echo json_encode($correlativos);
     }
 
     public function select_comprobante(Request $request)
     {
-        $correlativos = Correlativos::where('sede_id','=',$request->idsede)->where('tipo_comprobante_id','=',$request->comprobante)->get();
+        $query = Correlativos::where('sede_id','=',$request->idsede)->where('tipo_comprobante_id','=',$request->comprobante);
+
+        if ($request->has('tipo_envio')) {
+            $query->where('tipo_envio', '=', $request->tipo_envio);
+        }
+
+        $correlativos = $query->get();
 
         if (count($correlativos) === 0) {
             $comp = Tipo_comprobantes::find($request->comprobante);
@@ -212,7 +228,7 @@ class SedeController extends Controller
         } else {
             $json = array(
                 "respuesta" => "existe",
-                "mensaje" => "ya existe dicho comprobante"
+                "mensaje" => "ya existe dicho comprobante para este tipo de envío"
             );
 
         }
@@ -252,6 +268,16 @@ class SedeController extends Controller
         }
 
         return response()->json("ok");
+    }
+
+    public function eliminar_correlativo($id)
+    {
+        $correlativo = Correlativos::find($id);
+        if ($correlativo) {
+            $correlativo->delete();
+            return response()->json(['respuesta' => 'ok', 'mensaje' => 'Correlativo eliminado']);
+        }
+        return response()->json(['respuesta' => 'error', 'mensaje' => 'No encontrado']);
     }
 
     /**
