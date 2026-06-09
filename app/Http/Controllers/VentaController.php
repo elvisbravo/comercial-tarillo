@@ -647,7 +647,8 @@ class VentaController extends Controller
                 $forma_venta->movimiento_id = $movimiento_id;
 
                 $forma_venta->save();
-            } else {
+            } elseif (isset($post['forma_pago_particionado'])) {
+                // Solo procesar si existe el campo particionado
                 $formaId = $post['forma_pago_particionado'];
                 $formaName = $post['formaPagoParticionado'];
                 $formaMonto = $post['montoParticionado'];

@@ -112,8 +112,11 @@ class VentaApiController extends Controller
      */
     public function guardar(Request $request)
     {
+        \Log::info('API guardar venta - inicio', $request->all());
+
         $user = Auth::user();
         if (!$this->esVendedor($user)) {
+            \Log::warning('API guardar venta - acceso denegado');
             return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
         }
 
@@ -133,6 +136,8 @@ class VentaApiController extends Controller
             : null;
         $movilesUbicacionId = $ubicacion ? (int) $ubicacion->id : 0;
 
+        \Log::info('API guardar venta - movilesUbicacionId', ['movilesUbicacionId' => $movilesUbicacionId]);
+
         $request->merge([
             'es_movil' => true,
             'vendedor' => $vendedor->id,
@@ -145,7 +150,14 @@ class VentaApiController extends Controller
             $this->asegurarStockEnAlmacen($request, $movilesUbicacionId);
         }
 
+        \Log::info('API guardar venta - antes de generar_venta');
+
         $response = (new VentaController)->generar_venta($request);
+
+        \Log::info('API guardar venta - respuesta generar_venta', [
+            'status' => $response->getStatusCode(),
+            'body' => json_decode($response->getContent(), true)
+        ]);
 
         // Si la venta fue exitosa, actualizar stock_vendedor
         if ($response->getStatusCode() == 200) {
@@ -164,7 +176,10 @@ class VentaApiController extends Controller
      */
     private function asegurarStockEnAlmacen(Request $request, $movilesUbicacionId)
     {
-        if ($movilesUbicacionId == 0) return;
+        if ($movilesUbicacionId == 0) {
+            \Log::warning('asegurarStockEnAlmacen - movilesUbicacionId es 0, saliendo');
+            return;
+        }
 
         $servicios = new FuncionesController;
         $envio = $servicios->tipo_envio_sunat();
@@ -172,6 +187,12 @@ class VentaApiController extends Controller
         $productos = $request->input('idproducto', []);
         $fechaHoy = date('Y-m-d');
         $vendedorId = $request->input('vendedor');
+
+        \Log::info('asegurarStockEnAlmacen', [
+            'productos' => $productos,
+            'vendedorId' => $vendedorId,
+            'envio' => $envio
+        ]);
 
         for ($i = 0; $i < count($productos); $i++) {
             $productoId = $productos[$i];
@@ -185,6 +206,12 @@ class VentaApiController extends Controller
                 ->first();
 
             $stockActual = $stockVendedor ? ($stockVendedor->cantidad_disponible ?? 0) : 0;
+
+            \Log::info('Producto', [
+                'productoId' => $productoId,
+                'stockVendedor' => $stockVendedor ? (array)$stockVendedor : null,
+                'stockActual' => $stockActual
+            ]);
 
             // Buscar registro existente
             $existe = DB::table('detalle_almacen_productos')
@@ -201,6 +228,7 @@ class VentaApiController extends Controller
                         'tipo_envio' => $envio,
                         'updated_at' => now(),
                     ]);
+                \Log::info('Stock actualizado en detalle_almacen_productos', ['stock' => $stockActual]);
             } else {
                 // Crear nuevo registro solo si hay stock
                 if ($stockActual > 0) {
@@ -212,6 +240,9 @@ class VentaApiController extends Controller
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
+                    \Log::info('Stock creado en detalle_almacen_productos', ['stock' => $stockActual]);
+                } else {
+                    \Log::warning('Stock es 0, no se crea registro');
                 }
             }
         }
