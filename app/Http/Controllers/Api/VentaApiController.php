@@ -50,7 +50,7 @@ class VentaApiController extends Controller
             'productos'            => $productosHoy['items'] ?? [],
             'moviles_ubicacion_id' => $productosHoy['_moviles_ubicacion_id'] ?? 0,
             'clientes'             => $this->clientesPorSectores($sectoresIds),
-            'comprobantes'     => Tipo_comprobantes::whereIn('id', [1, 2, 9])->get(['id', 'descripcion as nombre']),
+            'comprobantes'     => Tipo_comprobantes::whereIn('id', [1, 2, 5])->get(['id', 'descripcion as nombre']),
             'tipo_documentos'  => Tipo_documento::all(['id', 'nombre']),
             'forma_pagos'      => DB::table('forma_pagos')->orderBy('id')->get(['id', 'descripcion as nombre']),
             'bancos'           => DB::table('cuentas_bancarias as cb')
