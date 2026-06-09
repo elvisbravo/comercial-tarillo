@@ -616,13 +616,15 @@ class MobileSalesController extends Controller
 
         if ($request->input('format') == 'json' && $request->vendedor_id) {
             $vendedor = Vendedor::find($request->vendedor_id);
-            $stock = DB::table('detalle_almacen_productos as dp')
-                ->join('productos as p', 'dp.producto_id', '=', 'p.id')
-                ->select('p.id', 'p.nomb_pro', 'dp.stock')
-                ->where('dp.ubicacion_id', '=', $moviles_id)
-                ->where('dp.tipo_envio', '=', $envio)
+            $stock = DB::table('stock_vendedor as sv')
+                ->join('productos as p', 'p.id', '=', 'sv.producto_id')
+                ->select('p.id', 'p.nomb_pro', DB::raw('SUM(sv.cantidad_disponible) as stock'))
+                ->where('sv.vendedor_id', '=', $vendedor->usuario_id)
+                ->where('sv.fecha_carga', '=', date('Y-m-d'))
+                ->where('sv.estado', '=', 1)
                 ->where('p.estado', '=', '1')
-                ->where('dp.stock', '>', 0)
+                ->groupBy('p.id', 'p.nomb_pro')
+                ->havingRaw('SUM(sv.cantidad_disponible) > 0')
                 ->get();
             return response()->json($stock);
         }
@@ -644,17 +646,19 @@ class MobileSalesController extends Controller
                               ->get();
 
         foreach ($vendedores as $v) {
-            $v_stock = DB::table('detalle_almacen_productos as dp')
-                ->join('productos as p', 'dp.producto_id', '=', 'p.id')
-                ->where('dp.ubicacion_id', '=', $moviles_id)
-                ->where('dp.tipo_envio', '=', $envio)
+            $v_stock = DB::table('stock_vendedor as sv')
+                ->join('productos as p', 'p.id', '=', 'sv.producto_id')
+                ->where('sv.vendedor_id', '=', $v->usuario_id)
+                ->where('sv.fecha_carga', '=', date('Y-m-d'))
+                ->where('sv.estado', '=', 1)
                 ->where('p.estado', '=', '1')
-                ->where('dp.stock', '>', 0)
-                ->select('dp.stock')
+                ->select(DB::raw('SUM(sv.cantidad_disponible) as stock'))
+                ->groupBy('sv.producto_id')
+                ->havingRaw('SUM(sv.cantidad_disponible) > 0')
                 ->get();
-            
+
             $v->total_items = $v_stock->count();
-            $v->total_unidades = $v_stock->sum('stock');
+            $v->total_unidades = (int) $v_stock->sum('stock');
         }
 
         return view('ventas_moviles.retorno', compact('vendedores'));
@@ -734,11 +738,13 @@ class MobileSalesController extends Controller
 
             // 2. Procesar productos
             foreach ($productosIds as $productId) {
-                $stockTeorico = DB::table('detalle_almacen_productos')
-                                  ->where('ubicacion_id', $origen_id)
+                // Stock teórico = suma de lo que el vendedor tiene cargado HOY en stock_vendedor
+                $stockTeorico = (int) (DB::table('stock_vendedor')
+                                  ->where('vendedor_id', $vendedor->usuario_id)
                                   ->where('producto_id', $productId)
-                                  ->where('tipo_envio', $envio)
-                                  ->value('stock') ?? 0;
+                                  ->where('fecha_carga', date('Y-m-d'))
+                                  ->where('estado', 1)
+                                  ->sum('cantidad_disponible') ?? 0);
 
                 $stockFisico = (int)($fisicoRecibido[$productId] ?? 0);
                 $diferencia = $stockTeorico - $stockFisico; // Positivo es pérdida, negativo excedente
@@ -753,9 +759,23 @@ class MobileSalesController extends Controller
                 $detalle->estado = 1;
                 $detalle->save();
 
-                // Vaciar furgoneta (restar TODO el stock teórico actual de la furgoneta)
-                $servicios->aumentar_descontar_stock(0, $origen_id, $productId, $stockTeorico, $envio);
-                $servicios->movimiento_kardex_producto($origen_id, $productId, $stockTeorico, 2, "RETORNO DE FURGONETA", "RET", $traslado->correlativo, 0.0, 9, date('Y-m-d'), date('Y-m-d'));
+                // Cerrar registros de stock_vendedor (estado=2 = reportado/retornado)
+                DB::table('stock_vendedor')
+                    ->where('vendedor_id', $vendedor->usuario_id)
+                    ->where('producto_id', $productId)
+                    ->where('fecha_carga', date('Y-m-d'))
+                    ->where('estado', 1)
+                    ->update([
+                        'cantidad_disponible' => 0,
+                        'estado' => 2,
+                        'fecha_reporte' => date('Y-m-d H:i:s'),
+                        'user_reporte_id' => $user_id,
+                    ]);
+
+                // Kardex de salida por la merma (lo cargado que el vendedor NO devuelve)
+                if ($diferencia > 0) {
+                    $servicios->movimiento_kardex_producto($destino_id, $productId, $diferencia, 2, "MERMA EN RETORNO DE FURGONETA", "RET", $traslado->correlativo, 0.0, 9, date('Y-m-d'), date('Y-m-d'));
+                }
 
                 // Ingresar SOLO el stock físico recibido en el almacén central
                 if ($stockFisico > 0) {
