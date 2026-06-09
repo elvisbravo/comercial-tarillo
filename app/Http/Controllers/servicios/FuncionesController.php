@@ -680,9 +680,10 @@ class FuncionesController
             'tipo_envio' => $tipo_envio,
         ]);
 
-        // Buscar por ubicacion + producto (sin filtro tipo_envio pois los traslados no siempre lo setean bien)
+        // Buscar por ubicacion + producto + tipo_envio
         $data_almacen = Detalle_almacen_productos::where('ubicacion_id', '=', $idubicacion)
             ->where('producto_id', '=', $idproducto)
+            ->where('tipo_envio', '=', $tipo_envio)
             ->first();
 
         \Log::info("detalle_almacen_productos encontrado", [
