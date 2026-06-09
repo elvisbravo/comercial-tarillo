@@ -138,9 +138,13 @@ class VentaApiController extends Controller
 
         \Log::info('API guardar venta - movilesUbicacionId', ['movilesUbicacionId' => $movilesUbicacionId]);
 
+        // Resolver vendedor.id desde users.id
+        $vendedor = $this->resolveVendedor($user);
+        $vendedorId = $vendedor ? $vendedor->id : null;
+
         $request->merge([
             'es_movil' => true,
-            'vendedor' => $vendedor->id,
+            'vendedor' => $vendedorId, // vendedor.id para stock_vendedor
             'ubicacion_id' => $movilesUbicacionId,
         ]);
 
