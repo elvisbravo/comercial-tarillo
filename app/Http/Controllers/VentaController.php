@@ -27,6 +27,7 @@ use App\Sector;
 use App\Sede;
 use Spatie\Permission\Models\Role;
 use Codedge\Fpdf\Fpdf\Fpdf;
+use Illuminate\Support\Facades\Storage;
 
 use App\Http\Controllers\servicios\FuncionesController;
 use App\Ubigeo;
@@ -666,6 +667,34 @@ class VentaController extends Controller
                     $forma_venta->banco_id = $formaBanco[$i] ?? null;
                     $forma_venta->movimiento_id = $movimiento_id;
                     $forma_venta->save();
+                }
+            }
+
+            // Guardar firma del cliente si existe (ventas móviles al crédito)
+            if (!empty($post['firma'])) {
+                \Log::info('Procesando firma', [
+                    'venta_id' => $id_venta,
+                    'firma_length' => strlen($post['firma']),
+                    'firma_preview' => substr($post['firma'], 0, 50) . '...',
+                ]);
+                try {
+                    $firmaData = base64_decode($post['firma']);
+                    if ($firmaData === false) {
+                        \Log::error('Error al decodificar base64 de la firma', ['venta_id' => $id_venta]);
+                    } else {
+                        $firmaPath = 'firmas/venta_' . $id_venta . '.png';
+                        $stored = Storage::disk('public')->put($firmaPath, $firmaData);
+                        \Log::info('Resultado storage', ['venta_id' => $id_venta, 'stored' => $stored, 'path' => $firmaPath]);
+                        $venta->firma = $firmaPath;
+                        $venta->save();
+                        \Log::info('Firma guardada exitosamente', ['venta_id' => $id_venta, 'path' => $firmaPath]);
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Error al guardar firma', [
+                        'venta_id' => $id_venta,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
                 }
             }
 
