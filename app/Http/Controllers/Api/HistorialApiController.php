@@ -25,6 +25,13 @@ class HistorialApiController extends Controller
         $idsede = $user->sede_id;
         $envio = $this->tipoEnvio($idsede);
 
+        // Some traslados have cliente_id = users.id, others have cliente_id = vendedores.id (legacy)
+        $vendedor = Vendedor::where('usuario_id', $user->id)->first();
+        $clienteIds = [$user->id];
+        if ($vendedor) {
+            $clienteIds[] = $vendedor->id;
+        }
+
         $query = DB::table('traslados as t')
             ->leftJoin('users as u', 'u.id', '=', 't.user_id')
             ->select(
@@ -34,7 +41,7 @@ class HistorialApiController extends Controller
                 DB::raw('(SELECT COALESCE(SUM(dt.cantidad), 0) FROM detalle_traslado dt WHERE dt.traslado_id = t.id) as total_unidades')
             )
             ->where('t.serie', 'LIKE', 'CAR%')
-            ->where('t.cliente_id', $user->id)
+            ->whereIn('t.cliente_id', $clienteIds)
             ->where('t.sede_id', $idsede)
             ->where('t.tipo_envio', $envio);
 
@@ -86,11 +93,17 @@ class HistorialApiController extends Controller
         $idsede = $user->sede_id;
         $envio = $this->tipoEnvio($idsede);
 
+        $vendedor = Vendedor::where('usuario_id', $user->id)->first();
+        $clienteIds = [$user->id];
+        if ($vendedor) {
+            $clienteIds[] = $vendedor->id;
+        }
+
         $traslado = DB::table('traslados as t')
             ->leftJoin('users as u', 'u.id', '=', 't.user_id')
             ->where('t.id', $id)
             ->where('t.serie', 'LIKE', 'CAR%')
-            ->where('t.cliente_id', $user->id)
+            ->whereIn('t.cliente_id', $clienteIds)
             ->where('t.sede_id', $idsede)
             ->where('t.tipo_envio', $envio)
             ->select(
