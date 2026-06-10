@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\servicios\FuncionesController;
+use App\Clientes;
 use App\Sede;
 use App\Vendedor;
 use Illuminate\Http\Request;
@@ -22,12 +23,25 @@ class HistorialApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
         }
 
-        // Some traslados have cliente_id = users.id, others have cliente_id = vendedores.id (legacy)
+        // Reunir todos los posibles IDs que podrian estar en cliente_id (legacy + actual)
+        $clienteIds = [];
+
+        // 1. Actual: buscamos el registro en clientes vinculado al usuario
+        $cliente = Clientes::where('usuario', $user->id)->first();
+        if ($cliente) {
+            $clienteIds[] = $cliente->id;
+        }
+
+        // 2. Legacy: users.id
+        $clienteIds[] = $user->id;
+
+        // 3. Legacy: vendedores.id
         $vendedor = Vendedor::where('usuario_id', $user->id)->first();
-        $clienteIds = [$user->id];
         if ($vendedor) {
             $clienteIds[] = $vendedor->id;
         }
+
+        $clienteIds = array_unique($clienteIds);
 
         $query = DB::table('traslados as t')
             ->leftJoin('users as u', 'u.id', '=', 't.user_id')
@@ -86,11 +100,24 @@ class HistorialApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
         }
 
+        $clienteIds = [];
+
+        // 1. Actual: clientes.id vinculado al usuario
+        $cliente = Clientes::where('usuario', $user->id)->first();
+        if ($cliente) {
+            $clienteIds[] = $cliente->id;
+        }
+
+        // 2. Legacy: users.id
+        $clienteIds[] = $user->id;
+
+        // 3. Legacy: vendedores.id
         $vendedor = Vendedor::where('usuario_id', $user->id)->first();
-        $clienteIds = [$user->id];
         if ($vendedor) {
             $clienteIds[] = $vendedor->id;
         }
+
+        $clienteIds = array_unique($clienteIds);
 
         $traslado = DB::table('traslados as t')
             ->leftJoin('users as u', 'u.id', '=', 't.user_id')

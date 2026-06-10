@@ -967,6 +967,26 @@ class MobileSalesController extends Controller
             return redirect()->back()->with('error', 'El vendedor "' . $vendedor->name . '" no tiene rutas asignadas para la fecha actual (' . $fechaHoy . '). Debe asignarle sus rutas antes de poder cargar stock.');
         }
         
+        // Asegurar que existe un registro en clientes para este vendedor
+        $cliente = Clientes::where('usuario', $vendedor->id)->first();
+        if (!$cliente) {
+            // Generar documento secuencial: tomar el max, sumar 1, empezando desde 00000100
+            $maxDoc = Clientes::where('tipo_doc', 0)
+                ->where('documento', 'like', '00000%')
+                ->max('documento');
+            $nuevoDoc = $maxDoc
+                ? str_pad((int)$maxDoc + 1, 8, '0', STR_PAD_LEFT)
+                : '00000100';
+
+            $cliente = Clientes::create([
+                'nomb_per'    => $vendedor->name,
+                'documento'   => $nuevoDoc,
+                'tipo_doc'    => 0,
+                'estado_per'  => '1',
+                'usuario'     => $vendedor->id,
+            ]);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -1007,8 +1027,8 @@ class MobileSalesController extends Controller
             $destino_id = $ubicacionDestino->id;
 
             // 1. Verificar si ya existe un traslado CAR para este vendedor hoy
-            // Buscar por cliente_id y fecha sin filtrar por serie (la serie viene de correlativos)
-            $trasladoExistente = Traslado::where('cliente_id', $vendedor->id)
+            // Buscar por cliente_id (clientes.id) y fecha sin filtrar por serie
+            $trasladoExistente = Traslado::where('cliente_id', $cliente->id)
                 ->where('fecha', $fechaHoy)
                 ->where('estado', 1)
                 ->where('sede_id', $idsede)
@@ -1049,8 +1069,8 @@ class MobileSalesController extends Controller
                 $traslado->id_ubicacion_origen = $origen_id;
                 $traslado->id_ubicacion_destino = $destino_id;
                 $traslado->motivo = 'CARGA DIARIA DE STOCK A MOVILES';
-                $traslado->cliente_id = $vendedor->id; // users.id del vendedor (rol_id = 6) para el historial
-                $traslado->estado = 1; // 1 = RECIBIDO
+                $traslado->cliente_id = $cliente->id; // clientes.id del vendedor
+                $traslado->estado = 0; // 0 = GUIA ATENDIDO (directamente aceptado, no pendiente)
                 $traslado->tipo_envio = $envio;
                 $traslado->sede_id = $idsede;
                 $traslado->user_id = $user_id;
