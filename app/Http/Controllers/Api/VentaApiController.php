@@ -70,21 +70,9 @@ class VentaApiController extends Controller
      */
     public function buscarClientes(Request $request)
     {
-        $user     = Auth::user();
         $termino  = trim($request->get('q', ''));
-        $fechaHoy = date('Y-m-d');
 
-        $sectoresIds = VendedorSector::where('vendedor_id', $user->id)
-            ->where('fecha', $fechaHoy)
-            ->pluck('sector_id')
-            ->all();
-
-        if (empty($sectoresIds)) {
-            return response()->json(['status' => true, 'clientes' => []]);
-        }
-
-        $query = Clientes::where('estado_per', '1')
-            ->whereIn('id_sector', $sectoresIds);
+        $query = Clientes::where('estado_per', '1');
 
         if ($termino !== '') {
             $query->where(function ($q) use ($termino) {
@@ -159,13 +147,8 @@ class VentaApiController extends Controller
             'body' => json_decode($response->getContent(), true)
         ]);
 
-        // Si la venta fue exitosa, actualizar stock_vendedor
-        if ($response->getStatusCode() == 200) {
-            $body = json_decode($response->getContent(), true);
-            if (isset($body['respuesta']) && $body['respuesta'] == 'ok') {
-                $this->actualizarStockVendedor($user->id, $request->all());
-            }
-        }
+        // NOTA: El descuento de stock se realiza dentro de VentaController@generar_venta
+        // para ventas móviles (stock_vendedor). No duplicar aquí.
 
         return $response;
     }

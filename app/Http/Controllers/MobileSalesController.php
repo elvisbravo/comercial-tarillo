@@ -571,6 +571,21 @@ class MobileSalesController extends Controller
                 }
                 $venta->estado_liquidacion = 'LIQUIDADO';
                 $venta->save();
+
+                // Si la venta es al crédito y tiene cuota inicial (numero 0), marcarla como COBRADA
+                $credito = \App\Creditos::where('id_venta', $venta->id)->first();
+                if ($credito) {
+                    $cuotaInicial = \App\Cuotas::where('credito_id', $credito->id)
+                        ->where('numero_cuo', 0)
+                        ->first();
+                    if ($cuotaInicial && $cuotaInicial->esta_cuo == 'PENDIENTE') {
+                        $cuotaInicial->saldo_cuo = 0.00;
+                        $cuotaInicial->sald_cap = 0.00;
+                        $cuotaInicial->capi_cuo = 0.00;
+                        $cuotaInicial->esta_cuo = 'COBRADA';
+                        $cuotaInicial->save();
+                    }
+                }
             }
 
             // 2. Procesar Amortizaciones (Recibos)
