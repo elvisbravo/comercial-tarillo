@@ -99,8 +99,8 @@ class VendedorApiController extends Controller
             'status'   => true,
             'fecha'    => $fechaHoy,
             'vendedor' => [
-                'id'     => $vendedor->id,
-                'nombre' => $vendedor->nombre,
+                'id'     => $user->id,
+                'nombre' => $user->name,
             ],
             'sectores' => [
                 'total' => $sectoresAsignados->count(),
@@ -199,8 +199,9 @@ class VendedorApiController extends Controller
     private function calcularStock($user, $vendedor, $idsede, $fechaHoy): array
     {
         // Obtener stock disponible desde stock_vendedor
+        // stock_vendedor.vendedor_id = users.id (no vendedores.id)
         $stockVendedor = DB::table('stock_vendedor')
-            ->where('vendedor_id', $vendedor->id)
+            ->where('vendedor_id', $user->id)
             ->where('fecha_carga', $fechaHoy)
             ->where('estado', 1)
             ->get();
