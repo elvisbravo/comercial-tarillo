@@ -33,7 +33,7 @@ class HistorialApiController extends Controller
                 'u.name as usuario_nombre',
                 DB::raw('(SELECT COALESCE(SUM(dt.cantidad), 0) FROM detalle_traslado dt WHERE dt.traslado_id = t.id) as total_unidades')
             )
-            ->where('t.serie', 'CAR')
+            ->where('t.serie', 'LIKE', 'CAR%')
             ->where('t.cliente_id', $user->id)
             ->where('t.sede_id', $idsede)
             ->where('t.tipo_envio', $envio);
@@ -89,7 +89,7 @@ class HistorialApiController extends Controller
         $traslado = DB::table('traslados as t')
             ->leftJoin('users as u', 'u.id', '=', 't.user_id')
             ->where('t.id', $id)
-            ->where('t.serie', 'CAR')
+            ->where('t.serie', 'LIKE', 'CAR%')
             ->where('t.cliente_id', $user->id)
             ->where('t.sede_id', $idsede)
             ->where('t.tipo_envio', $envio)
