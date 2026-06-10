@@ -198,78 +198,40 @@ class VendedorApiController extends Controller
 
     private function calcularStock($user, $vendedor, $idsede, $fechaHoy): array
     {
-        $almacenPrincipal = Almacen::where('sede_id', $idsede)->first();
-        $ubicacionMoviles = $almacenPrincipal
-            ? DB::table('stock_location')
-                ->where('almacen_id', $almacenPrincipal->id)
-                ->where(DB::raw('LOWER(name)'), 'moviles')
-                ->first()
-            : null;
-
-        if (!$ubicacionMoviles) {
-            return [0, 0, []];
-        }
-
-        // Obtener tipo_envio directamente de la sede (sin usar session)
-        $sede = DB::table('sedes')->where('id', $idsede)->first();
-        $envio = $sede->tipo_envio ?? 1;
-
-        // Cargar productos del día (traslados CAR)
-        $loadedRaw = DB::table('detalle_traslado as dt')
-            ->join('traslados as t', 't.id', '=', 'dt.traslado_id')
-            ->where('t.serie', 'CAR')
-            ->where('t.cliente_id', $user->id)
-            ->where('t.fecha', $fechaHoy)
-            ->where('t.estado', 1)
-            ->where('dt.estado', 1)
-            ->groupBy('dt.producto_id')
-            ->select('dt.producto_id', DB::raw('SUM(dt.cantidad) as total_cargado'))
+        // Obtener stock disponible desde stock_vendedor
+        $stockVendedor = DB::table('stock_vendedor')
+            ->where('vendedor_id', $vendedor->id)
+            ->where('fecha_carga', $fechaHoy)
+            ->where('estado', 1)
             ->get();
-
-        $loadedByProduct = [];
-        foreach ($loadedRaw as $row) {
-            $loadedByProduct[$row->producto_id] = $row->total_cargado;
-        }
-
-        // Productos vendidos hoy
-        $soldRaw = DB::table('detalle_venta as dv')
-            ->join('ventas as v', 'v.id', '=', 'dv.venta_id')
-            ->where('v.vendedor_id', $vendedor->id)
-            ->where('v.fecha', $fechaHoy)
-            ->where('v.venta_estado', 1)
-            ->where('v.tipo_envio', $envio)
-            ->groupBy('dv.producto_id')
-            ->select('dv.producto_id', DB::raw('SUM(dv.cantidad) as total_vendido'))
-            ->get();
-
-        $soldByProduct = [];
-        foreach ($soldRaw as $row) {
-            $soldByProduct[$row->producto_id] = $row->total_vendido;
-        }
-
-        $nombres = [];
-        if (!empty($loadedByProduct)) {
-            $nombres = DB::table('productos')
-                ->whereIn('id', array_keys($loadedByProduct))
-                ->pluck('nomb_pro', 'id')
-                ->toArray();
-        }
 
         $detalle     = [];
         $totalUnits  = 0;
         $totalItems  = 0;
-        foreach ($loadedByProduct as $prodId => $loadedQty) {
-            $soldQty = (int) ($soldByProduct[$prodId] ?? 0);
-            $net = max(0, (int) $loadedQty - $soldQty);
-            if ($net > 0) {
+
+        $nombres = [];
+        $productIds = $stockVendedor->pluck('producto_id')->unique()->toArray();
+        if (!empty($productIds)) {
+            $nombres = DB::table('productos')
+                ->whereIn('id', $productIds)
+                ->pluck('nomb_pro', 'id')
+                ->toArray();
+        }
+
+        // Agrupar por producto (puede haber múltiples registros FIFO)
+        $grouped = $stockVendedor->groupBy('producto_id');
+        foreach ($grouped as $prodId => $items) {
+            $cantidad = (int) $items->sum('cantidad_disponible');
+            $vendido  = (int) $items->sum('cantidad_vendida');
+            if ($cantidad > 0) {
                 $detalle[] = [
                     'producto_id' => (int) $prodId,
                     'nombre'      => $nombres[$prodId] ?? '',
-                    'cargado'     => (int) $loadedQty,
-                    'vendido'     => $soldQty,
-                    'stock'       => $net,
+                    'cargado'     => $vendido + $cantidad,
+                    'vendido'     => $vendido,
+                    'stock'       => $cantidad,
                 ];
-                $totalUnits += $net;
+                $totalUnits += $cantidad;
                 $totalItems++;
             }
         }
