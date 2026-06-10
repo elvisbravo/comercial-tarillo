@@ -22,9 +22,6 @@ class HistorialApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
         }
 
-        $idsede = $user->sede_id;
-        $envio = $this->tipoEnvio($idsede);
-
         // Some traslados have cliente_id = users.id, others have cliente_id = vendedores.id (legacy)
         $vendedor = Vendedor::where('usuario_id', $user->id)->first();
         $clienteIds = [$user->id];
@@ -41,9 +38,7 @@ class HistorialApiController extends Controller
                 DB::raw('(SELECT COALESCE(SUM(dt.cantidad), 0) FROM detalle_traslado dt WHERE dt.traslado_id = t.id) as total_unidades')
             )
             ->where('t.serie', 'LIKE', 'CAR%')
-            ->whereIn('t.cliente_id', $clienteIds)
-            ->where('t.sede_id', $idsede)
-            ->where('t.tipo_envio', $envio);
+            ->whereIn('t.cliente_id', $clienteIds);
 
         if ($request->filled('fecha_desde')) {
             $query->where('t.fecha', '>=', $request->fecha_desde);
@@ -90,8 +85,6 @@ class HistorialApiController extends Controller
         if (!$this->esVendedor($user)) {
             return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
         }
-        $idsede = $user->sede_id;
-        $envio = $this->tipoEnvio($idsede);
 
         $vendedor = Vendedor::where('usuario_id', $user->id)->first();
         $clienteIds = [$user->id];
@@ -104,8 +97,6 @@ class HistorialApiController extends Controller
             ->where('t.id', $id)
             ->where('t.serie', 'LIKE', 'CAR%')
             ->whereIn('t.cliente_id', $clienteIds)
-            ->where('t.sede_id', $idsede)
-            ->where('t.tipo_envio', $envio)
             ->select(
                 't.id', 't.fecha', 't.hora', 't.serie', 't.correlativo',
                 't.motivo', 't.estado',
