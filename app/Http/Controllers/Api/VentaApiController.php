@@ -72,6 +72,8 @@ class VentaApiController extends Controller
     {
         $termino  = trim($request->get('q', ''));
 
+        \Log::info('buscarClientes', ['termino' => $termino]);
+
         $query = Clientes::where('estado_per', '1');
 
         if ($termino !== '') {
@@ -89,6 +91,8 @@ class VentaApiController extends Controller
             ->get()
             ->map(fn ($c) => $this->mapCliente($c))
             ->values();
+
+        \Log::info('buscarClientes resultado', ['count' => $clientes->count()]);
 
         return response()->json(['status' => true, 'clientes' => $clientes]);
     }
