@@ -36,7 +36,7 @@ class SedeController extends Controller
             $usuarioOriginal = \App\User::find($usuario->id);
             $request->session()->put('key', $usuarioOriginal);
 
-            $sedes = Sede::where('id', '!=', 1)->get();
+            $sedes = Sede::where('id', '!=', 1)->where('estado', 1)->get();
             $comprobantes = Tipo_comprobantes::all();
 
             return view('sedes.index', compact('sedes', 'comprobantes'));
