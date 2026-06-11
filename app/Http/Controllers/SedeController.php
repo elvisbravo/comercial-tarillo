@@ -239,32 +239,57 @@ class SedeController extends Controller
 
     public function guardar_correlativos(Request $request)
     {
-        $serie_prueba = $request->serie_prueba;
-        $serie_produccion = $request->serie_produccion;
-        $correlativo_prueba = $request->correlativo_prueba;
-        $correlativo_produccion = $request->correlativo_produccion;
-        $comprobantes = $request->tipocomprobante;
+        $idsede = $request->idsede;
 
-        $lenght = count($comprobantes);
+        // Obtener tipo_envio actual de la sede
+        $sede = Sede::find($idsede);
+        $tipoEnvio = $sede ? (int) $sede->tipo_envio : 0;
 
-        for ($i=0; $i < $lenght; $i++) {
-            $correlativo = new Correlativos;
-            $correlativo->serie = $serie_prueba[$i];
-            $correlativo->correlativo = $correlativo_prueba[$i];
-            $correlativo->sede_id = $request->idsede;
-            $correlativo->tipo_comprobante_id = $comprobantes[$i];
-            $correlativo->tipo_envio = 0;
-            $correlativo->save();
+        // Reunir TODOS los comprobantes (nuevos + existentes)
+        $nuevos = $request->tipocomprobante ?? [];       // name="tipocomprobante[]"
+        $existentes = $request->tipocomprobantetraido ?? []; // name="tipocomprobantetraido[]"
+        $series = $request->serie_traido ?? [];           // name="serie_traido[]"
+        $correlativos = $request->correlativo_traido ?? []; // name="correlativo_traido[]"
+        $idsCorrelativos = $request->correlativo_id ?? [];   // name="correlativo_id[]"
+
+        // Combinar todos los comprobantes en orden: primero existentes, luego nuevos
+        $todosComprobantes = array_merge($existentes, $nuevos);
+
+        // Eliminar correlativos que ya no están en la lista
+        if (!empty($idsCorrelativos)) {
+            Correlativos::where('sede_id', $idsede)
+                ->where('tipo_envio', $tipoEnvio)
+                ->whereNotIn('id', $idsCorrelativos)
+                ->delete();
+        } else {
+            // Si no hay IDs existentes, eliminar todos los de este tipo_envio
+            Correlativos::where('sede_id', $idsede)
+                ->where('tipo_envio', $tipoEnvio)
+                ->delete();
         }
 
-        for ($i=0; $i < $lenght; $i++) {
-            $correlativo = new Correlativos;
-            $correlativo->serie = $serie_produccion[$i];
-            $correlativo->correlativo = $correlativo_produccion[$i];
-            $correlativo->sede_id = $request->idsede;
-            $correlativo->tipo_comprobante_id = $comprobantes[$i];
-            $correlativo->tipo_envio = 1;
-            $correlativo->save();
+        foreach ($todosComprobantes as $i => $comprobanteId) {
+            $serie = $series[$i] ?? '';
+            $correlativoNum = $correlativos[$i] ?? '';
+
+            if (empty($serie) || empty($correlativoNum)) continue;
+
+            // Si ya existe un ID correlativo, actualizar; si no, crear nuevo
+            if (isset($idsCorrelativos[$i])) {
+                Correlativos::where('id', $idsCorrelativos[$i])
+                    ->update([
+                        'serie' => $serie,
+                        'correlativo' => $correlativoNum,
+                    ]);
+            } else {
+                Correlativos::create([
+                    'serie' => $serie,
+                    'correlativo' => $correlativoNum,
+                    'sede_id' => $idsede,
+                    'tipo_comprobante_id' => $comprobanteId,
+                    'tipo_envio' => $tipoEnvio,
+                ]);
+            }
         }
 
         return response()->json("ok");
