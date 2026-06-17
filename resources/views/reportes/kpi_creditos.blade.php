@@ -382,12 +382,7 @@
             font-size: 13px;
         }
 
-        /* Scroll horizontal cuando no caben todas las columnas */
-        .dataTables_wrapper {
-            width: 100%;
-            overflow-x: auto;
-        }
-
+        /* Scroll horizontal lo gestiona DataTables con scrollX: true (no duplicar aquí) */
         table.credits-table.dataTable {
             width: 100% !important;
         }
@@ -800,9 +795,9 @@
                             return meta.row + meta.settings._iDisplayStart + 1;
                         }
                     },
-                    { data: 'cliente_nombre',     render: d => escapeHtml(d || '-') },
+                    { data: 'cliente_nombre',     width: '250px', render: d => escapeHtml(d || '-') },
                     { data: 'cliente_documento',  render: d => escapeHtml(d || '-') },
-                    { data: 'sede_nombre',        render: d => escapeHtml(d || '-') },
+                    { data: 'sede_nombre',        width: '180px', render: d => escapeHtml(d || '-') },
                     { data: 'impo_cre',           className: 'num', render: d => formatMoney(d) },
                     { data: 'saldo_pendiente',    className: 'num', render: d => formatMoney(d) },
                     {
