@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Sede;
 use App\Permisos;
+use App\Http\Controllers\servicios\FuncionesController;
 
 class ReporteKpiController extends Controller
 {
@@ -27,12 +28,19 @@ class ReporteKpiController extends Controller
         $isAdmin = $user->hasRole('ADMINISTRADOR');
         $idsede = session('key') ? session('key')->sede_id : null;
 
+        // Tipo de envío de la sede del usuario logueado
+        $servicios = new FuncionesController;
+        $envio = $servicios->tipo_envio_sunat();
+
         if ($isAdmin) {
+            // Admin: ver todas las sedes activas del MISMO tipo_envio
             $sedes = Sede::where('estado', '=', '1')
                 ->where('id', '!=', 1) // Excluir "TODOS"
+                ->where('tipo_envio', '=', $envio)
                 ->orderBy('nombre', 'asc')
                 ->get();
         } else {
+            // No admin: solo su propia sede
             $sedes = Sede::where('id', $idsede)->get();
         }
 
@@ -51,6 +59,13 @@ class ReporteKpiController extends Controller
         $user = auth()->user();
         $isAdmin = $user->hasRole('ADMINISTRADOR');
         $idsede = session('key') ? session('key')->sede_id : null;
+
+        // Filtro por tipo_envio (mismo que la sede del usuario)
+        $servicios = new FuncionesController;
+        $envio = $servicios->tipo_envio_sunat();
+
+        // Filtro opcional por sede desde el select
+        $sedeFilter = $request->get('sede_id', 'all');
 
         $query = DB::table('creditos as c')
             ->join('clientes as cl', 'c.cliente_id', '=', 'cl.id')
@@ -71,11 +86,17 @@ class ReporteKpiController extends Controller
                 DB::raw('COALESCE(MAX(GREATEST(CURRENT_DATE - cu.fven_cuo, 0)), 0) as max_dias_atraso')
             )
             ->where('c.esta_cre', '=', '1')
-            ->where('c.sede_id', '!=', 1);
+            ->where('c.sede_id', '!=', 1)
+            ->where('c.tipo_envio', '=', $envio);
 
         if (!$isAdmin) {
+            // No admin: siempre su propia sede
             $query->where('c.sede_id', '=', $idsede);
+        } elseif ($sedeFilter !== 'all' && $sedeFilter !== null && $sedeFilter !== '') {
+            // Admin con sede específica seleccionada
+            $query->where('c.sede_id', '=', $sedeFilter);
         }
+        // Admin sin selección o con "all" -> ve todas las sedes del tipo_envio actual
 
         $creditsRaw = $query->groupBy('c.id', 'c.impo_cre', 'c.fech_cre', 'c.sede_id', 's.nombre', 'cl.razon_social', 'cl.documento')
             ->get();

@@ -139,6 +139,53 @@
             border-radius: 50%;
             margin-right: 6px;
         }
+
+        /* Selector de sede */
+        .sede-filter {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-top: 16px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .sede-filter-label {
+            font-weight: 600;
+            color: #34495e;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sede-filter-select {
+            flex: 0 0 auto;
+            min-width: 240px;
+            padding: 8px 12px;
+            border: 1px solid #d6dbe1;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #2c3e50;
+            background: #ffffff;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+        }
+
+        .sede-filter-select:focus {
+            outline: none;
+            border-color: #6a1b9a;
+            box-shadow: 0 0 0 3px rgba(106, 27, 154, 0.12);
+        }
+
+        .sede-filter-hint {
+            font-size: 12px;
+            color: #7a7a7a;
+            font-style: italic;
+        }
     </style>
 @endsection
 
@@ -153,6 +200,24 @@
                     <span>S/</span>
                 </div>
             </div>
+
+            {{-- Selector de sede (filtrado por tipo_envio del usuario) --}}
+            @if(count($sedes) > 0)
+                <div class="sede-filter">
+                    <label for="filter-sede" class="sede-filter-label">
+                        <i class="bx bx-buildings"></i> Sede:
+                    </label>
+                    <select id="filter-sede" class="sede-filter-select">
+                        <option value="all">— Todas las sedes —</option>
+                        @foreach($sedes as $s)
+                            <option value="{{ $s->id }}" {{ (session('key') && !$isAdmin && session('key')->sede_id == $s->id) ? 'selected' : '' }}>
+                                {{ $s->nombre }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <span class="sede-filter-hint" id="sede-filter-hint"></span>
+                </div>
+            @endif
 
             {{-- Gauge semicircular con ECharts --}}
             <div class="gauge-wrapper">
@@ -348,19 +413,37 @@
             // Pintar el gauge con datos vacíos primero (evita quedarse en blanco si la API tarda/falla)
             renderGauge({});
 
-            $.ajax({
-                url: urlData,
-                method: 'GET',
-                timeout: 15000,
-                success: function (response) {
-                    const summary = (response && response.summary) || {};
-                    renderGauge(summary);
-                    fillSummary(summary);
-                },
-                error: function (xhr, status, err) {
-                    console.error('Error al cargar KPI:', status, err, xhr && xhr.status, xhr && xhr.responseText);
-                }
-            });
+            function fetchData() {
+                const sedeId = $('#filter-sede').val() || 'all';
+                const hint = $('#sede-filter-hint');
+                hint.text('Cargando...');
+
+                $.ajax({
+                    url: urlData,
+                    method: 'GET',
+                    data: { sede_id: sedeId },
+                    timeout: 15000,
+                    success: function (response) {
+                        const summary = (response && response.summary) || {};
+                        renderGauge(summary);
+                        fillSummary(summary);
+
+                        const total = (summary && summary.total_creditos) || 0;
+                        const label = sedeId === 'all' ? 'Todas las sedes' : 'Sede seleccionada';
+                        hint.text(`${label} — ${total} crédito(s)`);
+                    },
+                    error: function (xhr, status, err) {
+                        console.error('Error al cargar KPI:', status, err, xhr && xhr.status, xhr && xhr.responseText);
+                        hint.text('Error al cargar');
+                    }
+                });
+            }
+
+            // Carga inicial
+            fetchData();
+
+            // Re-cargar al cambiar de sede
+            $('#filter-sede').on('change', fetchData);
         });
     </script>
 @endsection
