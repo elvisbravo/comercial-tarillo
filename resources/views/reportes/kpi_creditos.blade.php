@@ -430,7 +430,28 @@
             font-style: italic;
             font-size: 14px;
         }
+
+        /* DataTable ajuste visual */
+        table.credits-table.dataTable tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_paginate {
+            font-size: 13px;
+            color: #475569;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            padding: 0.25em 0.6em;
+        }
     </style>
+
+    {{-- DataTables CSS --}}
+    <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+    <link href="{{ asset('assets/libs/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
 @endsection
 
 @section('contenido')
@@ -555,25 +576,22 @@
                     </span>
                 </div>
                 <div class="credits-table-wrapper">
-                    <table class="credits-table" id="credits-table">
+                    <table id="credits-table" class="credits-table dt-responsive nowrap w-100">
                         <thead>
                             <tr>
                                 <th>#</th>
                                 <th>Cliente</th>
                                 <th>Documento</th>
                                 <th>Sede</th>
-                                <th class="num">Importe</th>
-                                <th class="num">Saldo pendiente</th>
-                                <th class="num">Días atraso</th>
+                                <th>Importe</th>
+                                <th>Saldo pendiente</th>
+                                <th>Días atraso</th>
                                 <th>Categoría</th>
                             </tr>
                         </thead>
-                        <tbody id="credits-tbody">
+                        <tbody>
                         </tbody>
                     </table>
-                </div>
-                <div id="credits-empty" class="credits-empty" style="display: none;">
-                    <i class="bx bx-info-circle"></i> No hay créditos para la categoría seleccionada.
                 </div>
             </div>
 
@@ -585,6 +603,12 @@
     {{-- ECharts (ya está en assets/libs del proyecto; lo cargamos desde CDN por simplicidad) --}}
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 
+    {{-- DataTables --}}
+    <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
+    <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+    <script src="{{ asset('assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js') }}"></script>
+    <script src="{{ asset('assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js') }}"></script>
+
     <script>
         // Configuración del gauge con 5 zonas de color
         // Categorías: normal(0-20) | potencial(20-40) | deficiente(40-60) | dudoso(60-80) | perdida(80-100)
@@ -595,6 +619,20 @@
             { key: 'dudoso',     center: 70, color: '#ff9800' },
             { key: 'perdida',    center: 90, color: '#dc3545' }
         ];
+
+        // Estado compartido para el DataTable de créditos
+        let creditsTable = null;
+        let currentFilter = 'all';
+        let lastCredits = [];
+
+        const FILTER_LABELS = {
+            all: 'Todas las categorías',
+            normal: 'Normal',
+            potencial: 'Problemas potenciales',
+            deficiente: 'Deficiente',
+            dudoso: 'Dudoso',
+            perdida: 'Pérdida'
+        };
 
         function dominantCategory(summary) {
             let dom = CATEGORIES[0];
@@ -692,53 +730,101 @@
             });
         }
 
-        function renderCreditsList(credits, filter) {
-            const tbody = $('#credits-tbody');
-            const empty = $('#credits-empty');
-            const badge = $('#credits-filter-badge');
-            const table = $('#credits-table');
+        function updateCreditsFilterBadge(visibleCount) {
+            const label = FILTER_LABELS[currentFilter] || 'Todas las categorías';
+            $('#credits-filter-badge').html(`<i class="bx bx-filter-alt"></i> ${label} (${visibleCount})`);
+        }
 
-            tbody.empty();
+        function initCreditsDataTable(credits) {
+            if (creditsTable) {
+                creditsTable.destroy();
+                creditsTable = null;
+            }
 
-            const list = (!filter || filter === 'all')
-                ? (credits || [])
-                : (credits || []).filter(c => c.cat_key === filter);
+            creditsTable = $('#credits-table').DataTable({
+                data: credits || [],
+                responsive: true,
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
+                order: [[6, 'desc']],
+                language: {
+                    processing:     'Procesando...',
+                    search:         'Buscar:',
+                    lengthMenu:     'Mostrar _MENU_ registros',
+                    info:           'Mostrando _START_ a _END_ de _TOTAL_ créditos',
+                    infoEmpty:      'No hay créditos disponibles',
+                    infoFiltered:   '(filtrado de _MAX_ créditos)',
+                    loadingRecords: 'Cargando...',
+                    zeroRecords:    'No hay créditos para la categoría seleccionada.',
+                    emptyTable:     'No hay créditos disponibles',
+                    paginate: {
+                        first:    '«',
+                        previous: '‹',
+                        next:     '›',
+                        last:     '»'
+                    }
+                },
+                columns: [
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center',
+                        render: function (data, type, row, meta) {
+                            return meta.row + meta.settings._iDisplayStart + 1;
+                        }
+                    },
+                    { data: 'cliente_nombre',     render: d => escapeHtml(d || '-') },
+                    { data: 'cliente_documento',  render: d => escapeHtml(d || '-') },
+                    { data: 'sede_nombre',        render: d => escapeHtml(d || '-') },
+                    { data: 'impo_cre',           className: 'num', render: d => formatMoney(d) },
+                    { data: 'saldo_pendiente',    className: 'num', render: d => formatMoney(d) },
+                    {
+                        data: 'max_dias_atraso',
+                        className: 'num',
+                        render: function (d) {
+                            const n = parseInt(d, 10) || 0;
+                            return n + ' día' + (n === 1 ? '' : 's');
+                        }
+                    },
+                    {
+                        data: 'cat_key',
+                        render: function (d, type, row) {
+                            if (type === 'display') {
+                                return `<span class="credits-cat-badge" style="background:${row.color_hex};">${escapeHtml(row.categoria || '-')}</span>`;
+                            }
+                            return d || '';
+                        }
+                    }
+                ],
+                initComplete: function () {
+                    updateCreditsFilterBadge(creditsTable.rows({ search: 'applied' }).count());
+                },
+                drawCallback: function () {
+                    updateCreditsFilterBadge(creditsTable.rows({ search: 'applied' }).count());
+                }
+            });
 
-            const filterLabels = {
-                all: 'Todas las categorías',
-                normal: 'Normal',
-                potencial: 'Problemas potenciales',
-                deficiente: 'Deficiente',
-                dudoso: 'Dudoso',
-                perdida: 'Pérdida'
-            };
-            badge.html(`<i class="bx bx-filter-alt"></i> ${filterLabels[filter] || 'Todas las categorías'} (${list.length})`);
+            return creditsTable;
+        }
 
-            if (!list || list.length === 0) {
-                table.hide();
-                empty.show();
+        function refreshCreditsDataTable(credits) {
+            if (!creditsTable) {
+                initCreditsDataTable(credits);
                 return;
             }
-            table.show();
-            empty.hide();
+            creditsTable.clear();
+            creditsTable.rows.add(credits || []);
+            creditsTable.draw();
+        }
 
-            list.forEach((c, idx) => {
-                const dias = c.max_dias_atraso;
-                const diasLabel = `${dias} día${dias === 1 ? '' : 's'}`;
-                const row = `
-                    <tr>
-                        <td>${idx + 1}</td>
-                        <td>${escapeHtml(c.cliente_nombre || '-')}</td>
-                        <td>${escapeHtml(c.cliente_documento || '-')}</td>
-                        <td>${escapeHtml(c.sede_nombre || '-')}</td>
-                        <td class="num">${formatMoney(c.impo_cre)}</td>
-                        <td class="num">${formatMoney(c.saldo_pendiente)}</td>
-                        <td class="num">${diasLabel}</td>
-                        <td><span class="credits-cat-badge" style="background:${c.color_hex};">${escapeHtml(c.categoria || '-')}</span></td>
-                    </tr>
-                `;
-                tbody.append(row);
-            });
+        function applyCategoryFilter(filter) {
+            if (!creditsTable) return;
+            if (!filter || filter === 'all') {
+                creditsTable.column(7).search('').draw();
+            } else {
+                creditsTable.column(7).search('^' + filter + '$', true, false).draw();
+            }
         }
 
         function escapeHtml(str) {
@@ -816,17 +902,13 @@
         $(function () {
             const urlData = "{{ route('reportes.kpi_creditos.data') }}";
 
-            // Estado en memoria del último fetch y del filtro actual
-            let lastCredits = [];
-            let currentFilter = 'all';
-
             // Ocultar el preloader global del layout (igual que en las demás vistas)
             $(".loader").fadeOut("slow");
 
             // Pintar el gauge con datos vacíos primero (evita quedarse en blanco si la API tarda/falla)
             renderGauge({});
             setActivePill(currentFilter);
-            renderCreditsList([], currentFilter);
+            initCreditsDataTable([]);
 
             function fetchData() {
                 const sedeId = $('#filter-sede').val() || 'all';
@@ -847,7 +929,8 @@
                         renderGauge(summary);
                         fillSummary(summary);
                         renderSedes(sedesSummary);
-                        renderCreditsList(lastCredits, currentFilter);
+                        refreshCreditsDataTable(lastCredits);
+                        applyCategoryFilter(currentFilter);
 
                         const total = (summary && summary.total_creditos) || 0;
                         const label = sedeId === 'all' ? 'Todas las sedes' : 'Sede seleccionada';
@@ -858,7 +941,7 @@
                         const code = xhr && xhr.status ? ` (HTTP ${xhr.status})` : '';
                         hint.text(`Error al cargar${code}`);
                         lastCredits = [];
-                        renderCreditsList([], currentFilter);
+                        refreshCreditsDataTable([]);
                     }
                 });
             }
@@ -873,7 +956,7 @@
                     currentFilter = filter;
                 }
                 setActivePill(currentFilter);
-                renderCreditsList(lastCredits, currentFilter);
+                applyCategoryFilter(currentFilter);
             });
 
             // Carga inicial
