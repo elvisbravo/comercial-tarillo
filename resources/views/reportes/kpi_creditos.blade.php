@@ -344,6 +344,40 @@
             margin-bottom: 14px;
         }
 
+        .credits-table-filters {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .credits-table-filter-label {
+            font-weight: 600;
+            color: #34495e;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .credits-table-filter-select {
+            padding: 6px 10px;
+            border: 1px solid #d6dbe1;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #2c3e50;
+            background: #ffffff;
+            cursor: pointer;
+            min-width: 170px;
+            transition: border-color 0.2s ease;
+        }
+
+        .credits-table-filter-select:focus {
+            outline: none;
+            border-color: #6a1b9a;
+            box-shadow: 0 0 0 3px rgba(106, 27, 154, 0.12);
+        }
+
         .credits-section-title {
             color: #1a73e8;
             font-size: 16px;
@@ -615,14 +649,33 @@
                 </div>
             </div>
 
-            {{-- Listado de créditos filtrable por categoría --}}
+            {{-- Listado de créditos filtrable por sede y categoría --}}
             <div class="credits-section">
                 <div class="credits-section-header">
                     <h3 class="credits-section-title">
                         <i class="bx bx-list-ul"></i> Listado de Créditos
                     </h3>
+                    <div class="credits-table-filters">
+                        <label for="filter-sede-table" class="credits-table-filter-label">
+                            <i class="bx bx-buildings"></i> Sede:
+                        </label>
+                        <select id="filter-sede-table" class="credits-table-filter-select">
+                            <option value="all">— Todas las sedes —</option>
+                        </select>
+                        <label for="filter-cat-table" class="credits-table-filter-label">
+                            <i class="bx bx-category"></i> Categoría:
+                        </label>
+                        <select id="filter-cat-table" class="credits-table-filter-select">
+                            <option value="all">— Todas las categorías —</option>
+                            <option value="normal">Normal</option>
+                            <option value="potencial">Problemas potenciales</option>
+                            <option value="deficiente">Deficiente</option>
+                            <option value="dudoso">Dudoso</option>
+                            <option value="perdida">Pérdida</option>
+                        </select>
+                    </div>
                     <span class="credits-filter-badge" id="credits-filter-badge">
-                        <i class="bx bx-filter-alt"></i> Todas las categorías
+                        <i class="bx bx-filter-alt"></i> Mostrando 0 créditos
                     </span>
                 </div>
                 <div class="credits-table-wrapper">
@@ -671,7 +724,8 @@
 
         // Estado compartido para el DataTable de créditos
         let creditsTable = null;
-        let currentFilter = 'all';
+        let currentCatFilter = 'all';
+        let currentSedeFilter = 'all';
         let lastCredits = [];
 
         const FILTER_LABELS = {
@@ -682,6 +736,10 @@
             dudoso: 'Dudoso',
             perdida: 'Pérdida'
         };
+
+        function escapeRegex(str) {
+            return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
 
         function dominantCategory(summary) {
             let dom = CATEGORIES[0];
@@ -780,8 +838,38 @@
         }
 
         function updateCreditsFilterBadge(visibleCount) {
-            const label = FILTER_LABELS[currentFilter] || 'Todas las categorías';
-            $('#credits-filter-badge').html(`<i class="bx bx-filter-alt"></i> ${label} (${visibleCount})`);
+            const parts = [];
+            if (currentSedeFilter && currentSedeFilter !== 'all') parts.push(`Sede: ${currentSedeFilter}`);
+            if (currentCatFilter && currentCatFilter !== 'all') parts.push(`Cat: ${FILTER_LABELS[currentCatFilter] || currentCatFilter}`);
+            const txt = parts.length ? parts.join(' · ') : 'Todos los créditos';
+            $('#credits-filter-badge').html(`<i class="bx bx-filter-alt"></i> ${txt} — ${visibleCount} mostrado${visibleCount === 1 ? '' : 's'}`);
+        }
+
+        function populateTableSedeSelect(credits) {
+            const $sel = $('#filter-sede-table');
+            const previous = $sel.val() || 'all';
+            const unique = {};
+            (credits || []).forEach(c => {
+                if (c.sede_id != null && c.sede_nombre) {
+                    unique[c.sede_id] = c.sede_nombre;
+                }
+            });
+            const list = Object.keys(unique)
+                .map(k => ({ id: k, nombre: unique[k] }))
+                .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+            $sel.empty().append('<option value="all">— Todas las sedes —</option>');
+            list.forEach(s => {
+                $sel.append(`<option value="${escapeHtml(s.nombre)}">${escapeHtml(s.nombre)}</option>`);
+            });
+
+            const stillExists = list.some(s => s.nombre === previous);
+            if (previous === 'all' || stillExists) {
+                $sel.val(previous);
+            } else {
+                $sel.val('all');
+                currentSedeFilter = 'all';
+            }
         }
 
         function initCreditsDataTable(credits) {
@@ -882,13 +970,25 @@
             creditsTable.draw();
         }
 
-        function applyCategoryFilter(filter) {
+        function applyTableFilters() {
             if (!creditsTable) return;
-            if (!filter || filter === 'all') {
-                creditsTable.column(7).search('').draw();
-            } else {
-                creditsTable.column(7).search('^' + filter + '$', true, false).draw();
-            }
+
+            const cat = currentCatFilter;
+            const sede = currentSedeFilter;
+
+            // Categoría = columna 6 (data: cat_key)
+            creditsTable.column(6).search(
+                (!cat || cat === 'all') ? '' : '^' + cat + '$',
+                true, false
+            );
+
+            // Sede = columna 2 (data: sede_nombre)
+            creditsTable.column(2).search(
+                (!sede || sede === 'all') ? '' : '^' + escapeRegex(sede) + '$',
+                true, false
+            );
+
+            creditsTable.draw();
         }
 
         function escapeHtml(str) {
@@ -971,7 +1071,7 @@
 
             // Pintar el gauge con datos vacíos primero (evita quedarse en blanco si la API tarda/falla)
             renderGauge({});
-            setActivePill(currentFilter);
+            setActivePill(currentCatFilter);
             initCreditsDataTable([]);
 
             function fetchData() {
@@ -993,8 +1093,9 @@
                         renderGauge(summary);
                         fillSummary(summary);
                         renderSedes(sedesSummary);
+                        populateTableSedeSelect(lastCredits);
                         refreshCreditsDataTable(lastCredits);
-                        applyCategoryFilter(currentFilter);
+                        applyTableFilters();
 
                         const total = (summary && summary.total_creditos) || 0;
                         const label = sedeId === 'all' ? 'Todas las sedes' : 'Sede seleccionada';
@@ -1005,28 +1106,45 @@
                         const code = xhr && xhr.status ? ` (HTTP ${xhr.status})` : '';
                         hint.text(`Error al cargar${code}`);
                         lastCredits = [];
+                        populateTableSedeSelect([]);
                         refreshCreditsDataTable([]);
                     }
                 });
             }
 
-            // Click en pills de categoría: filtra el listado (toggle: click en la misma la desactiva)
+            // Cambio en el select de sede de la tabla
+            $('#filter-sede-table').on('change', function () {
+                currentSedeFilter = $(this).val() || 'all';
+                applyTableFilters();
+            });
+
+            // Cambio en el select de categoría de la tabla
+            $('#filter-cat-table').on('change', function () {
+                currentCatFilter = $(this).val() || 'all';
+                setActivePill(currentCatFilter);
+                applyTableFilters();
+            });
+
+            // Click en pills del summary (atajo rápido): filtra la categoría y resetea la sede
             $('#summary-bar').on('click', '.summary-pill', function () {
                 const filter = $(this).data('filter');
                 if (!filter) return;
-                if (currentFilter === filter && filter !== 'all') {
-                    currentFilter = 'all';
+                if (currentCatFilter === filter && filter !== 'all') {
+                    currentCatFilter = 'all';
                 } else {
-                    currentFilter = filter;
+                    currentCatFilter = filter;
                 }
-                setActivePill(currentFilter);
-                applyCategoryFilter(currentFilter);
+                currentSedeFilter = 'all';
+                $('#filter-sede-table').val('all');
+                $('#filter-cat-table').val(currentCatFilter);
+                setActivePill(currentCatFilter);
+                applyTableFilters();
             });
 
             // Carga inicial
             fetchData();
 
-            // Re-cargar al cambiar de sede
+            // Re-cargar al cambiar de sede (selector global)
             $('#filter-sede').on('change', fetchData);
         });
     </script>
