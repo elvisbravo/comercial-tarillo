@@ -25,7 +25,8 @@ class ReporteKpiController extends Controller
         }
 
         $user = auth()->user();
-        $isAdmin = $user->hasRole('ADMINISTRADOR');
+        // Detección de admin robusta: acepta cualquier variación de mayúsculas/minúsculas
+        $isAdmin = $user->hasAnyRole(['ADMINISTRADOR', 'Administrador', 'administrador', 'Admin', 'admin']);
         $idsede = session('key') ? session('key')->sede_id : null;
 
         // Tipo de envío de la sede del usuario logueado
@@ -57,7 +58,7 @@ class ReporteKpiController extends Controller
         }
 
         $user = auth()->user();
-        $isAdmin = $user->hasRole('ADMINISTRADOR');
+        $isAdmin = $user->hasAnyRole(['ADMINISTRADOR', 'Administrador', 'administrador', 'Admin', 'admin']);
         $idsede = session('key') ? session('key')->sede_id : null;
 
         // Filtro por tipo_envio (mismo que la sede del usuario)
