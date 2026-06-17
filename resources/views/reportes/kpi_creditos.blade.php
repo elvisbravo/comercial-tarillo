@@ -65,6 +65,46 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
         }
 
+        /* Layout 50/50 entre gauge y categorías */
+        .gauge-categories-row {
+            display: flex;
+            align-items: stretch;
+            margin-top: 8px;
+        }
+
+        .gauge-categories-row > [class*="col-"] {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .gauge-categories-row .gauge-wrapper {
+            flex: 1;
+            margin-top: 0;
+        }
+
+        .categories-panel {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 18px 22px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            margin-top: 24px;
+            flex: 1;
+        }
+
+        .categories-panel .categories-title {
+            text-align: left;
+            margin: 0 0 12px;
+            font-size: 15px;
+        }
+
+        .categories-panel .divider-dashed {
+            margin-bottom: 14px;
+        }
+
+        .categories-panel .consumo-marker {
+            margin: 0 0 12px;
+        }
+
         .categories-title {
             text-align: center;
             color: #1a73e8;
@@ -568,11 +608,6 @@
                 </div>
             @endif
 
-            {{-- Gauge semicircular con ECharts --}}
-            <div class="gauge-wrapper">
-                <div id="kpi-gauge-chart" style="width: 100%; height: 100%;"></div>
-            </div>
-
             {{-- Resumen numérico por categoría (siempre visible) --}}
             <div class="summary-bar" id="summary-bar">
                 <span class="label">Mostrar:</span>
@@ -586,51 +621,53 @@
                 <span class="summary-pill" data-filter="perdida"><span class="dot" style="background:#dc3545;"></span> Pérdida: <span id="sum-perdida">0</span></span>
             </div>
 
-            {{-- Título de categorías --}}
-            <h2 class="categories-title">CATEGORÍAS DE CLASIFICACIÓN</h2>
-
-            <hr class="divider-dashed">
-
-            {{-- Listado de categorías con descripciones --}}
-            <div class="consumo-marker">EN CRÉDITOS DE CONSUMO</div>
-
-            <div class="row">
+            {{-- Gauge 50% | Categorías 50% --}}
+            <div class="row gauge-categories-row">
                 <div class="col-md-6">
-                    <div class="categoria-item">
-                        <div class="categoria-dot" style="background:#28a745;"></div>
-                        <div class="categoria-text">
-                            <strong>Normal</strong>
-                            Pago puntual o atraso máximo de 8 días
-                        </div>
-                    </div>
-                    <div class="categoria-item">
-                        <div class="categoria-dot" style="background:#8bc34a;"></div>
-                        <div class="categoria-text">
-                            <strong>Problemas potenciales</strong>
-                            Atrasos en el pago máximo entre 9 a 30 días
-                        </div>
-                    </div>
-                    <div class="categoria-item">
-                        <div class="categoria-dot" style="background:#ffc107;"></div>
-                        <div class="categoria-text">
-                            <strong>Deficiente</strong>
-                            Atrasos en el pago máximo entre 31 a 60 días
-                        </div>
+                    <div class="gauge-wrapper">
+                        <div id="kpi-gauge-chart" style="width: 100%; height: 100%;"></div>
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="categoria-item">
-                        <div class="categoria-dot" style="background:#ff9800;"></div>
-                        <div class="categoria-text">
-                            <strong>Dudoso</strong>
-                            Atrasos en el pago máximo entre 61 a 120 días
+                    <div class="categories-panel">
+                        <h2 class="categories-title">CATEGORÍAS DE CLASIFICACIÓN</h2>
+                        <hr class="divider-dashed">
+                        <div class="consumo-marker">EN CRÉDITOS DE CONSUMO</div>
+
+                        <div class="categoria-item">
+                            <div class="categoria-dot" style="background:#28a745;"></div>
+                            <div class="categoria-text">
+                                <strong>Normal</strong>
+                                Pago puntual o atraso máximo de 8 días
+                            </div>
                         </div>
-                    </div>
-                    <div class="categoria-item">
-                        <div class="categoria-dot" style="background:#dc3545;"></div>
-                        <div class="categoria-text">
-                            <strong>Pérdida</strong>
-                            Atrasos en el pago de más de 120 días
+                        <div class="categoria-item">
+                            <div class="categoria-dot" style="background:#8bc34a;"></div>
+                            <div class="categoria-text">
+                                <strong>Problemas potenciales</strong>
+                                Atrasos en el pago máximo entre 9 a 30 días
+                            </div>
+                        </div>
+                        <div class="categoria-item">
+                            <div class="categoria-dot" style="background:#ffb74d;"></div>
+                            <div class="categoria-text">
+                                <strong>Deficiente</strong>
+                                Atrasos en el pago máximo entre 31 a 60 días
+                            </div>
+                        </div>
+                        <div class="categoria-item">
+                            <div class="categoria-dot" style="background:#ff9800;"></div>
+                            <div class="categoria-text">
+                                <strong>Dudoso</strong>
+                                Atrasos en el pago máximo entre 61 a 120 días
+                            </div>
+                        </div>
+                        <div class="categoria-item">
+                            <div class="categoria-dot" style="background:#dc3545;"></div>
+                            <div class="categoria-text">
+                                <strong>Pérdida</strong>
+                                Atrasos en el pago de más de 120 días
+                            </div>
                         </div>
                     </div>
                 </div>
