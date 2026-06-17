@@ -398,54 +398,14 @@
             white-space: nowrap;
         }
 
-        /* Paginación: botones pegados, sin espacios entre ellos */
-        .dataTables_wrapper .dataTables_paginate {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0;
+        /* Paginación al estilo por defecto Bootstrap 4 (igual que ventas) */
+        div.dataTables_wrapper div.dataTables_paginate {
+            display: flex !important;
+            justify-content: flex-end !important;
             margin-top: 14px;
         }
-
-        .dataTables_wrapper .dataTables_paginate .paginate_button {
-            margin: 0 !important;
-            padding: 6px 12px;
-            border: 1px solid #d6dbe1;
-            border-right: none;
-            background: #ffffff;
-            color: #4f46e5;
-            font-weight: 600;
-            border-radius: 0;
-            cursor: pointer;
-        }
-
-        .dataTables_wrapper .dataTables_paginate .paginate_button:first-child {
-            border-top-left-radius: 6px;
-            border-bottom-left-radius: 6px;
-        }
-
-        .dataTables_wrapper .dataTables_paginate .paginate_button:last-child {
-            border-right: 1px solid #d6dbe1;
-            border-top-right-radius: 6px;
-            border-bottom-right-radius: 6px;
-        }
-
-        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-            background: #f1f5f9 !important;
-            color: #4f46e5 !important;
-        }
-
-        .dataTables_wrapper .dataTables_paginate .paginate_button.current,
-        .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
-            background: #6a1b9a !important;
-            color: #ffffff !important;
-            border-color: #6a1b9a !important;
-        }
-
-        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
-        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover {
-            color: #cbd5e1 !important;
-            background: #ffffff !important;
-            cursor: not-allowed;
+        .pagination {
+            justify-content: flex-end !important;
         }
 
         table.credits-table.dataTable thead th,
