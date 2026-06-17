@@ -1593,7 +1593,7 @@ class VentaController extends Controller
 
             foreach ($detalle_venta as $key => $value) {
                 $servicios->aumentar_descontar_stock(1, $value->ubicacion_id, $value->producto_id, $value->cantidad, $venta->tipo_envio);
-                $servicios->movimiento_kardex_producto($value->ubicacion_id, $value->producto_id, $value->cantidad, 1, "NOTA DE VENTA", $venta->serie_comprobante, $venta->numero_comprobante, $value->precio, 5, date('Y-m-d'), date('Y-m-d'));
+                $servicios->movimiento_kardex_producto($value->ubicacion_id, $value->producto_id, $value->cantidad, 1, "DEVOLUCION NOTA DE VENTA " . $venta->serie_comprobante . "-" . $venta->numero_comprobante, $venta->serie_comprobante, $venta->numero_comprobante, $value->precio, 5, date('Y-m-d'), date('Y-m-d'));
             }
 
             $json = array(
@@ -1680,7 +1680,7 @@ class VentaController extends Controller
                     $value->producto_id,
                     $value->cantidad,
                     1, // tipo=1 entrada
-                    "ANULACION VENTA",
+                    "DEVOLUCION VENTA " . $venta->serie_comprobante . "-" . $venta->numero_comprobante,
                     $venta->serie_comprobante,
                     $venta->numero_comprobante,
                     $value->precio,
