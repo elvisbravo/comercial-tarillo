@@ -87,7 +87,7 @@ class ReporteKpiController extends Controller
             )
             ->where('c.esta_cre', '=', '1')
             ->where('c.sede_id', '!=', 1)
-            ->where('c.tipo_envio', '=', $envio);
+            ->where('s.tipo_envio', '=', $envio);
 
         if (!$isAdmin) {
             // No admin: siempre su propia sede
