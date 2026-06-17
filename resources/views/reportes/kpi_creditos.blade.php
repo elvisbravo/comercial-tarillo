@@ -186,6 +186,123 @@
             color: #7a7a7a;
             font-style: italic;
         }
+
+        /* Desglose por Sedes */
+        .sedes-section {
+            margin-top: 36px;
+        }
+
+        .sedes-section-title {
+            color: #1a73e8;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sede-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+            height: 100%;
+            transition: all 0.2s ease;
+        }
+
+        .sede-card:hover {
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .sede-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .sede-card-name {
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 15px;
+            flex: 1;
+            margin-right: 8px;
+            word-break: break-word;
+        }
+
+        .sede-card-count {
+            background: #eef2ff;
+            color: #4f46e5;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .sede-card-total {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 14px;
+        }
+
+        .progress-stacked {
+            height: 12px;
+            display: flex;
+            border-radius: 6px;
+            overflow: hidden;
+            background-color: #f1f5f9;
+            margin-bottom: 12px;
+        }
+
+        .progress-segment {
+            height: 100%;
+            transition: width 0.6s ease;
+        }
+
+        .segment-normal     { background-color: #28a745; }
+        .segment-potencial  { background-color: #8bc34a; }
+        .segment-deficiente { background-color: #ffc107; }
+        .segment-dudoso     { background-color: #ff9800; }
+        .segment-perdida    { background-color: #dc3545; }
+
+        .legend-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            font-size: 11px;
+        }
+
+        .legend-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .legend-pill .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.7);
+            margin-right: 5px;
+        }
+
+        .sedes-empty {
+            text-align: center;
+            padding: 30px;
+            color: #94a3b8;
+            font-style: italic;
+            font-size: 14px;
+        }
     </style>
 @endsection
 
@@ -224,10 +341,10 @@
                 <div id="kpi-gauge-chart" style="width: 100%; height: 100%;"></div>
             </div>
 
-            {{-- Resumen numérico (oculto si no hay datos) --}}
-            <div class="summary-bar" id="summary-bar" style="display: none;">
+            {{-- Resumen numérico por categoría (siempre visible) --}}
+            <div class="summary-bar" id="summary-bar">
                 <span class="summary-pill"><span class="dot" style="background:#28a745;"></span> Normal: <span id="sum-normal">0</span></span>
-                <span class="summary-pill"><span class="dot" style="background:#8bc34a;"></span> Potencial: <span id="sum-potencial">0</span></span>
+                <span class="summary-pill"><span class="dot" style="background:#8bc34a;"></span> Problemas potenciales: <span id="sum-potencial">0</span></span>
                 <span class="summary-pill"><span class="dot" style="background:#ffc107;"></span> Deficiente: <span id="sum-deficiente">0</span></span>
                 <span class="summary-pill"><span class="dot" style="background:#ff9800;"></span> Dudoso: <span id="sum-dudoso">0</span></span>
                 <span class="summary-pill"><span class="dot" style="background:#dc3545;"></span> Pérdida: <span id="sum-perdida">0</span></span>
@@ -280,6 +397,19 @@
                             Atrasos en el pago de más de 120 días
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {{-- Desglose por Sedes --}}
+            <div class="sedes-section">
+                <h3 class="sedes-section-title">
+                    <i class="bx bx-buildings"></i> Desglose por Sedes
+                </h3>
+                <div class="row" id="sedes-cards-row">
+                    <!-- Cards insertados dinámicamente -->
+                </div>
+                <div id="sedes-empty" class="sedes-empty" style="display: none;">
+                    <i class="bx bx-info-circle"></i> No hay datos de sedes para mostrar.
                 </div>
             </div>
 
@@ -392,15 +522,66 @@
 
         function fillSummary(summary) {
             const cats = ['normal', 'potencial', 'deficiente', 'dudoso', 'perdida'];
-            const total = cats.reduce((acc, k) => acc + ((summary && summary[k] && summary[k].cantidad) || 0), 0);
-            if (total <= 0) {
-                $('#summary-bar').hide();
-                return;
-            }
-            $('#summary-bar').show();
             cats.forEach(k => {
                 const cant = (summary && summary[k] && summary[k].cantidad) || 0;
                 $(`#sum-${k}`).text(cant);
+            });
+        }
+
+        function formatMoney(amount) {
+            const n = parseFloat(amount) || 0;
+            return 'S/ ' + n.toLocaleString('es-PE', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function renderSedes(sedes) {
+            const container = $('#sedes-cards-row');
+            container.empty();
+
+            if (!sedes || sedes.length === 0) {
+                $('#sedes-empty').show();
+                return;
+            }
+            $('#sedes-empty').hide();
+
+            sedes.forEach(function(sede) {
+                const total = sede.total_creditos || 1;
+                const pct = (n) => total > 0 ? ((n / total) * 100).toFixed(0) : 0;
+
+                const pctNormal     = pct(sede.normal.cantidad);
+                const pctPotencial  = pct(sede.potencial.cantidad);
+                const pctDeficiente = pct(sede.deficiente.cantidad);
+                const pctDudoso     = pct(sede.dudoso.cantidad);
+                const pctPerdida    = pct(sede.perdida.cantidad);
+
+                const cardHtml = `
+                    <div class="col-xl-4 col-md-6 mb-3">
+                        <div class="sede-card">
+                            <div class="sede-card-header">
+                                <div class="sede-card-name">${sede.sede_nombre}</div>
+                                <span class="sede-card-count">${sede.total_creditos} crés.</span>
+                            </div>
+                            <div class="sede-card-total">${formatMoney(sede.total_saldo)}</div>
+                            <div class="progress-stacked" title="Distribución por categoría">
+                                <div class="progress-segment segment-normal"     style="width: ${pctNormal}%;"     title="Normal: ${pctNormal}%"></div>
+                                <div class="progress-segment segment-potencial"  style="width: ${pctPotencial}%;"  title="Potencial: ${pctPotencial}%"></div>
+                                <div class="progress-segment segment-deficiente" style="width: ${pctDeficiente}%;" title="Deficiente: ${pctDeficiente}%"></div>
+                                <div class="progress-segment segment-dudoso"     style="width: ${pctDudoso}%;"     title="Dudoso: ${pctDudoso}%"></div>
+                                <div class="progress-segment segment-perdida"    style="width: ${pctPerdida}%;"    title="Pérdida: ${pctPerdida}%"></div>
+                            </div>
+                            <div class="legend-pills">
+                                <span class="legend-pill segment-normal">${sede.normal.cantidad} Normal</span>
+                                <span class="legend-pill segment-potencial">${sede.potencial.cantidad} Potencial</span>
+                                <span class="legend-pill segment-deficiente">${sede.deficiente.cantidad} Defic.</span>
+                                <span class="legend-pill segment-dudoso">${sede.dudoso.cantidad} Dudoso</span>
+                                <span class="legend-pill segment-perdida">${sede.perdida.cantidad} Pérdida</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.append(cardHtml);
             });
         }
 
@@ -424,9 +605,13 @@
                     data: { sede_id: sedeId },
                     timeout: 15000,
                     success: function (response) {
+                        console.log('KPI response:', response);
                         const summary = (response && response.summary) || {};
+                        const sedesSummary = (response && response.sedes_summary) || [];
+
                         renderGauge(summary);
                         fillSummary(summary);
+                        renderSedes(sedesSummary);
 
                         const total = (summary && summary.total_creditos) || 0;
                         const label = sedeId === 'all' ? 'Todas las sedes' : 'Sede seleccionada';
@@ -434,7 +619,8 @@
                     },
                     error: function (xhr, status, err) {
                         console.error('Error al cargar KPI:', status, err, xhr && xhr.status, xhr && xhr.responseText);
-                        hint.text('Error al cargar');
+                        const code = xhr && xhr.status ? ` (HTTP ${xhr.status})` : '';
+                        hint.text(`Error al cargar${code}`);
                     }
                 });
             }
