@@ -397,13 +397,29 @@
             text-overflow: ellipsis;
         }
 
-        /* Anchos fijos por columna (Cliente=2, Sede=4 — la #1 es el row number) */
+        /* La columna Cliente permite 2 líneas (documento + nombre) */
+        table.credits-table.dataTable th:nth-child(2),
+        table.credits-table.dataTable td:nth-child(2) {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+        }
+
+        .cliente-cell {
+            line-height: 1.25;
+        }
+        .cliente-cell .cliente-nombre {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        /* Anchos fijos por columna (Cliente=2, Sede=3 — la #1 es el row number) */
         table.credits-table.dataTable th:nth-child(2),
         table.credits-table.dataTable td:nth-child(2) {
             width: 250px;
         }
-        table.credits-table.dataTable th:nth-child(4),
-        table.credits-table.dataTable td:nth-child(4) {
+        table.credits-table.dataTable th:nth-child(3),
+        table.credits-table.dataTable td:nth-child(3) {
             width: 180px;
         }
 
@@ -615,7 +631,6 @@
                             <tr>
                                 <th>#</th>
                                 <th>Cliente</th>
-                                <th>Documento</th>
                                 <th>Sede</th>
                                 <th>Importe</th>
                                 <th>Saldo pendiente</th>
@@ -809,8 +824,21 @@
                             return meta.row + meta.settings._iDisplayStart + 1;
                         }
                     },
-                    { data: 'cliente_nombre',     width: '250px', render: d => escapeHtml(d || '-') },
-                    { data: 'cliente_documento',  render: d => escapeHtml(d || '-') },
+                    {
+                        data: 'cliente_nombre',
+                        width: '250px',
+                        orderable: true,
+                        render: function (data, type, row) {
+                            const doc = row.cliente_documento ? String(row.cliente_documento) : '';
+                            const nom = data ? String(data) : '-';
+                            if (type === 'display') {
+                                const docHtml = doc ? `<strong>${escapeHtml(doc)}</strong>` : '<strong>—</strong>';
+                                return `<div class="cliente-cell"><div>${docHtml}</div><div class="cliente-nombre">${escapeHtml(nom)}</div></div>`;
+                            }
+                            // sort y filter: combinamos documento + nombre
+                            return (doc + ' ' + nom).trim();
+                        }
+                    },
                     { data: 'sede_nombre',        width: '180px', render: d => escapeHtml(d || '-') },
                     { data: 'impo_cre',           className: 'num', render: d => formatMoney(d) },
                     { data: 'saldo_pendiente',    className: 'num', render: d => formatMoney(d) },
