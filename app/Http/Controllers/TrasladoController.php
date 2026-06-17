@@ -369,7 +369,7 @@ class TrasladoController extends Controller
 
             $descripcion = "";
 
-            $descripcion = 'TRASLADO DE MERCADERIA DESDE ' . $traslado->direccion_llegada . ' A ' . $traslado->direccion_llegada;
+            $descripcion = 'TRASLADO DE MERCADERIA DESDE ' . $traslado->direccion_partida . ' A ' . $traslado->direccion_llegada;
 
 
             $descontar = 0;
@@ -634,6 +634,20 @@ class TrasladoController extends Controller
 
 
                     $descontar = $serviciodetallealmacen->aumentar_descontar_stock(1, $data->id_ubicacion_origen, $value->producto_id, $value->cantidad, $tipo->tipo_envio);
+
+                    $serviciodetallealmacen->movimiento_kardex_producto(
+                        $data->id_ubicacion_origen,
+                        $value->producto_id,
+                        $value->cantidad,
+                        1,
+                        "DEVOLUCION TRASLADO " . $data->serie . "-" . $data->correlativo,
+                        $data->serie,
+                        $data->correlativo,
+                        $this->validar_soles($value->producto_id),
+                        $data->tipo_traslado_id,
+                        date('Y-m-d'),
+                        date('Y-m-d')
+                    );
                 }
 
                 $json = array(
