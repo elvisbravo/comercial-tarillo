@@ -11,7 +11,7 @@
         }
 
         .kpi-gauge-container {
-            max-width: 760px;
+            max-width: 100%;
             margin: 0 auto;
         }
 
