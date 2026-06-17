@@ -227,20 +227,24 @@
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 
     <script>
-        $(document).ready(function () {
+        $(function () {
             const urlData = "{{ route('reportes.kpi_creditos.data') }}";
+
+            // Pintar el gauge con datos vacíos primero (evita quedarse en blanco si la API tarda/falla)
+            renderGauge({});
 
             $.ajax({
                 url: urlData,
                 method: 'GET',
+                timeout: 15000,
                 success: function (response) {
-                    const summary = response.summary || {};
+                    const summary = (response && response.summary) || {};
                     renderGauge(summary);
                     fillSummary(summary);
                 },
-                error: function (xhr) {
-                    console.error('Error al cargar KPI:', xhr);
-                    renderGauge({});
+                error: function (xhr, status, err) {
+                    console.error('Error al cargar KPI:', status, err, xhr && xhr.status, xhr && xhr.responseText);
+                    // Gauge ya se pintó con datos vacíos (apunta a Deficiente)
                 }
             });
 
@@ -264,14 +268,15 @@
                         dom = c;
                     }
                 });
-                // Si no hay datos, mantener el centro (deficiente)
                 if (max <= 0) return CATEGORIES[2];
                 return dom;
             }
 
             function renderGauge(summary) {
                 const dom = document.getElementById('kpi-gauge-chart');
-                const myChart = echarts.init(dom);
+                if (!dom) return;
+                let myChart = echarts.getInstanceByDom(dom);
+                if (!myChart) myChart = echarts.init(dom);
                 const cat = dominantCategory(summary);
 
                 const option = {
@@ -284,9 +289,7 @@
                         splitNumber: 5,
                         center: ['50%', '78%'],
                         radius: '95%',
-                        progress: {
-                            show: false
-                        },
+                        progress: { show: false },
                         axisLine: {
                             lineStyle: {
                                 width: 30,
@@ -304,9 +307,7 @@
                             length: '60%',
                             width: 6,
                             offsetCenter: [0, '-5%'],
-                            itemStyle: {
-                                color: '#4a4a4a'
-                            }
+                            itemStyle: { color: '#4a4a4a' }
                         },
                         axisTick: {
                             distance: -25,
@@ -322,10 +323,7 @@
                             distance: -48,
                             color: '#7a7a7a',
                             fontSize: 12,
-                            formatter: function (val) {
-                                // Etiquetas sólo en los puntos de quiebre de cada categoría
-                                return '';
-                            }
+                            formatter: function () { return ''; }
                         },
                         title: {
                             offsetCenter: [0, '20%'],
@@ -344,8 +342,8 @@
                     }]
                 };
 
-                myChart.setOption(option);
-                window.addEventListener('resize', () => myChart.resize());
+                myChart.setOption(option, true);
+                window.addEventListener('resize', () => myChart && myChart.resize());
             }
 
             function fillSummary(summary) {
