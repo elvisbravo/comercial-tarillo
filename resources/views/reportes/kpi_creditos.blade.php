@@ -133,6 +133,19 @@
             font-size: 13px;
             font-weight: 600;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .summary-pill:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+        }
+
+        .summary-pill.active {
+            outline: 3px solid #6a1b9a;
+            outline-offset: 1px;
         }
 
         .summary-pill .dot {
@@ -140,6 +153,17 @@
             height: 10px;
             border-radius: 50%;
             margin-right: 6px;
+        }
+
+        .summary-pill.pill-all {
+            background: #f1f3f5;
+            color: #495057;
+        }
+
+        .summary-bar .label {
+            margin-right: 6px;
+            color: #7a7a7a;
+            font-weight: 500;
         }
 
         /* Selector de sede */
@@ -305,6 +329,107 @@
             font-style: italic;
             font-size: 14px;
         }
+
+        /* Listado de créditos filtrable */
+        .credits-section {
+            margin-top: 36px;
+        }
+
+        .credits-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .credits-section-title {
+            color: #1a73e8;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .credits-filter-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: #eef2ff;
+            color: #4f46e5;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .credits-table-wrapper {
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+        }
+
+        .credits-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .credits-table thead th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .credits-table tbody td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .credits-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .credits-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .credits-table .num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .credits-cat-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .credits-empty {
+            text-align: center;
+            padding: 30px;
+            color: #94a3b8;
+            font-style: italic;
+            font-size: 14px;
+        }
     </style>
 @endsection
 
@@ -345,11 +470,15 @@
 
             {{-- Resumen numérico por categoría (siempre visible) --}}
             <div class="summary-bar" id="summary-bar">
-                <span class="summary-pill"><span class="dot" style="background:#28a745;"></span> Normal: <span id="sum-normal">0</span></span>
-                <span class="summary-pill"><span class="dot" style="background:#8bc34a;"></span> Problemas potenciales: <span id="sum-potencial">0</span></span>
-                <span class="summary-pill"><span class="dot" style="background:#ffc107;"></span> Deficiente: <span id="sum-deficiente">0</span></span>
-                <span class="summary-pill"><span class="dot" style="background:#ff9800;"></span> Dudoso: <span id="sum-dudoso">0</span></span>
-                <span class="summary-pill"><span class="dot" style="background:#dc3545;"></span> Pérdida: <span id="sum-perdida">0</span></span>
+                <span class="label">Mostrar:</span>
+                <span class="summary-pill pill-all active" data-filter="all">
+                    <span class="dot" style="background:#6a1b9a;"></span> Todas
+                </span>
+                <span class="summary-pill" data-filter="normal"><span class="dot" style="background:#28a745;"></span> Normal: <span id="sum-normal">0</span></span>
+                <span class="summary-pill" data-filter="potencial"><span class="dot" style="background:#8bc34a;"></span> Problemas potenciales: <span id="sum-potencial">0</span></span>
+                <span class="summary-pill" data-filter="deficiente"><span class="dot" style="background:#ffc107;"></span> Deficiente: <span id="sum-deficiente">0</span></span>
+                <span class="summary-pill" data-filter="dudoso"><span class="dot" style="background:#ff9800;"></span> Dudoso: <span id="sum-dudoso">0</span></span>
+                <span class="summary-pill" data-filter="perdida"><span class="dot" style="background:#dc3545;"></span> Pérdida: <span id="sum-perdida">0</span></span>
             </div>
 
             {{-- Título de categorías --}}
@@ -412,6 +541,39 @@
                 </div>
                 <div id="sedes-empty" class="sedes-empty" style="display: none;">
                     <i class="bx bx-info-circle"></i> No hay datos de sedes para mostrar.
+                </div>
+            </div>
+
+            {{-- Listado de créditos filtrable por categoría --}}
+            <div class="credits-section">
+                <div class="credits-section-header">
+                    <h3 class="credits-section-title">
+                        <i class="bx bx-list-ul"></i> Listado de Créditos
+                    </h3>
+                    <span class="credits-filter-badge" id="credits-filter-badge">
+                        <i class="bx bx-filter-alt"></i> Todas las categorías
+                    </span>
+                </div>
+                <div class="credits-table-wrapper">
+                    <table class="credits-table" id="credits-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Cliente</th>
+                                <th>Documento</th>
+                                <th>Sede</th>
+                                <th class="num">Importe</th>
+                                <th class="num">Saldo pendiente</th>
+                                <th class="num">Días atraso</th>
+                                <th>Categoría</th>
+                            </tr>
+                        </thead>
+                        <tbody id="credits-tbody">
+                        </tbody>
+                    </table>
+                </div>
+                <div id="credits-empty" class="credits-empty" style="display: none;">
+                    <i class="bx bx-info-circle"></i> No hay créditos para la categoría seleccionada.
                 </div>
             </div>
 
@@ -530,6 +692,70 @@
             });
         }
 
+        function renderCreditsList(credits, filter) {
+            const tbody = $('#credits-tbody');
+            const empty = $('#credits-empty');
+            const badge = $('#credits-filter-badge');
+            const table = $('#credits-table');
+
+            tbody.empty();
+
+            const list = (!filter || filter === 'all')
+                ? (credits || [])
+                : (credits || []).filter(c => c.cat_key === filter);
+
+            const filterLabels = {
+                all: 'Todas las categorías',
+                normal: 'Normal',
+                potencial: 'Problemas potenciales',
+                deficiente: 'Deficiente',
+                dudoso: 'Dudoso',
+                perdida: 'Pérdida'
+            };
+            badge.html(`<i class="bx bx-filter-alt"></i> ${filterLabels[filter] || 'Todas las categorías'} (${list.length})`);
+
+            if (!list || list.length === 0) {
+                table.hide();
+                empty.show();
+                return;
+            }
+            table.show();
+            empty.hide();
+
+            list.forEach((c, idx) => {
+                const dias = c.max_dias_atraso;
+                const diasLabel = `${dias} día${dias === 1 ? '' : 's'}`;
+                const row = `
+                    <tr>
+                        <td>${idx + 1}</td>
+                        <td>${escapeHtml(c.cliente_nombre || '-')}</td>
+                        <td>${escapeHtml(c.cliente_documento || '-')}</td>
+                        <td>${escapeHtml(c.sede_nombre || '-')}</td>
+                        <td class="num">${formatMoney(c.impo_cre)}</td>
+                        <td class="num">${formatMoney(c.saldo_pendiente)}</td>
+                        <td class="num">${diasLabel}</td>
+                        <td><span class="credits-cat-badge" style="background:${c.color_hex};">${escapeHtml(c.categoria || '-')}</span></td>
+                    </tr>
+                `;
+                tbody.append(row);
+            });
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function setActivePill(filter) {
+            $('#summary-bar .summary-pill').removeClass('active');
+            $('#summary-bar .summary-pill[data-filter="' + (filter || 'all') + '"]').addClass('active');
+        }
+
         function formatMoney(amount) {
             const n = parseFloat(amount) || 0;
             return 'S/ ' + n.toLocaleString('es-PE', {
@@ -559,7 +785,7 @@
                 const pctPerdida    = pct(sede.perdida.cantidad);
 
                 const cardHtml = `
-                    <div class="col-xl-4 col-md-6 mb-3">
+                    <div class="col-md-6 mb-3">
                         <div class="sede-card">
                             <div class="sede-card-header">
                                 <div class="sede-card-name">${sede.sede_nombre}</div>
@@ -590,11 +816,17 @@
         $(function () {
             const urlData = "{{ route('reportes.kpi_creditos.data') }}";
 
+            // Estado en memoria del último fetch y del filtro actual
+            let lastCredits = [];
+            let currentFilter = 'all';
+
             // Ocultar el preloader global del layout (igual que en las demás vistas)
             $(".loader").fadeOut("slow");
 
             // Pintar el gauge con datos vacíos primero (evita quedarse en blanco si la API tarda/falla)
             renderGauge({});
+            setActivePill(currentFilter);
+            renderCreditsList([], currentFilter);
 
             function fetchData() {
                 const sedeId = $('#filter-sede').val() || 'all';
@@ -610,10 +842,12 @@
                         console.log('KPI response:', response);
                         const summary = (response && response.summary) || {};
                         const sedesSummary = (response && response.sedes_summary) || [];
+                        lastCredits = (response && response.credits) || [];
 
                         renderGauge(summary);
                         fillSummary(summary);
                         renderSedes(sedesSummary);
+                        renderCreditsList(lastCredits, currentFilter);
 
                         const total = (summary && summary.total_creditos) || 0;
                         const label = sedeId === 'all' ? 'Todas las sedes' : 'Sede seleccionada';
@@ -623,9 +857,24 @@
                         console.error('Error al cargar KPI:', status, err, xhr && xhr.status, xhr && xhr.responseText);
                         const code = xhr && xhr.status ? ` (HTTP ${xhr.status})` : '';
                         hint.text(`Error al cargar${code}`);
+                        lastCredits = [];
+                        renderCreditsList([], currentFilter);
                     }
                 });
             }
+
+            // Click en pills de categoría: filtra el listado (toggle: click en la misma la desactiva)
+            $('#summary-bar').on('click', '.summary-pill', function () {
+                const filter = $(this).data('filter');
+                if (!filter) return;
+                if (currentFilter === filter && filter !== 'all') {
+                    currentFilter = 'all';
+                } else {
+                    currentFilter = filter;
+                }
+                setActivePill(currentFilter);
+                renderCreditsList(lastCredits, currentFilter);
+            });
 
             // Carga inicial
             fetchData();
