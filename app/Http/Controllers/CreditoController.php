@@ -15,6 +15,7 @@ use App\Empresa;
 use PDF;
 use App\User;
 use App\Concepto_credito;
+use App\Http\Controllers\servicios\FuncionesController;
 
 class CreditoController extends Controller
 {
@@ -40,6 +41,9 @@ class CreditoController extends Controller
 
     public function ventas_credito(Request $request){
 
+        $servicios = new FuncionesController;
+        $idsede = session('key')->sede_id;
+        $envio = $servicios->tipo_envio_sunat();
 
         $ventas=DB::table('ventas as v')
         ->join('clientes as c','v.cliente_id','=','c.id')
@@ -47,6 +51,8 @@ class CreditoController extends Controller
         ->where('v.tipo_pago_id','=',2)
         ->where('v.venta_estado','=',1)
         ->where('v.estado_nota','=',1)
+        ->where('v.sede_id','=',$idsede)
+        ->where('v.tipo_envio','=',$envio)
         ->get();
 
 
