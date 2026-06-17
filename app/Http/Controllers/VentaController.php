@@ -692,7 +692,7 @@ class VentaController extends Controller
                         // Para ventas normales, descontar de detalle_almacen_productos
                         $servicios->aumentar_descontar_stock(0, $ubicaciones[$i], $productos[$i], $cantidades[$i], $envio);
                     }
-                    $servicios->movimiento_kardex_producto($ubicaciones[$i], $productos[$i], $cantidades[$i], 2, "VENTA", $serie, $numero, $precios[$i], $tipo_comprobante, date('Y-m-d'), date('Y-m-d'));
+                    $servicios->movimiento_kardex_producto($ubicaciones[$i], $productos[$i], $cantidades[$i], 2, "VENTA " . $serie . "-" . $numero, $serie, $numero, $precios[$i], $tipo_comprobante, date('Y-m-d'), date('Y-m-d'));
                 }
             }
 
