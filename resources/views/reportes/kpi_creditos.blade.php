@@ -798,10 +798,10 @@
                     }
                 ],
                 initComplete: function () {
-                    updateCreditsFilterBadge(api.rows({ search: 'applied' }).count());
+                    updateCreditsFilterBadge(this.api().rows({ search: 'applied' }).count());
                 },
                 drawCallback: function () {
-                    updateCreditsFilterBadge(api.rows({ search: 'applied' }).count());
+                    updateCreditsFilterBadge(this.api().rows({ search: 'applied' }).count());
                 }
             });
 
