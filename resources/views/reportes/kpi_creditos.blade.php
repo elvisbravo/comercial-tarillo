@@ -227,6 +227,118 @@
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 
     <script>
+        // Configuración del gauge con 5 zonas de color
+        // Categorías: normal(0-20) | potencial(20-40) | deficiente(40-60) | dudoso(60-80) | perdida(80-100)
+        const CATEGORIES = [
+            { key: 'normal',     center: 10, color: '#28a745' },
+            { key: 'potencial',  center: 30, color: '#8bc34a' },
+            { key: 'deficiente', center: 50, color: '#ffc107' },
+            { key: 'dudoso',     center: 70, color: '#ff9800' },
+            { key: 'perdida',    center: 90, color: '#dc3545' }
+        ];
+
+        function dominantCategory(summary) {
+            let dom = CATEGORIES[0];
+            let max = -1;
+            CATEGORIES.forEach(c => {
+                const cant = (summary && summary[c.key] && summary[c.key].cantidad) || 0;
+                if (cant > max) {
+                    max = cant;
+                    dom = c;
+                }
+            });
+            if (max <= 0) return CATEGORIES[2];
+            return dom;
+        }
+
+        function renderGauge(summary) {
+            const dom = document.getElementById('kpi-gauge-chart');
+            if (!dom) return;
+            let myChart = echarts.getInstanceByDom(dom);
+            if (!myChart) myChart = echarts.init(dom);
+            const cat = dominantCategory(summary);
+
+            const option = {
+                series: [{
+                    type: 'gauge',
+                    startAngle: 180,
+                    endAngle: 0,
+                    min: 0,
+                    max: 100,
+                    splitNumber: 5,
+                    center: ['50%', '78%'],
+                    radius: '95%',
+                    progress: { show: false },
+                    axisLine: {
+                        lineStyle: {
+                            width: 30,
+                            color: [
+                                [0.2, '#28a745'],
+                                [0.4, '#8bc34a'],
+                                [0.6, '#ffc107'],
+                                [0.8, '#ff9800'],
+                                [1,   '#dc3545']
+                            ]
+                        }
+                    },
+                    pointer: {
+                        icon: 'path://M2.9,0.7L2.9,0.7c1.4,0,2.6,1.2,2.6,2.6v115c0,1.4-1.2,2.6-2.6,2.6l0,0c-1.4,0-2.6-1.2-2.6-2.6V3.3C0.3,1.9,1.5,0.7,2.9,0.7z',
+                        length: '60%',
+                        width: 6,
+                        offsetCenter: [0, '-5%'],
+                        itemStyle: { color: '#4a4a4a' }
+                    },
+                    axisTick: {
+                        distance: -25,
+                        length: 8,
+                        lineStyle: { color: '#ffffff', width: 2 }
+                    },
+                    splitLine: {
+                        distance: -30,
+                        length: 30,
+                        lineStyle: { color: '#ffffff', width: 4 }
+                    },
+                    axisLabel: {
+                        distance: -48,
+                        color: '#7a7a7a',
+                        fontSize: 12,
+                        formatter: function () { return ''; }
+                    },
+                    title: {
+                        offsetCenter: [0, '20%'],
+                        fontSize: 16,
+                        fontWeight: 600,
+                        color: '#34495e',
+                        show: false
+                    },
+                    detail: {
+                        offsetCenter: [0, '40%'],
+                        fontSize: 14,
+                        color: '#7a7a7a',
+                        formatter: ''
+                    },
+                    data: [{ value: cat.center, name: '' }]
+                }]
+            };
+
+            myChart.setOption(option, true);
+            window.addEventListener('resize', () => myChart && myChart.resize());
+        }
+
+        function fillSummary(summary) {
+            const cats = ['normal', 'potencial', 'deficiente', 'dudoso', 'perdida'];
+            const total = cats.reduce((acc, k) => acc + ((summary && summary[k] && summary[k].cantidad) || 0), 0);
+            if (total <= 0) {
+                $('#summary-bar').hide();
+                return;
+            }
+            $('#summary-bar').show();
+            cats.forEach(k => {
+                const cant = (summary && summary[k] && summary[k].cantidad) || 0;
+                $(`#sum-${k}`).text(cant);
+            });
+        }
+
         $(function () {
             const urlData = "{{ route('reportes.kpi_creditos.data') }}";
 
@@ -244,121 +356,8 @@
                 },
                 error: function (xhr, status, err) {
                     console.error('Error al cargar KPI:', status, err, xhr && xhr.status, xhr && xhr.responseText);
-                    // Gauge ya se pintó con datos vacíos (apunta a Deficiente)
                 }
             });
-
-            // Configuración del gauge con 5 zonas de color
-            // Categorías: normal(0-20) | potencial(20-40) | deficiente(40-60) | dudoso(60-80) | perdida(80-100)
-            const CATEGORIES = [
-                { key: 'normal',     center: 10, color: '#28a745' },
-                { key: 'potencial',  center: 30, color: '#8bc34a' },
-                { key: 'deficiente', center: 50, color: '#ffc107' },
-                { key: 'dudoso',     center: 70, color: '#ff9800' },
-                { key: 'perdida',    center: 90, color: '#dc3545' }
-            ];
-
-            function dominantCategory(summary) {
-                let dom = CATEGORIES[0];
-                let max = -1;
-                CATEGORIES.forEach(c => {
-                    const cant = (summary[c.key] && summary[c.key].cantidad) || 0;
-                    if (cant > max) {
-                        max = cant;
-                        dom = c;
-                    }
-                });
-                if (max <= 0) return CATEGORIES[2];
-                return dom;
-            }
-
-            function renderGauge(summary) {
-                const dom = document.getElementById('kpi-gauge-chart');
-                if (!dom) return;
-                let myChart = echarts.getInstanceByDom(dom);
-                if (!myChart) myChart = echarts.init(dom);
-                const cat = dominantCategory(summary);
-
-                const option = {
-                    series: [{
-                        type: 'gauge',
-                        startAngle: 180,
-                        endAngle: 0,
-                        min: 0,
-                        max: 100,
-                        splitNumber: 5,
-                        center: ['50%', '78%'],
-                        radius: '95%',
-                        progress: { show: false },
-                        axisLine: {
-                            lineStyle: {
-                                width: 30,
-                                color: [
-                                    [0.2, '#28a745'],
-                                    [0.4, '#8bc34a'],
-                                    [0.6, '#ffc107'],
-                                    [0.8, '#ff9800'],
-                                    [1,   '#dc3545']
-                                ]
-                            }
-                        },
-                        pointer: {
-                            icon: 'path://M2.9,0.7L2.9,0.7c1.4,0,2.6,1.2,2.6,2.6v115c0,1.4-1.2,2.6-2.6,2.6l0,0c-1.4,0-2.6-1.2-2.6-2.6V3.3C0.3,1.9,1.5,0.7,2.9,0.7z',
-                            length: '60%',
-                            width: 6,
-                            offsetCenter: [0, '-5%'],
-                            itemStyle: { color: '#4a4a4a' }
-                        },
-                        axisTick: {
-                            distance: -25,
-                            length: 8,
-                            lineStyle: { color: '#ffffff', width: 2 }
-                        },
-                        splitLine: {
-                            distance: -30,
-                            length: 30,
-                            lineStyle: { color: '#ffffff', width: 4 }
-                        },
-                        axisLabel: {
-                            distance: -48,
-                            color: '#7a7a7a',
-                            fontSize: 12,
-                            formatter: function () { return ''; }
-                        },
-                        title: {
-                            offsetCenter: [0, '20%'],
-                            fontSize: 16,
-                            fontWeight: 600,
-                            color: '#34495e',
-                            show: false
-                        },
-                        detail: {
-                            offsetCenter: [0, '40%'],
-                            fontSize: 14,
-                            color: '#7a7a7a',
-                            formatter: ''
-                        },
-                        data: [{ value: cat.center, name: '' }]
-                    }]
-                };
-
-                myChart.setOption(option, true);
-                window.addEventListener('resize', () => myChart && myChart.resize());
-            }
-
-            function fillSummary(summary) {
-                const cats = ['normal', 'potencial', 'deficiente', 'dudoso', 'perdida'];
-                const total = cats.reduce((acc, k) => acc + ((summary[k] && summary[k].cantidad) || 0), 0);
-                if (total <= 0) {
-                    $('#summary-bar').hide();
-                    return;
-                }
-                $('#summary-bar').show();
-                cats.forEach(k => {
-                    const cant = (summary[k] && summary[k].cantidad) || 0;
-                    $(`#sum-${k}`).text(cant);
-                });
-            }
         });
     </script>
 @endsection
