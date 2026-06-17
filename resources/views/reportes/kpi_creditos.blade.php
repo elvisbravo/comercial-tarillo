@@ -741,7 +741,7 @@
                 creditsTable = null;
             }
 
-            creditsTable = $('#credits-table').DataTable({
+            const api = $('#credits-table').DataTable({
                 data: credits || [],
                 responsive: true,
                 pageLength: 10,
@@ -798,14 +798,15 @@
                     }
                 ],
                 initComplete: function () {
-                    updateCreditsFilterBadge(creditsTable.rows({ search: 'applied' }).count());
+                    updateCreditsFilterBadge(api.rows({ search: 'applied' }).count());
                 },
                 drawCallback: function () {
-                    updateCreditsFilterBadge(creditsTable.rows({ search: 'applied' }).count());
+                    updateCreditsFilterBadge(api.rows({ search: 'applied' }).count());
                 }
             });
 
-            return creditsTable;
+            creditsTable = api;
+            return api;
         }
 
         function refreshCreditsDataTable(credits) {
