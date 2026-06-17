@@ -373,12 +373,79 @@
             border-radius: 10px;
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
             overflow: hidden;
+            padding: 18px;
         }
 
         .credits-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 13px;
+        }
+
+        /* Scroll horizontal cuando no caben todas las columnas */
+        .dataTables_wrapper {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table.credits-table.dataTable {
+            width: 100% !important;
+        }
+
+        /* nowrap real sobre las celdas para que no se rompa el texto */
+        table.credits-table.dataTable th,
+        table.credits-table.dataTable td {
+            white-space: nowrap;
+        }
+
+        /* Paginación: botones pegados, sin espacios entre ellos */
+        .dataTables_wrapper .dataTables_paginate {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0;
+            margin-top: 14px;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            margin: 0 !important;
+            padding: 6px 12px;
+            border: 1px solid #d6dbe1;
+            border-right: none;
+            background: #ffffff;
+            color: #4f46e5;
+            font-weight: 600;
+            border-radius: 0;
+            cursor: pointer;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button:first-child {
+            border-top-left-radius: 6px;
+            border-bottom-left-radius: 6px;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button:last-child {
+            border-right: 1px solid #d6dbe1;
+            border-top-right-radius: 6px;
+            border-bottom-right-radius: 6px;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background: #f1f5f9 !important;
+            color: #4f46e5 !important;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+            background: #6a1b9a !important;
+            color: #ffffff !important;
+            border-color: #6a1b9a !important;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover {
+            color: #cbd5e1 !important;
+            background: #ffffff !important;
+            cursor: not-allowed;
         }
 
         table.credits-table.dataTable thead th,
@@ -441,14 +508,9 @@
 
         .dataTables_wrapper .dataTables_filter,
         .dataTables_wrapper .dataTables_length,
-        .dataTables_wrapper .dataTables_info,
-        .dataTables_wrapper .dataTables_paginate {
+        .dataTables_wrapper .dataTables_info {
             font-size: 13px;
             color: #475569;
-        }
-
-        .dataTables_wrapper .dataTables_paginate .paginate_button {
-            padding: 0.25em 0.6em;
         }
     </style>
 
@@ -579,7 +641,7 @@
                     </span>
                 </div>
                 <div class="credits-table-wrapper">
-                    <table id="credits-table" class="credits-table dt-responsive nowrap w-100">
+                    <table id="credits-table" class="credits-table nowrap w-100">
                         <thead>
                             <tr>
                                 <th>#</th>
@@ -746,7 +808,8 @@
 
             const api = $('#credits-table').DataTable({
                 data: credits || [],
-                responsive: true,
+                scrollX: true,
+                autoWidth: false,
                 pageLength: 10,
                 lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
                 order: [[6, 'desc']],
