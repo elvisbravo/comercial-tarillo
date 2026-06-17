@@ -503,6 +503,57 @@ Pos
     </div>
 </div>
 
+<div class="modal fade" tabindex="-1" role="dialog" aria-labelledby="modalListaNegraLabel" aria-hidden="true" id="modal_lista_negra">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="modalListaNegraLabel">
+                    <i class="fas fa-ban"></i> CLIENTE EN LISTA NEGRA - Venta al crédito bloqueada
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <strong>No se puede realizar la venta al crédito.</strong>
+                    El cliente se encuentra en la lista negra y tiene deudas pendientes.
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header bg-dark">
+                        <h6 class="mb-0">Información del Cliente</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Nombre:</strong> <span id="ln_cliente_nombre">-</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Documento:</strong> <span id="ln_cliente_documento">-</span></p>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-12 text-center">
+                                <div class="alert alert-danger py-2 mb-0">
+                                    <strong>DEUDA TOTAL:</strong>
+                                    <h3 class="mb-0" id="ln_total_deuda">S/ 0.00</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ln_creditos_container">
+                    <!-- Los créditos se cargan dinámicamente -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('js')

@@ -851,6 +851,8 @@ function enviarVenta(btn, confirmarCredito) {
                 $("#view_modal_cobrar").modal("hide");
                 window.location.href = urlgeneral + "/pos";
                 window.open(urlgeneral + "/venta/ticket/" + data.id);
+            } else if (data.lista_negra) {
+                mostrarClienteListaNegra(data);
             } else if (data.respuesta == "warning" && data.credito_activo && data.credito) {
                 mostrarCreditoActivo(data.credito, data.mensaje);
             } else {
@@ -945,3 +947,102 @@ document.getElementById("btnProcederCredito").addEventListener("click", () => {
     $("#modal_credito_activo").modal("hide");
     enviarVenta(guardarVenta, true);
 });
+
+function mostrarClienteListaNegra(data) {
+    // Actualizar información del cliente
+    document.getElementById("ln_cliente_nombre").textContent = data.cliente.nombre || "-";
+    document.getElementById("ln_cliente_documento").textContent = data.cliente.documento || "-";
+    document.getElementById("ln_total_deuda").textContent = "S/ " + (parseFloat(data.total_deuda) || 0).toFixed(2);
+
+    const containerCreditos = document.getElementById("ln_creditos_container");
+    let htmlCreditos = "";
+
+    if (data.creditos && data.creditos.length) {
+        data.creditos.forEach((cred, index) => {
+            htmlCreditos += `
+            <div class="card mb-3">
+                <div class="card-header bg-danger text-white">
+                    <h6 class="mb-0">Crédito #${cred.id} - ${cred.sede}</h6>
+                </div>
+                <div class="card-body p-2">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Comprobante:</strong> ${cred.comprobante || "-"}</p>
+                            <p class="mb-1"><strong>Fecha Venta:</strong> ${cred.fecha_venta || "-"}</p>
+                            <p class="mb-1"><strong>Fecha Crédito:</strong> ${cred.fecha_credito || "-"}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Monto Total:</strong> S/ ${(parseFloat(cred.monto_total) || 0).toFixed(2)}</p>
+                            <p class="mb-1"><strong>Saldo Pendiente:</strong> S/ ${(parseFloat(cred.saldo_pendiente) || 0).toFixed(2)}</p>
+                            <p class="mb-1"><strong>Cuotas Vencidas:</strong> <span class="badge badge-danger">${cred.cuotas_vencidas}</span></p>
+                        </div>
+                    </div>
+
+                    ${cred.productos && cred.productos.length ? `
+                    <div class="table-responsive mt-2">
+                        <table class="table table-sm table-bordered mb-2">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>Producto</th>
+                                    <th class="text-right">Cant.</th>
+                                    <th class="text-right">Precio</th>
+                                    <th class="text-right">Importe</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${cred.productos.map(p => `
+                                <tr>
+                                    <td>${escapeHtml(p.nombre || "")}</td>
+                                    <td class="text-right">${p.cantidad}</td>
+                                    <td class="text-right">S/ ${(parseFloat(p.precio) || 0).toFixed(2)}</td>
+                                    <td class="text-right">S/ ${(parseFloat(p.importe) || 0).toFixed(2)}</td>
+                                </tr>
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                    ` : ""}
+
+                    ${cred.cuotas && cred.cuotas.length ? `
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Fecha Venc.</th>
+                                    <th class="text-right">Monto</th>
+                                    <th class="text-right">Saldo</th>
+                                    <th>Estado</th>
+                                    <th class="text-right">Días Atr.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${cred.cuotas.map(c => {
+                                    const clase = c.vencida ? "table-danger" : "";
+                                    const atraso = c.dias_atraso > 0 ? c.dias_atraso + " días" : "-";
+                                    return `<tr class="${clase}">
+                                        <td>${c.numero}</td>
+                                        <td>${escapeHtml(c.fecha_vencimiento || "")}</td>
+                                        <td class="text-right">S/ ${(parseFloat(c.monto) || 0).toFixed(2)}</td>
+                                        <td class="text-right">S/ ${(parseFloat(c.saldo) || 0).toFixed(2)}</td>
+                                        <td>${escapeHtml(c.estado || "")}</td>
+                                        <td class="text-right">${atraso}</td>
+                                    </tr>`;
+                                }).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                    ` : ""}
+                </div>
+            </div>
+            `;
+        });
+    } else {
+        htmlCreditos = '<div class="alert alert-info mb-0">No hay créditos activos registrados para este cliente.</div>';
+    }
+
+    containerCreditos.innerHTML = htmlCreditos;
+
+    // Mostrar el modal
+    $("#modal_lista_negra").modal("show");
+}

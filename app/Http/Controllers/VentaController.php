@@ -330,8 +330,98 @@ class VentaController extends Controller
                 $cliente_->save();
             }
 
-            // Si es venta a crédito, advertir si el cliente ya tiene un crédito activo en cualquier sede
+            // Si es venta a crédito, verificar primero si el cliente está en lista negra
             if ($post['tipo_venta'] == 2) {
+                // Verificar si el cliente está en lista negra (de forma activa)
+                $enListaNegra = DB::table('cliente_lista_negra as cln')
+                    ->where('cln.cliente_id', $id_cliente)
+                    ->where('cln.activo', 1)
+                    ->exists();
+
+                if ($enListaNegra) {
+                    DB::rollBack();
+
+                    // Obtener información del cliente
+                    $clienteInfo = Clientes::find($id_cliente);
+
+                    // Obtener todos los créditos activos del cliente con sus cuotas
+                    $creditosActivos = Creditos::with('Detalle')
+                        ->where('cliente_id', $id_cliente)
+                        ->where('esta_cre', '1')
+                        ->whereNull('f_anulacion')
+                        ->orderBy('id', 'desc')
+                        ->get();
+
+                    $creditosData = [];
+                    $totalDeuda = 0;
+
+                    foreach ($creditosActivos as $credito) {
+                        $venta = $credito->id_venta
+                            ? DB::table('ventas')->where('id', $credito->id_venta)->first()
+                            : null;
+
+                        $productos = $credito->id_venta
+                            ? DB::table('detalle_venta as dv')
+                                ->join('productos as p', 'p.id', '=', 'dv.producto_id')
+                                ->where('dv.venta_id', $credito->id_venta)
+                                ->select('p.nomb_pro as nombre', 'dv.cantidad', 'dv.precio', 'dv.subtotal as importe')
+                                ->get()
+                            : collect();
+
+                        $hoy = date('Y-m-d');
+                        $cuotasDetalle = $credito->Detalle->map(function ($c) use ($hoy) {
+                            $vencida = $c->esta_cuo === 'PENDIENTE' && $c->fven_cuo < $hoy;
+                            $dias = $vencida
+                                ? (int) ((strtotime($hoy) - strtotime($c->fven_cuo)) / 86400)
+                                : 0;
+                            return [
+                                'numero'            => (int) $c->numero_cuo,
+                                'fecha_vencimiento' => $c->fven_cuo,
+                                'monto'             => (float) $c->mont_cuo,
+                                'saldo'             => (float) $c->saldo_cuo,
+                                'estado'            => $c->esta_cuo,
+                                'dias_atraso'       => $dias,
+                                'vencida'           => $vencida,
+                            ];
+                        });
+
+                        $cuotasVencidas = $cuotasDetalle->where('vencida', true)->count();
+                        $saldoPendiente = $cuotasDetalle->where('estado', 'PENDIENTE')->sum('saldo');
+                        $totalDeuda += $saldoPendiente;
+
+                        $sede = $credito->sede_id ? Sede::find($credito->sede_id) : null;
+
+                        $creditosData[] = [
+                            'id'                => $credito->id,
+                            'sede'              => $sede ? $sede->nombre : 'Desconocida',
+                            'fecha_credito'     => $credito->fech_cre,
+                            'fecha_venta'       => $venta ? $venta->fecha : null,
+                            'comprobante'       => $venta ? ($venta->serie_comprobante . '-' . $venta->numero_comprobante) : null,
+                            'monto_total'       => (float) $credito->mont_cre,
+                            'saldo_pendiente'   => (float) $saldoPendiente,
+                            'cuotas_vencidas'   => $cuotasVencidas,
+                            'cuotas_totales'    => $cuotasDetalle->count(),
+                            'productos'         => $productos,
+                            'cuotas'            => $cuotasDetalle->values()->all(),
+                        ];
+                    }
+
+                    $json = array(
+                        "respuesta"       => "error",
+                        "lista_negra"     => true,
+                        "mensaje"         => "El cliente se encuentra en la lista negra y no puede realizar compras al crédito.",
+                        "cliente"         => [
+                            "id"            => $clienteInfo->id,
+                            "nombre"        => $clienteInfo->razon_social ?: ($clienteInfo->nomb_per . ' ' . $clienteInfo->pate_per . ' ' . $clienteInfo->mate_per),
+                            "documento"     => $clienteInfo->documento,
+                        ],
+                        "total_deuda"     => (float) $totalDeuda,
+                        "creditos"        => $creditosData,
+                    );
+                    return response()->json($json);
+                }
+
+                // Advertir si el cliente ya tiene un crédito activo en cualquier sede
                 $creditoActivo = Creditos::with('Detalle')
                     ->where('cliente_id', $id_cliente)
                     ->where('esta_cre', '1')
