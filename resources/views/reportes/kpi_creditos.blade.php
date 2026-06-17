@@ -342,6 +342,9 @@
         $(function () {
             const urlData = "{{ route('reportes.kpi_creditos.data') }}";
 
+            // Ocultar el preloader global del layout (igual que en las demás vistas)
+            $(".loader").fadeOut("slow");
+
             // Pintar el gauge con datos vacíos primero (evita quedarse en blanco si la API tarda/falla)
             renderGauge({});
 
