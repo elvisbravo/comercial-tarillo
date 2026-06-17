@@ -384,13 +384,27 @@
 
         /* Scroll horizontal lo gestiona DataTables con scrollX: true (no duplicar aquí) */
         table.credits-table.dataTable {
-            width: 100% !important;
+            width: auto !important;
+            min-width: 100%;
+            table-layout: fixed;
         }
 
         /* nowrap real sobre las celdas para que no se rompa el texto */
         table.credits-table.dataTable th,
         table.credits-table.dataTable td {
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Anchos fijos por columna (Cliente=2, Sede=4 — la #1 es el row number) */
+        table.credits-table.dataTable th:nth-child(2),
+        table.credits-table.dataTable td:nth-child(2) {
+            width: 250px;
+        }
+        table.credits-table.dataTable th:nth-child(4),
+        table.credits-table.dataTable td:nth-child(4) {
+            width: 180px;
         }
 
         /* Paginación al estilo por defecto Bootstrap 4 (igual que ventas) */
