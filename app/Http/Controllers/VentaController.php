@@ -109,7 +109,8 @@ class VentaController extends Controller
                     ->orWhere('clientes.documento', 'like', "%$search%")
                     ->orWhere('clientes.nomb_per', 'ilike', "%$search%")
                     ->orWhere('ventas.serie_comprobante', 'like', "%$search%")
-                    ->orWhere('ventas.numero_comprobante', 'like', "%$search%");
+                    ->orWhere('ventas.numero_comprobante', 'like', "%$search%")
+                    ->orWhereRaw("CONCAT(ventas.serie_comprobante, '-', ventas.numero_comprobante) ILIKE ?", ["%$search%"]);
             });
         }
 
