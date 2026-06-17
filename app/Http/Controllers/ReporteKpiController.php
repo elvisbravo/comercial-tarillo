@@ -124,27 +124,27 @@ class ReporteKpiController extends Controller
                 $cat_key = 'normal';
                 $categoria = 'Normal';
                 $color = 'success';
-                $color_hex = '#2ec4b6';
+                $color_hex = '#28a745';
             } elseif ($max_dias <= 30) {
                 $cat_key = 'potencial';
                 $categoria = 'Problemas Potenciales';
                 $color = 'warning';
-                $color_hex = '#ffbf00';
+                $color_hex = '#8bc34a';
             } elseif ($max_dias <= 60) {
                 $cat_key = 'deficiente';
                 $categoria = 'Deficiente';
                 $color = 'orange';
-                $color_hex = '#ff7f50';
+                $color_hex = '#ffb74d';
             } elseif ($max_dias <= 120) {
                 $cat_key = 'dudoso';
                 $categoria = 'Dudoso';
                 $color = 'danger';
-                $color_hex = '#e71d36';
+                $color_hex = '#ff9800';
             } else {
                 $cat_key = 'perdida';
                 $categoria = 'Pérdida';
                 $color = 'dark';
-                $color_hex = '#343a40';
+                $color_hex = '#dc3545';
             }
 
             $creditoObj = [
