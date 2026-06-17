@@ -381,20 +381,22 @@
             font-size: 13px;
         }
 
+        table.credits-table.dataTable thead th,
         .credits-table thead th {
             background: #f8fafc;
             color: #475569;
             font-weight: 700;
             text-align: left;
-            padding: 10px 12px;
+            padding: 14px 16px;
             border-bottom: 1px solid #e2e8f0;
             font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
+        table.credits-table.dataTable tbody td,
         .credits-table tbody td {
-            padding: 10px 12px;
+            padding: 14px 16px;
             border-bottom: 1px solid #f1f5f9;
             color: #334155;
             vertical-align: middle;
@@ -404,6 +406,7 @@
             border-bottom: none;
         }
 
+        table.credits-table.dataTable tbody tr:hover,
         .credits-table tbody tr:hover {
             background: #f8fafc;
         }
