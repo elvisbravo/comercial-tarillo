@@ -109,7 +109,8 @@ class VentaController extends Controller
                     ->orWhere('clientes.documento', 'like', "%$search%")
                     ->orWhere('clientes.nomb_per', 'ilike', "%$search%")
                     ->orWhere('ventas.serie_comprobante', 'like', "%$search%")
-                    ->orWhere('ventas.numero_comprobante', 'like', "%$search%");
+                    ->orWhere('ventas.numero_comprobante', 'like', "%$search%")
+                    ->orWhereRaw("CONCAT(ventas.serie_comprobante, '-', ventas.numero_comprobante) ILIKE ?", ["%$search%"]);
             });
         }
 
@@ -692,7 +693,7 @@ class VentaController extends Controller
                         // Para ventas normales, descontar de detalle_almacen_productos
                         $servicios->aumentar_descontar_stock(0, $ubicaciones[$i], $productos[$i], $cantidades[$i], $envio);
                     }
-                    $servicios->movimiento_kardex_producto($ubicaciones[$i], $productos[$i], $cantidades[$i], 2, "VENTA", $serie, $numero, $precios[$i], $tipo_comprobante, date('Y-m-d'), date('Y-m-d'));
+                    $servicios->movimiento_kardex_producto($ubicaciones[$i], $productos[$i], $cantidades[$i], 2, "VENTA " . $serie . "-" . $numero, $serie, $numero, $precios[$i], $tipo_comprobante, date('Y-m-d'), date('Y-m-d'));
                 }
             }
 
@@ -1592,7 +1593,7 @@ class VentaController extends Controller
 
             foreach ($detalle_venta as $key => $value) {
                 $servicios->aumentar_descontar_stock(1, $value->ubicacion_id, $value->producto_id, $value->cantidad, $venta->tipo_envio);
-                $servicios->movimiento_kardex_producto($value->ubicacion_id, $value->producto_id, $value->cantidad, 1, "NOTA DE VENTA", $venta->serie_comprobante, $venta->numero_comprobante, $value->precio, 5, date('Y-m-d'), date('Y-m-d'));
+                $servicios->movimiento_kardex_producto($value->ubicacion_id, $value->producto_id, $value->cantidad, 1, "ANULACION VENTA " . $venta->serie_comprobante . "-" . $venta->numero_comprobante, $venta->serie_comprobante, $venta->numero_comprobante, $value->precio, 5, date('Y-m-d'), date('Y-m-d'));
             }
 
             $json = array(
@@ -1679,7 +1680,7 @@ class VentaController extends Controller
                     $value->producto_id,
                     $value->cantidad,
                     1, // tipo=1 entrada
-                    "ANULACION VENTA",
+                    "ANULACION VENTA " . $venta->serie_comprobante . "-" . $venta->numero_comprobante,
                     $venta->serie_comprobante,
                     $venta->numero_comprobante,
                     $value->precio,

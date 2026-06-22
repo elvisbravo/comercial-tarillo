@@ -130,6 +130,10 @@ form.addEventListener("submit", (e) => {
                     cantidad_salida = kardex.cantidad_unitaria;
                 }
 
+                const entradaStyle = cantidad_entrada > 0 ? 'color: #198754; font-weight: bold;' : '';
+                const salidaStyle   = cantidad_salida   > 0 ? 'color: #dc3545; font-weight: bold;' : '';
+                const stockStyle    = 'background-color: #cfe2ff; color: #084298; font-weight: bold; text-align: center;';
+
                 html += `
             <tr>
                 <td>${data.length - index}</td>
@@ -140,15 +144,9 @@ form.addEventListener("submit", (e) => {
                 <td>
                     ${kardex.descripcion}
                 </td>
-                <td>
-                    ${cantidad_entrada}
-                </td>
-                <td>
-                    ${cantidad_salida}
-                </td>
-                <td>
-                    ${kardex.cantidad_total}
-                </td>
+                <td style="${entradaStyle}">${cantidad_entrada}</td>
+                <td style="${salidaStyle}">${cantidad_salida}</td>
+                <td style="${stockStyle}">${kardex.cantidad_total}</td>
             </tr>
             `;
             });
