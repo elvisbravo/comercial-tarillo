@@ -47,6 +47,18 @@ class SedeController extends Controller
         }
     }
 
+    // LISTAR LAS SEDES POR TIPO ENVIO PARA DROPDOWN
+    public function listado()
+    {
+        $idsede = session('key')->sede_id;
+        $tipoEnvio = Sede::where('id', $idsede)->value('tipo_envio');
+        $sedes = Sede::where('estado', 1)
+                      ->where('tipo_envio', $tipoEnvio)
+                      ->where('id', '!=', 1)
+                      ->get();
+        return response()->json($sedes);
+    }
+
     /**
      * Actualiza la sede activa en sesión cuando el administrador selecciona una sede.
      */

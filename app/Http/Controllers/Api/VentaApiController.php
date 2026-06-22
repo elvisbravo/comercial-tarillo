@@ -101,15 +101,59 @@ class VentaApiController extends Controller
      * POST /api/vendedor/venta/guardar
      * Body: el mismo que /pos (ver VentaController@generar_venta).
      * Inyecta es_movil=true y resuelve el vendedor por la sesión.
+     * Soporta multipart con venta_data (JSON) + fotos (archivos).
      */
     public function guardar(Request $request)
     {
-        \Log::info('API guardar venta - inicio', $request->all());
-
         $user = Auth::user();
         if (!$this->esVendedor($user)) {
             \Log::warning('API guardar venta - acceso denegado');
             return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
+        }
+
+        // Si es multipart (tiene venta_data), decodificar el JSON
+        // IMPORTANTE: Guardar los archivos ANTES del merge, porque merge() pierde los archivos
+        $fotosFilesRaw = $request->file('fotos');
+        \Log::info('DEBUG archivos recibidos', [
+            'fotosFilesRaw_type' => gettype($fotosFilesRaw),
+            'fotosFilesRaw_is_array' => is_array($fotosFilesRaw),
+            'fotosFilesRaw_count' => is_array($fotosFilesRaw) ? count($fotosFilesRaw) : 'not_array',
+        ]);
+        // Normalizar a array (Laravel puede retornar un solo UploadedFile cuando hay 1 archivo)
+        // IMPORTANTE: cuando hay N archivos, Laravel puede retornar array de arrays si vienen de diferentes sources
+        if (is_array($fotosFilesRaw)) {
+            // Aplanar si hay arrays anidados
+            $fotosFiles = [];
+            foreach ($fotosFilesRaw as $item) {
+                if (is_array($item)) {
+                    foreach ($item as $subItem) {
+                        if ($subItem) $fotosFiles[] = $subItem;
+                    }
+                } elseif ($item) {
+                    $fotosFiles[] = $item;
+                }
+            }
+        } else {
+            $fotosFiles = $fotosFilesRaw ? [$fotosFilesRaw] : [];
+        }
+        $tieneFotos = !empty($fotosFiles);
+
+        if ($request->has('venta_data')) {
+            $ventaData = json_decode($request->input('venta_data'), true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return response()->json(['status' => false, 'message' => 'venta_data no es JSON válido.'], 400);
+            }
+            // Reemplazar los datos de la request con el JSON decodificado
+            foreach ($ventaData as $key => $value) {
+                $request->merge([$key => $value]);
+            }
+            \Log::info('API guardar venta - inicio', [
+                'id_local' => $ventaData['id_local'] ?? null,
+                'tipo_venta' => $ventaData['tipo_venta'] ?? null,
+                'tiene_fotos' => $tieneFotos,
+            ]);
+        } else {
+            \Log::info('API guardar venta - inicio', $request->all());
         }
 
         // Configurar la sesión para que VentaController pueda acceder a session('key')->sede_id
@@ -151,10 +195,55 @@ class VentaApiController extends Controller
             'body' => json_decode($response->getContent(), true)
         ]);
 
+        // Procesar fotos si la venta fue exitosa (respuesta = ok)
+        if ($response->getStatusCode() === 200) {
+            $body = json_decode($response->getContent(), true);
+            $respuesta = $body['respuesta'] ?? '';
+            $ventaId = $body['id'] ?? null;
+
+            \Log::info('DEBUG fotos antes de guardar', [
+                'ventaId' => $ventaId,
+                'tieneFotos' => $tieneFotos,
+                'fotosFiles_count' => count($fotosFiles),
+            ]);
+
+            if ($ventaId && $tieneFotos && !empty($fotosFiles)) {
+                $this->guardarFotos($ventaId, $fotosFiles);
+            }
+        }
+
         // NOTA: El descuento de stock se realiza dentro de VentaController@generar_venta
         // para ventas móviles (stock_vendedor). No duplicar aquí.
 
         return $response;
+    }
+
+    /**
+     * Guarda las fotos de la venta en Storage y en la tabla venta_fotos.
+     */
+    private function guardarFotos(int $ventaId, $fotos)
+    {
+        \Log::info('guardarFotos iniciado', ['ventaId' => $ventaId, 'fotos_count' => count($fotos)]);
+        try {
+            foreach ($fotos as $index => $foto) {
+                if ($foto && $foto->isValid()) {
+                    $extension = $foto->getClientOriginalExtension() ?: 'jpg';
+                    $fileName = "venta_foto_{$ventaId}_{$index}_" . time() . ".$extension";
+                    $path = $foto->storeAs('venta_fotos', $fileName, 'public');
+                    \App\VentaFoto::create([
+                        'venta_id' => $ventaId,
+                        'foto_path' => $path,
+                        'tipo_foto' => 'cliente',
+                    ]);
+                    \Log::info('Foto guardada', ['venta_id' => $ventaId, 'path' => $path]);
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error al guardar fotos', [
+                'venta_id' => $ventaId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

@@ -1026,16 +1026,16 @@ class MobileSalesController extends Controller
             
             $destino_id = $ubicacionDestino->id;
 
-            // 1. Verificar si ya existe un traslado CAR para este vendedor hoy
-            // Buscar por cliente_id (clientes.id) y fecha sin filtrar por serie
+            // 1. Verificar si ya existe un traslado CAR para este vendedor hoy con estado ATENDIDO (0)
+            // Si existe, se reutiliza para agregarle más productos; si no, se crea uno nuevo
             $trasladoExistente = Traslado::where('cliente_id', $cliente->id)
                 ->where('fecha', $fechaHoy)
-                ->where('estado', 1)
+                ->where('estado', 0)  // ATENDIDO - buscar uno ya atendido del día
                 ->where('sede_id', $idsede)
                 ->first();
 
             if ($trasladoExistente) {
-                // Reutilizar traslado existente
+                // Reutilizar traslado existente (mantiene estado = 0 Atendido)
                 $traslado = $trasladoExistente;
             } else {
                 // Obtener correlativo de la tabla correlativos según GUIA INTERNA (tipo_comprobante_id = 7)
@@ -1070,13 +1070,12 @@ class MobileSalesController extends Controller
                 $traslado->id_ubicacion_destino = $destino_id;
                 $traslado->motivo = 'CARGA DIARIA DE STOCK A MOVILES';
                 $traslado->cliente_id = $cliente->id; // clientes.id del vendedor
-                $traslado->estado = 0; // 0 = GUIA ATENDIDO (directamente aceptado, no pendiente)
+                $traslado->estado = 0; // 0 = GUIA ATENDIDO
                 $traslado->tipo_envio = $envio;
                 $traslado->sede_id = $idsede;
                 $traslado->user_id = $user_id;
-                $traslado->user_recepcion = $user_id;
-                $traslado->fecha_recibido = date('Y-m-d');
-                $traslado->hora_recibido = date('H:i:s');
+                $traslado->tipo_traslado_id = 7; // GUIA INTERNA
+                $traslado->id_documento_electronico = 7;
                 $traslado->save();
             }
 

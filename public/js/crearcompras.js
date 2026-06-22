@@ -14,6 +14,11 @@ window.addEventListener("load", function (event) {
    todasunidades();
    listaproductos();
 
+   // Ocultar serie/número si NOTA DE COMPRA (id=12) está seleccionada por defecto
+   if($("#tipo_comprobante_id").val() == '12'){
+       $("#document_ser").hide();
+   }
+
 
 
 
@@ -32,6 +37,7 @@ window.addEventListener("load", function (event) {
         }
 
         document.getElementById("proveedor_id").innerHTML=contenido;
+        $("#proveedor_id").val('11');
 
       });
  }
@@ -282,25 +288,30 @@ function listaproductos(){
     var contenido = "";
 
     for (var i = 0; i < data.length; i++) {
- 
 
-      contenido +='<div class="col-lg-4 col-xs-6" >';
-      contenido +='<div class="card" style="">';
-      contenido +=' <a  href="#" class="" onclick="modal(\''+data[i].id+'\')">';
-     if(data[i].img==null){
-        contenido +=' <img style="width: 100px;" src="'+urlgeeneral+'/img/productos/product.png" class="card-img-top" alt="..." >';
-      }else{
+      var imgSrc = data[i].img == null
+          ? urlgeeneral+'/img/productos/product.png'
+          : urlgeeneral+'/img/productos/'+data[i].img;
 
-       contenido +=' <img style="width: 100px;" src="'+urlgeeneral+'/img/productos/'+data[i].img+'" class="card-img-top" alt="..." >';
-     }
-      
-      contenido +='<div class="card-body">';
-      contenido +='<p class="card-text" style="font-size:12px; text-align: center;">'+data[i].nomb_pro+" / "+data[i].categoria+" / "+data[i].subcategoria+" / "+data[i].marca+" / "+data[i].color+'  <input id="product'+data[i].id+'" type="hidden" value="'+data[i].nomb_pro+'"></p>';
-      contenido +='<p class="card-text" style="text-align: center;">S/' +data[i].prec_compra+ ' <input id="costo'+data[i].id+'" type="hidden" value="'+data[i].prec_compra+'"></p>';
-      contenido +='</div>';
-      contenido +=' </a>';
-      contenido +='</div>';
-      contenido +='</div>';
+      contenido += '<div class="product-card" onclick="modal(\''+data[i].id+'\')">';
+      contenido += '  <div class="product-card-img">';
+      contenido += '    <img src="'+imgSrc+'" alt="'+data[i].nomb_pro+'" class="img-fluid">';
+      contenido += '  </div>';
+      contenido += '  <div class="product-card-body">';
+      contenido += '    <h6 class="product-name" title="'+data[i].nomb_pro+'">'+data[i].nomb_pro+'</h6>';
+      contenido += '    <div class="product-meta">';
+      contenido += '      <span class="meta-tag"><i class="mdi mdi-tag-outline"></i>'+(data[i].categoria || 'Sin categoría')+'</span>';
+      contenido += '      <span class="meta-tag"><i class="mdi mdi-shape-outline"></i>'+(data[i].subcategoria || 'Sin subcat')+'</span>';
+      contenido += '      <span class="meta-tag"><i class="mdi mdi-factory-outline"></i>'+(data[i].marca || 'Sin marca')+'</span>';
+      contenido += '    </div>';
+      contenido += '    <div class="product-price">';
+      contenido += '      <span class="price-label">PRECIO:</span>';
+      contenido += '      <span class="price-value">S/ '+parseFloat(data[i].prec_compra || 0).toFixed(2)+'</span>';
+      contenido += '    </div>';
+      contenido += '  </div>';
+      contenido += '  <input id="product'+data[i].id+'" type="hidden" value="'+data[i].nomb_pro+'">';
+      contenido += '  <input id="costo'+data[i].id+'" type="hidden" value="'+(data[i].prec_compra || 0)+'">';
+      contenido += '</div>';
 
     }
 
@@ -321,43 +332,48 @@ function buscar(){
 
      if(searctxt==""){
 
-         listaproductos(); 
-         
+         listaproductos();
+
      }else{
 
             $.get(urlgeeneral+"/productos/searchproduct/"+searctxt,function(data){
 
               var contenido = "";
-          
+
               for (var i = 0; i < data.length; i++) {
-          
-          
-                contenido +='<div class="col-lg-4 col-xs-6" >';
-                contenido +='<div class="card" style="">';
-                contenido +=' <a  href="#" class="" onclick="modal(\''+data[i].id+'\')">';
-              if(data[i].img==null){
-                  contenido +=' <img style="width: 100px;" src="'+urlgeeneral+'/img/productos/product.png" class="card-img-top" alt="..." >';
-                }else{
-          
-                contenido +=' <img style="width: 100px;" src="'+urlgeeneral+'/img/productos/'+data[i].img+'" class="card-img-top" alt="..." >';
+
+                  var imgSrc = data[i].img == null
+                      ? urlgeeneral+'/img/productos/product.png'
+                      : urlgeeneral+'/img/productos/'+data[i].img;
+
+                  contenido += '<div class="product-card" onclick="modal(\''+data[i].id+'\')">';
+                  contenido += '  <div class="product-card-img">';
+                  contenido += '    <img src="'+imgSrc+'" alt="'+data[i].nomb_pro+'" class="img-fluid">';
+                  contenido += '  </div>';
+                  contenido += '  <div class="product-card-body">';
+                  contenido += '    <h6 class="product-name" title="'+data[i].nomb_pro+'">'+data[i].nomb_pro+'</h6>';
+                  contenido += '    <div class="product-meta">';
+                  contenido += '      <span class="meta-tag"><i class="mdi mdi-tag-outline"></i>'+(data[i].categoria || 'Sin categoría')+'</span>';
+                  contenido += '      <span class="meta-tag"><i class="mdi mdi-shape-outline"></i>'+(data[i].subcategoria || 'Sin subcat')+'</span>';
+                  contenido += '      <span class="meta-tag"><i class="mdi mdi-factory-outline"></i>'+(data[i].marca || 'Sin marca')+'</span>';
+                  contenido += '    </div>';
+                  contenido += '    <div class="product-price">';
+                  contenido += '      <span class="price-label">PRECIO:</span>';
+                  contenido += '      <span class="price-value">S/ '+parseFloat(data[i].prec_compra || 0).toFixed(2)+'</span>';
+                  contenido += '    </div>';
+                  contenido += '  </div>';
+                  contenido += '  <input id="product'+data[i].id+'" type="hidden" value="'+data[i].nomb_pro+'">';
+                  contenido += '  <input id="costo'+data[i].id+'" type="hidden" value="'+(data[i].prec_compra || 0)+'">';
+                  contenido += '</div>';
+
               }
-                
-                contenido +='<div class="card-body">';
-                contenido +='<p class="card-text" style="font-size:12px; text-align: center;">'+data[i].nomb_pro+" / "+data[i].categoria+" / "+data[i].subcategoria+" / "+data[i].marca+" / "+data[i].color+'  <input id="product'+data[i].id+'" type="hidden" value="'+data[i].nomb_pro+'"></p>';
-                contenido +='<p class="card-text" style="text-align: center;">S/' +data[i].prec_compra+ ' <input id="costo'+data[i].id+'" type="hidden" value="'+data[i].prec_compra+'"></p>';
-                contenido +='</div>';
-                contenido +=' </a>';
-                contenido +='</div>';
-                contenido +='</div>';
-          
-              }
-          
+
               document.getElementById("inyecciondos").innerHTML = contenido;
-          
-          
+
+
           });
 
-              
+
      }
 
     // alert(searctxt);
@@ -367,13 +383,31 @@ function buscar(){
 //FUNCIONA ABRIR EL MODAL
  function modal(id){
 
-
     var costox=$("#costo"+id).val();
     var namex=$("#product"+id).val();
 
     $("#titleModal").text(namex);
     $("#idProducto").val(id);
     $("#price-producto").val(costox);
+
+    if(repetido(id)){
+        // Producto ya está en la lista, buscar cantidad y unidad en la tabla
+        var rows = document.querySelectorAll('#listadocompras tr.selected');
+        for(var i = 0; i < rows.length; i++){
+            var idProd = rows[i].querySelector('.id_producto');
+            if(idProd && idProd.value == id){
+                var cantInput = rows[i].querySelector('.cantidadx');
+                var unidadInput = rows[i].querySelector('.id_unidad');
+                $("#cantidad_producto").val(cantInput ? cantInput.value : '');
+                $("#uniades_id").val(unidadInput ? unidadInput.value : '2');
+                break;
+            }
+        }
+    } else {
+        // Producto nuevo, poner cantidad vacía y unidad por defecto id=2
+        $("#cantidad_producto").val('');
+        $("#uniades_id").val('2');
+    }
 
      $(".bs-example-modal-sm").modal("show");
 
@@ -388,15 +422,20 @@ function buscar(){
 
       function agregar_detalle(){
 
-        $(".bs-example-modal-sm").modal("hide");
-
-          document.getElementById('pagar').disabled=false;
-
-
            var costox=$("#price-producto").val();
            var namex=$("#titleModal").text();
            var id=$("#idProducto").val();
            var cantidadxy=$("#cantidad_producto").val();
+
+           if(cantidadxy === '' || cantidadxy === null || cantidadxy === undefined || parseInt(cantidadxy) <= 0){
+               Swal.fire({
+                   icon: 'warning',
+                   title: 'Cantidad requerida',
+                   text: 'Por favor ingrese una cantidad válida mayor a 0.',
+                   confirmButtonColor: 'var(--bs-primary)',
+               });
+               return;
+           }
 
            var selectunidades= document.getElementById("uniades_id"); /*Obtener el SELECT */
            var unidadesxy = selectunidades.options[selectunidades.selectedIndex].value;
@@ -419,6 +458,9 @@ function buscar(){
 
            }else{
 
+               $(".bs-example-modal-sm").modal("hide");
+               document.getElementById('pagar').disabled=false;
+
                 const importe = costox * parseInt(cantidadxy);
                 subtotal[cont]=parseFloat(importe);
                 total=parseFloat(total+subtotal[cont]);
@@ -426,16 +468,26 @@ function buscar(){
 
 
 
-                var fila='<tr class="selected" id="fila'+cont+'" ><td><button type="button" class="btn btn-warning" onclick="eliminar('+cont+');">X</button></td><td style="font-size: 12px;" ><input class="id_producto obligatorio" type="hidden"  name="id_producto[]"  value="'+id+'">'+namex+'</td><td><input class="id_unidad obligatorio" type="hidden"  name="id_unidad[]"  value="'+unidadesxy+'"> '+textx+'</td><td style="font-size: 12px;" > <input type="number" class="cantidadx obligatorio" onkeyup="calcular_importe('+cont+')" id="cantidadx'+cont+'" style=" width: 90px;" value="'+cantidadxy+'"> </td> </td> <td><input type="number" class="preciox obligatorio" id="costo'+cont+'" onkeyup="calcular_importe('+cont+')" style=" width: 90px;"    value="'+costox+'"><td><input class="fletex" id="fletex'+cont+'" value="0" style=" width: 90px;"    > </td>  </td>  <td id="importe'+cont+'" class="importe">'+importe.toFixed(2)+'</td> </tr>';
+                var fila='<tr class="selected" id="fila'+cont+'">'+
+                    '<td class="col-num">'+(cont+1)+'</td>'+
+                    '<td class="col-producto"><input class="id_producto obligatorio" type="hidden" name="id_producto[]" value="'+id+'">'+namex+'</td>'+
+                    '<td class="col-und"><input class="id_unidad obligatorio" type="hidden" name="id_unidad[]" value="'+unidadesxy+'"> '+textx+'</td>'+
+                    '<td class="col-cant"><input type="number" class="cantidadx obligatorio input-sm-table" onkeyup="calcular_importe('+cont+')" onchange="calcular_importe('+cont+')" id="cantidadx'+cont+'" value="'+cantidadxy+'"></td>'+
+                    '<td class="col-precio"><input type="number" class="preciox obligatorio input-sm-table" id="costo'+cont+'" onkeyup="calcular_importe('+cont+')" onchange="calcular_importe('+cont+')" value="'+costox+'"></td>'+
+                    '<td class="col-flete"><input type="number" class="fletex input-sm-table" id="fletex'+cont+'" value="0"></td>'+
+                    '<td class="col-subtotal importe" id="importe'+cont+'">'+importe.toFixed(2)+'</td>'+
+                    '<td><button type="button" class="btn btn-danger btn-remove" onclick="eliminar('+cont+');"><i class="mdi mdi-close"></i></button></td>'+
+                    '</tr>';
                 cont++;
 
+                $('#listadocompras .empty-message').remove();
                 $('#listadocompras').append(fila);
                 //calcular_importe(id);
 
-                $("#subtotal").text(total);
-                $("#subtotal_input").val(total);
-                $("#total_compratemporal").text(total);
-                $("#total_compra").val(total);
+                $("#subtotal").text(total.toFixed(2));
+                $("#subtotal_input").val(total.toFixed(2));
+                $("#total_compratemporal").text(total.toFixed(2));
+                $("#total_compra").val(total.toFixed(2));
 
 
                 vector.push({
@@ -482,15 +534,16 @@ function eliminar(index){
 
   for (var i = 0; i < importe.length; i++) {
 
-        let subt = importe[i].textContent;
-        total_importe -= parseFloat(subt);
+        let subt = parseFloat(importe[i].textContent);
+        total_importe += subt;
   }
+  total_importe = parseFloat(total_importe.toFixed(2));
 
   const subtotal = document.getElementById('subtotal');
   const subtotal_input = document.getElementById('subtotal_input');
   const total = document.getElementById('total_compratemporal');
   const total_input = document.getElementById('total_compra');
- let temporan=parseFloat(-1*total_importe);
+ let temporan=total_importe;
 
   subtotal.textContent = temporan.toFixed(2);
   subtotal_input.value = temporan.toFixed(2);
@@ -504,6 +557,7 @@ function eliminar(index){
       if( Object.keys(vector).length === 0){
 
           document.getElementById('pagar').disabled=true;
+          $('#listadocompras').html('<tr class="empty-message"><td colspan="8" class="text-center text-muted py-4"><i class="mdi mdi-cart-outline" style="font-size: 2rem; display: block; margin-bottom: 0.5rem; opacity: 0.4;"></i>No hay productos agregados</td></tr>');
       }
 
 
@@ -538,7 +592,7 @@ function calcular_importe(id){
   const importe = document.getElementById('importe'+id)
 
 
-  const total_imp = cant.value * price.value;
+  const total_imp = parseFloat((cant.value * price.value).toFixed(2));
   importe.textContent = total_imp.toFixed(2);
 
 
@@ -589,6 +643,22 @@ selectElement.addEventListener('change', (event) => {
 todo=[];
 $("#pagar").on("click",function(){
 
+    var btn = this;
+
+    // Validar que haya productos agregados
+    const importes = document.getElementsByClassName('importe');
+    if (importes.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Sin productos',
+            text: 'Agregue al menos un producto para procesar la compra.',
+            confirmButtonColor: 'var(--bs-primary)',
+        });
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Procesando...';
 
     //if (datosobligatorio() == true) {
 
@@ -674,6 +744,11 @@ $("#pagar").on("click",function(){
 
 
                 error : function(xhr,errmsg,err) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="mdi mdi-check-circle-outline me-1"></i>CREAR COMPRA';
+
+                    $("#staticBackdropdos").modal("hide");
+
                     Swal.fire({
                         icon: 'error',
                         title: 'Oops...',

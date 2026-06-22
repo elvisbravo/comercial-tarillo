@@ -692,6 +692,30 @@ class FuncionesController
         ]);
 
         if (!$data_almacen) {
+            if ($tipo == 1) {
+                // Verificar que el producto exista en la tabla productos
+                $producto = DB::table('productos')->where('id', $idproducto)->first();
+                if (!$producto) {
+                    \Log::warning("El producto no existe en la tabla productos", [
+                        'producto_id' => $idproducto,
+                    ]);
+                    return null;
+                }
+                // Si es aumentar y no existe, crear el registro
+                $data_almacen = Detalle_almacen_productos::create([
+                    'ubicacion_id' => $idubicacion,
+                    'producto_id' => $idproducto,
+                    'tipo_envio' => $tipo_envio,
+                    'stock' => $cantidad,
+                ]);
+                \Log::info("detalle_almacen_productos creado", [
+                    'ubicacion_id' => $idubicacion,
+                    'producto_id' => $idproducto,
+                    'tipo_envio' => $tipo_envio,
+                    'stock_creado' => $cantidad,
+                ]);
+                return $cantidad;
+            }
             \Log::warning("NO se encontro detalle_almacen_productos para descontar stock", [
                 'ubicacion_id' => $idubicacion,
                 'producto_id' => $idproducto,

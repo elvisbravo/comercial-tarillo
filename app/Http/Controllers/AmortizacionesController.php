@@ -84,6 +84,78 @@ class AmortizacionesController extends Controller
         return response()->json($credito);
     }
 
+    // CAMBIAR SEDE DE UN CREDITO
+    public function cambiarSede(Request $request)
+    {
+        $creditoId = $request->credito_id;
+        $nuevaSedeId = $request->sede_id;
+
+        // Obtener datos actuales del crédito
+        $credito = DB::table('creditos')->where('id', $creditoId)->first();
+
+        if (!$credito) {
+            return response()->json(['success' => false, 'message' => 'Crédito no encontrado']);
+        }
+
+        $sedeAnteriorId = $credito->sede_id;
+        $clienteId = $credito->cliente_id;
+
+        // Si la sede anterior es la misma, no hacer nada
+        if ($sedeAnteriorId == $nuevaSedeId) {
+            return response()->json(['success' => false, 'message' => 'La sede es la misma']);
+        }
+
+        // Actualizar sede en creditos
+        DB::table('creditos')->where('id', $creditoId)->update(['sede_id' => $nuevaSedeId]);
+
+        // Desactivar sede antigua en clientes_sedes
+        DB::table('clientes_sedes')
+            ->where('cliente_id', $clienteId)
+            ->where('sede_id', $sedeAnteriorId)
+            ->update(['estado' => 0]);
+
+        // Activar o insertar nueva sede en clientes_sedes
+        DB::table('clientes_sedes')->updateOrInsert(
+            ['cliente_id' => $clienteId, 'sede_id' => $nuevaSedeId],
+            ['estado' => 1, 'fecha_alta' => now()]
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+    // HISTORIAL DE CAMBIOS DE SEDE DE CLIENTES
+    public function historialCambios()
+    {
+        $historial = DB::table('clientes_sedes as cs')
+            ->join('clientes as c', 'c.id', '=', 'cs.cliente_id')
+            ->join('sedes as s', 's.id', '=', 'cs.sede_id')
+            ->select(
+                'cs.cliente_id',
+                'c.nomb_per as cliente',
+                'c.documento',
+                's.id as sede_id',
+                's.nombre as sede',
+                'cs.fecha_alta as fecha',
+                'cs.estado'
+            )
+            ->whereIn('cs.cliente_id', function($query) {
+                $query->select('cliente_id')
+                      ->from('clientes_sedes')
+                      ->where('estado', 0);
+            })
+            ->orderBy('cs.cliente_id')
+            ->orderBy('cs.fecha_alta', 'asc')
+            ->get();
+
+        return response()->json($historial);
+    }
+
+    // VISTA DEL HISTORIAL DE CAMBIOS DE SEDE
+    public function historialCambiosVista()
+    {
+        return view('amortizacion.historial_cambios');
+    }
+
     /**
      * Show the form for creating a new resource.
      *

@@ -32,6 +32,7 @@ Route::post('permisos/crear', 'PermisosController@crear');
 Route::resource('permisos', 'PermisosController');
 
 //CONTROLADOR PARA SEDES
+Route::get('sedes/listado', 'SedeController@listado');
 Route::resource('sedes', 'SedeController');
 Route::post('sedes/update_tipo_envio', 'SedeController@update_envio');
 Route::post('sedes/update_estado', 'SedeController@update_estado');
@@ -234,6 +235,8 @@ Route::get('creditos', 'CreditoController@index');
 Route::post('creditos/crear', 'CreditoController@crear');
 
 //CONTROLADOR DE AMORTIZACIONES
+Route::get('amortizacion/historial-cambios-vista', 'AmortizacionesController@historialCambiosVista');
+Route::get('amortizacion/historial-cambios', 'AmortizacionesController@historialCambios');
 Route::get('amortizacion/cantidad_amortizada', 'AmortizacionesController@cantidad_amortizada');
 Route::get('amortizacion/detalle_product/{id}', 'AmortizacionesController@detalle_product');
 Route::get('amortizacion/clientes', 'AmortizacionesController@clientes');
@@ -242,6 +245,9 @@ Route::get('amortizacion/creditos', 'AmortizacionesController@creditos');
 Route::post('amortizacion/anular_recibo_amort', 'AmortizacionesController@anular_recibo_amort');
 Route::resource('amortizacion', 'AmortizacionesController');
 Route::post('amortizacion/crear', 'AmortizacionesController@crear');
+Route::post('amortizacion/cambiar-sede', 'AmortizacionesController@cambiarSede');
+
+
 
 //CONTROLADOR PARA CREAR LOS SECTORES DE LOS
 Route::get('sectores/listado', 'SectorController@listado');

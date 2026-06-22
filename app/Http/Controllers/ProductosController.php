@@ -216,9 +216,11 @@ class ProductosController extends Controller
 
            
             $respuesta=DB::table('productos as p')
-            ->leftjoin('detalle_almacen_productos as dp','dp.producto_id','=','p.id')
-            ->leftjoin('stock_location as sl','dp.ubicacion_id','=','sl.id')
-            ->leftjoin('almacenes as a','sl.almacen_id','=','a.id')
+            ->leftjoin('detalle_almacen_productos as dp', function($join) use ($tipo, $ubicacion) {
+                $join->on('dp.producto_id', '=', 'p.id')
+                     ->where('dp.tipo_envio', '=', $tipo->tipo_envio)
+                     ->where('dp.ubicacion_id', '=', $ubicacion->id);
+            })
             ->leftjoin('precios as pr','pr.articulo_id','=','p.id')
             ->leftjoin('categorias as c','p.categoria_id','=','c.id')
             ->leftjoin('sub_categorias as sub','p.subcategoria_id','=','sub.id')
@@ -226,13 +228,10 @@ class ProductosController extends Controller
             ->leftjoin('marcas as m','p.marca_id','=','m.id')
             ->leftjoin('colores as co','p.color_id','=','co.id')
             ->select('p.id','p.nomb_pro','p.costo as prec_compra','c.categoria','c.id as idcategoria','sub.subcategoria','sub.id as idsub','u.descripcion as unidad','u.id as idunidad',
-             'm.descripcion as marca','m.id as idmarca','co.descripcion as color','co.id as idcolores',DB::raw('SUM(dp.stock) as stock'),
+             'm.descripcion as marca','m.id as idmarca','co.descripcion as color','co.id as idcolores',DB::raw('COALESCE(SUM(dp.stock), 0) as stock'),
              'pr.precio_contado','pr.precio_credito')
             ->groupBy('p.id','p.nomb_pro','p.costo','c.categoria','c.id','sub.subcategoria','sub.id','u.descripcion','u.id',
             'm.descripcion','m.id','co.descripcion','co.id','pr.precio_contado','pr.precio_credito')
-            ->where('a.sede_id','=', $idsede)
-            ->where('dp.tipo_envio','=', $tipo->tipo_envio)
-            ->where('dp.ubicacion_id','=',$ubicacion->id)
             ->where('p.estado','=','1')
             ->get();
 

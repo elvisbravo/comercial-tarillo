@@ -110,16 +110,21 @@ class TrasladoController extends Controller
 
         $idsede = session('key')->sede_id;
 
-        $traslados = Traslado::where('tipo_envio', '=', $envio)->where('sede_id', '=', $idsede)->get();
+        $traslados = DB::table('traslados as t')
+            ->join('almacenes as a', 'a.id', '=', 't.almacen_origen')
+            ->join('almacenes as b', 'b.id', '=', 't.almacen_destino')
+            ->join('clientes as c', 'c.id', '=', 't.cliente_id')
+            ->select('t.*', 'a.nombre as origen', 'b.nombre as destino', 'c.nomb_per as cliente')
+            ->where('t.tipo_envio', '=', $envio)
+            ->where('t.sede_id', '=', $idsede)
+            ->get();
 
         foreach ($traslados as $key => $value) {
-            $origen = Almacen::find($value->almacen_origen);
-            $destino = Almacen::find($value->almacen_destino);
-
             $html .= "<tr>";
             $html .= "<td>" . ($key + 1) . "</td>";
-            $html .= "<td>" . $origen->nombre . "</td>";
-            $html .= "<td>" . $destino->nombre . "</td>";
+            $html .= "<td>" . $value->cliente . "</td>";
+            $html .= "<td>" . $value->origen . "</td>";
+            $html .= "<td>" . $value->destino . "</td>";
             $html .= "<td>" . date('d-m-Y', strtotime($value->fecha)) . "</td>";
             $html .= "<td>" . $value->serie . "-" . $value->correlativo . "</td>";
             $html .= '<td>
@@ -142,7 +147,7 @@ class TrasladoController extends Controller
 
         $guias = DB::table('traslados as t')
             ->join('clientes as c', 't.cliente_id', '=', 'c.id')
-            ->select('t.id', 't.fecha', 't.serie', 't.correlativo', 't.estado', 't.motivo', 'c.razon_social')
+            ->select('t.id', 't.fecha', 't.serie', 't.correlativo', 't.estado', 't.motivo', 'c.nomb_per')
             ->where('t.sede_id', '=', $idsede)
             ->get();
 

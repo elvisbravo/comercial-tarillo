@@ -3,7 +3,13 @@ const urlgeneral = document.getElementById('url_raiz_proyecto').value;
 
 const tras = document.getElementById('traslados');
 
-render();
+window.addEventListener("load", function (event) {
+
+    //listarcolores();
+   $(".loader").fadeOut("slow");
+
+    render();
+ });
 
 function render(){
     fetch(urlgeneral+"/traslado/mostrar")

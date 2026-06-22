@@ -23,25 +23,11 @@ class HistorialApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
         }
 
-        // Reunir todos los posibles IDs que podrian estar en cliente_id (legacy + actual)
-        $clienteIds = [];
-
-        // 1. Actual: buscamos el registro en clientes vinculado al usuario
+        // Buscar el cliente por usuario = user_id
         $cliente = Clientes::where('usuario', $user->id)->first();
-        if ($cliente) {
-            $clienteIds[] = $cliente->id;
+        if (!$cliente) {
+            return response()->json(['status' => true, 'items' => [], 'total' => 0]);
         }
-
-        // 2. Legacy: users.id
-        $clienteIds[] = $user->id;
-
-        // 3. Legacy: vendedores.id
-        $vendedor = Vendedor::where('usuario_id', $user->id)->first();
-        if ($vendedor) {
-            $clienteIds[] = $vendedor->id;
-        }
-
-        $clienteIds = array_unique($clienteIds);
 
         $query = DB::table('traslados as t')
             ->leftJoin('users as u', 'u.id', '=', 't.user_id')
@@ -51,8 +37,7 @@ class HistorialApiController extends Controller
                 'u.name as usuario_nombre',
                 DB::raw('(SELECT COALESCE(SUM(dt.cantidad), 0) FROM detalle_traslado dt WHERE dt.traslado_id = t.id) as total_unidades')
             )
-            ->where('t.serie', 'LIKE', 'CAR%')
-            ->whereIn('t.cliente_id', $clienteIds);
+            ->where('t.cliente_id', $cliente->id);
 
         if ($request->filled('fecha_desde')) {
             $query->where('t.fecha', '>=', $request->fecha_desde);
@@ -77,7 +62,7 @@ class HistorialApiController extends Controller
                 'correlativo'     => $t->correlativo,
                 'motivo'          => $t->motivo,
                 'estado'          => (int) $t->estado,
-                'estado_legible'  => $t->estado == 1 ? 'ACTIVO' : 'ANULADO',
+                'estado_legible'  => $t->estado == 0 ? 'ATENDIDO' : ($t->estado == 1 ? 'PENDIENTE' : ($t->estado == 2 ? 'PARCIAL' : 'ANULADO')),
                 'total_unidades'  => (float) $t->total_unidades,
                 'usuario_nombre'  => $t->usuario_nombre,
             ];
@@ -100,33 +85,19 @@ class HistorialApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
         }
 
-        $clienteIds = [];
-
-        // 1. Actual: clientes.id vinculado al usuario
+        // Buscar el cliente por usuario = user_id
         $cliente = Clientes::where('usuario', $user->id)->first();
-        if ($cliente) {
-            $clienteIds[] = $cliente->id;
+        if (!$cliente) {
+            return response()->json(['status' => false, 'message' => 'Carga no encontrada.'], 404);
         }
-
-        // 2. Legacy: users.id
-        $clienteIds[] = $user->id;
-
-        // 3. Legacy: vendedores.id
-        $vendedor = Vendedor::where('usuario_id', $user->id)->first();
-        if ($vendedor) {
-            $clienteIds[] = $vendedor->id;
-        }
-
-        $clienteIds = array_unique($clienteIds);
 
         $traslado = DB::table('traslados as t')
             ->leftJoin('users as u', 'u.id', '=', 't.user_id')
             ->where('t.id', $id)
-            ->where('t.serie', 'LIKE', 'CAR%')
-            ->whereIn('t.cliente_id', $clienteIds)
+            ->where('t.cliente_id', $cliente->id)
             ->select(
                 't.id', 't.fecha', 't.hora', 't.serie', 't.correlativo',
-                't.motivo', 't.estado',
+                't.motivo', 't.estado', 't.tipo_envio',
                 'u.name as usuario_nombre'
             )
             ->first();
@@ -169,7 +140,7 @@ class HistorialApiController extends Controller
                 'correlativo'    => $traslado->correlativo,
                 'motivo'         => $traslado->motivo,
                 'estado'         => (int) $traslado->estado,
-                'estado_legible' => $traslado->estado == 1 ? 'ACTIVO' : 'ANULADO',
+                'estado_legible' => $traslado->estado == 0 ? 'ATENDIDO' : ($traslado->estado == 1 ? 'PENDIENTE' : ($traslado->estado == 2 ? 'PARCIAL' : 'ANULADO')),
                 'usuario_nombre' => $traslado->usuario_nombre,
             ],
             'productos'      => $productos,

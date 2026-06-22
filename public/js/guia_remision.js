@@ -60,7 +60,7 @@ window.addEventListener("load", function (event) {
               contenido += "<td>" + (i + 1) + "</td>";
               contenido += "<td>" + datos[i].fecha + "</td>";
               contenido += "<td>" + documento + "</td>";
-              contenido += "<td>" + datos[i].razon_social + "</td>";
+              contenido += "<td>" + datos[i].nomb_per + "</td>";
               contenido += "<td>" + datos[i].motivo + "</td>";
               contenido += "<td>" + estdo_guia + "</td>";
               contenido += "<td>" + botones + "</td>";
