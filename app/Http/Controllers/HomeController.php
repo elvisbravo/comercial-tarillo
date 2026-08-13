@@ -35,8 +35,8 @@ class HomeController extends Controller
     {
         $usuario = Auth::user();
 
-        // Si el usuario posee el rol de vendedor (ID 6) o cobrador, es redirigido automáticamente al dashboard de vendedor
-        if ($usuario && ($usuario->roles()->where('id', 6)->exists() || $usuario->hasAnyRole(['VENDEDOR', 'COBRADOR', 'vendedor', 'cobrador', 'Vendedor', 'Cobrador']))) {
+        // Si el usuario posee el rol de vendedor y/o cobrador, es redirigido automáticamente al dashboard de vendedor
+        if ($usuario && $usuario->esVendedorOCobrador()) {
             return redirect()->route('vendedor.dashboard');
         }
 

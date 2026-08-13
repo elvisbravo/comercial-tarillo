@@ -489,9 +489,7 @@
                 <div class="col-6">
                     <label class="form-label">Sector</label>
                     <select class="select-modern" id="sector_nuevo">
-                        @foreach($sectores as $sec)
-                            <option value="{{ $sec->id }}">{{ $sec->nomb_sec }}</option>
-                        @endforeach
+                        @include('partials.sector-options', ['sector' => $sectores])
                     </select>
                 </div>
             </div>

@@ -127,12 +127,26 @@ function sectores(id) {
     $.get(urlgeneral + "/clientes/sector", function (data) {
         var contenido = '';
         contenido += ' <option value="">--Seleccionar Sector--</option>';
+
+        var zonaActual = null;
         for (var i = 0; i < data.length; i++) {
+            var nombreZona = data[i].zona ? data[i].zona.nomb_zona : 'Sin Zona';
+            if (nombreZona !== zonaActual) {
+                if (zonaActual !== null) {
+                    contenido += '</optgroup>';
+                }
+                contenido += '<optgroup label="' + nombreZona + '">';
+                zonaActual = nombreZona;
+            }
+
             if (id == data[i].id) {
                 contenido += ' <option value="' + data[i].id + '" selected>' + data[i].nomb_sec + '</option>';
             } else {
                 contenido += ' <option value="' + data[i].id + '">' + data[i].nomb_sec + '</option>';
             }
+        }
+        if (zonaActual !== null) {
+            contenido += '</optgroup>';
         }
 
         document.getElementById("id_sector").innerHTML = contenido;

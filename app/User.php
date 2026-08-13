@@ -33,6 +33,16 @@ class User extends Authenticatable
         return $this->belongsTo(Sede::class);
     }
 
+    public function isAdmin(): bool
+    {
+        return $this->hasAnyRole(['ADMINISTRADOR', 'Administrador', 'administrador', 'Admin', 'admin']);
+    }
+
+    public function esVendedorOCobrador(): bool
+    {
+        return $this->hasAnyRole(['VENDEDOR (a)', 'COBRADOR (a)', 'COBRADOR (a) / VENDEDOR (a)']);
+    }
+
     /**
      * The attributes that should be hidden for arrays.
      *

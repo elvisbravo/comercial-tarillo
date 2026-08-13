@@ -240,10 +240,7 @@ Pos
                             <div class="mb-3">
                                 <label class="form-label">Sectores: </label>
                                 <select name="sectores" id="sector" class="form-select">
-                                    @foreach ($sectores as $item)
-                                        <option value="{{ $item->id }}">{{ $item->nomb_sec }}</option>
-                                    @endforeach
-                                    
+                                    @include('partials.sector-options', ['sector' => $sectores])
                                 </select>
                             </div>
                         </div>

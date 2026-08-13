@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Sector;
+use App\Zona;
 use Illuminate\Http\Request;
 
 class SectorController extends Controller
@@ -22,12 +23,15 @@ class SectorController extends Controller
 
     public function index()
     {
-        //
-        return view('sectores.index');
+        $zonas = Zona::where('estado', 'ACTIVO')->orderBy('nomb_zona')->get();
+        return view('sectores.index', compact('zonas'));
     }
     public function listado(){
 
-         $sectores=Sector::all();
+         $sectores = Sector::with('zona')->get()->map(function ($sector) {
+             $sector->zona_nombre = optional($sector->zona)->nomb_zona;
+             return $sector;
+         });
          return response()->json($sectores);
     }
 
@@ -58,6 +62,7 @@ class SectorController extends Controller
 
         $sector =new Sector;
         $sector->nomb_sec=$request->nomb_sec;
+        $sector->zona_id=$request->zona_id ?: null;
         $sector->estado='ACTIVO';
         $sector->save();
 
@@ -106,6 +111,7 @@ class SectorController extends Controller
 
         $sector = Sector::find($request->id);
         $sector->nomb_sec=$request->nomb_sec;
+        $sector->zona_id=$request->zona_id ?: null;
         $sector->estado='ACTIVO';
         $sector->save();
 

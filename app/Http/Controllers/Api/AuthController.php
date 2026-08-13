@@ -56,11 +56,17 @@ class AuthController extends Controller
 
             $vendedor = Vendedor::where('usuario_id', $user->id)->first();
 
+            $roles = $user->getRoleNames();
+            $userData = $user->toArray();
+            $userData['is_admin'] = $user->isAdmin();
+            $userData['is_vendedor'] = $roles->contains('VENDEDOR (a)') || $roles->contains('COBRADOR (a) / VENDEDOR (a)');
+            $userData['is_cobrador'] = $roles->contains('COBRADOR (a)') || $roles->contains('COBRADOR (a) / VENDEDOR (a)');
+
             return response()->json([
                 'status'  => true,
                 'message' => 'Inicio de sesión exitoso',
                 'data'    => [
-                    'user'       => $user,
+                    'user'       => $userData,
                     'vendedor'   => $vendedor,
                     'api_token'  => $user->api_token,
                 ],
@@ -100,10 +106,16 @@ class AuthController extends Controller
         $user->load('sede');
         $vendedor = Vendedor::where('usuario_id', $user->id)->first();
 
+        $roles = $user->getRoleNames();
+        $userData = $user->toArray();
+        $userData['is_admin'] = $user->isAdmin();
+        $userData['is_vendedor'] = $roles->contains('VENDEDOR (a)') || $roles->contains('COBRADOR (a) / VENDEDOR (a)');
+        $userData['is_cobrador'] = $roles->contains('COBRADOR (a)') || $roles->contains('COBRADOR (a) / VENDEDOR (a)');
+
         return response()->json([
             'status' => true,
             'data'   => [
-                'user'     => $user,
+                'user'     => $userData,
                 'vendedor' => $vendedor,
             ],
         ]);

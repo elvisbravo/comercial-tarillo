@@ -60,7 +60,7 @@ class LoginController extends Controller
 
              session(['key' => $user]);
 
-             if ($user && ($user->roles()->where('id', 6)->exists() || $user->hasAnyRole(['VENDEDOR', 'COBRADOR', 'vendedor', 'cobrador', 'Vendedor', 'Cobrador']))) {
+             if ($user && $user->esVendedorOCobrador()) {
                  return redirect()->route('vendedor.dashboard');
              }
 

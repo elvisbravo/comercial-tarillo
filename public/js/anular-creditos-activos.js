@@ -170,12 +170,26 @@ $("#guardar").on("click",function(){
              //console.log(data);
              if(data==1){
 
+                var documentoCliente = $("#documento").val();
+
                 Swal.fire({
-                    icon: 'error',
-                    title: 'Oops...',
-                    text: 'Lo siento no podemos Anular el credito porque hemos Detectado que ya tiene cuotas Amortizadas!',
-                    footer: 'Para Anular el credito primero anule las Amortizaciones realizadas para este credito.'
-                  })
+                    icon: 'warning',
+                    title: 'Este crédito ya tiene cuotas cobradas',
+                    html: 'No se puede anular directamente porque ya se registraron pagos.<br><br>' +
+                          'Si el cliente ya no podrá seguir pagando, usa <b>Recojo de Mercadería</b> para recuperar ' +
+                          'los productos (parcial o total) y cerrar el crédito sin perder el historial de lo ya cobrado.',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ir a Recojo de Mercadería',
+                    cancelButtonText: 'Cerrar'
+                  }).then(function (result) {
+                        if (result.isConfirmed) {
+                            var url = urlgeeneral + '/ventas-moviles/recojo-mercaderia';
+                            if (documentoCliente) {
+                                url += '?documento=' + encodeURIComponent(documentoCliente);
+                            }
+                            window.location.href = url;
+                        }
+                  });
 
 
              }else{

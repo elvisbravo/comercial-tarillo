@@ -51,6 +51,11 @@
         border-radius: 20px; padding: 4px 12px;
         font-size: 11px; font-weight: 700;
     }
+    .badge-cerrada {
+        background: #dbeafe; color: #1d4ed8;
+        border-radius: 20px; padding: 4px 12px;
+        font-size: 11px; font-weight: 700;
+    }
     /* Filtros */
     .filter-card {
         background: #f8fafc;
@@ -126,6 +131,9 @@
                     <a href="{{ route('admin.cargar_stock.historial') }}" class="btn {{ Request::routeIs('admin.cargar_stock.historial') ? 'btn-warning' : 'btn-light' }} btn-action">
                         <i class="mdi mdi-history me-1"></i> Historial de Cargas
                     </a>
+                    <a href="{{ route('admin.recojo') }}" class="btn {{ Request::routeIs('admin.recojo') ? 'btn-danger' : 'btn-light' }} btn-action">
+                        <i class="mdi mdi-package-variant-remove me-1"></i> Recojo de Mercadería
+                    </a>
                 </div>
             </div>
         </div>
@@ -143,7 +151,7 @@
     </div>
 
     {{-- Estadísticas rápidas --}}
-    <div class="row mb-4 g-3">
+    <div class="row mb-4 g-3" id="historial-stats">
         <div class="col-sm-6 col-lg-3">
             <div class="stat-pill">
                 <i class="mdi mdi-truck-delivery-outline"></i>
@@ -184,11 +192,11 @@
 
     {{-- Filtros --}}
     <div class="filter-card">
-        <form method="GET" action="{{ route('admin.cargar_stock.historial') }}" id="form_filtros">
+        <form id="form_filtros">
             <div class="row g-3 align-items-end">
                 <div class="col-md-4 col-sm-6">
                     <label class="form-label font-weight-bold text-dark mb-1" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Vendedor</label>
-                    <select name="vendedor_id" class="form-select" style="border-radius: 8px; font-size: 13px;">
+                    <select id="filtro_vendedor_id" class="form-select" style="border-radius: 8px; font-size: 13px;">
                         <option value="">— Todos los vendedores —</option>
                         @foreach($vendedores as $v)
                             <option value="{{ $v->usuario_id }}" {{ request('vendedor_id') == $v->usuario_id ? 'selected' : '' }}>
@@ -199,11 +207,11 @@
                 </div>
                 <div class="col-md-3 col-sm-6">
                     <label class="form-label font-weight-bold text-dark mb-1" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Desde</label>
-                    <input type="date" name="fecha_desde" class="form-control" value="{{ request('fecha_desde', date('Y-m-d')) }}" style="border-radius: 8px; font-size: 13px;">
+                    <input type="date" id="filtro_fecha_desde" class="form-control" value="{{ request('fecha_desde', date('Y-m-d')) }}" style="border-radius: 8px; font-size: 13px;">
                 </div>
                 <div class="col-md-3 col-sm-6">
                     <label class="form-label font-weight-bold text-dark mb-1" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Hasta</label>
-                    <input type="date" name="fecha_hasta" class="form-control" value="{{ request('fecha_hasta', date('Y-m-d')) }}" style="border-radius: 8px; font-size: 13px;">
+                    <input type="date" id="filtro_fecha_hasta" class="form-control" value="{{ request('fecha_hasta', date('Y-m-d')) }}" style="border-radius: 8px; font-size: 13px;">
                 </div>
                 <div class="col-md-2 col-sm-6 d-flex gap-2">
                     <button type="submit" class="btn btn-primary btn-action w-100">
@@ -218,6 +226,7 @@
     </div>
 
     {{-- Tabla de Historial --}}
+    <div id="historial-table-card">
     <div class="card cargar-card">
         <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
             <div>
@@ -288,6 +297,10 @@
                                     <span class="badge-cargado">
                                         <i class="mdi mdi-check-circle me-1"></i> Cargado
                                     </span>
+                                @elseif($carga->estado == 2)
+                                    <span class="badge-cerrada">
+                                        <i class="mdi mdi-truck-check-outline me-1"></i> Cerrada (Retorno)
+                                    </span>
                                 @else
                                     <span class="badge-anulado">
                                         <i class="mdi mdi-close-circle me-1"></i> Anulado
@@ -311,6 +324,8 @@
                                             title="Agregar más productos a esta carga">
                                         <i class="mdi mdi-plus-circle-outline me-1"></i> Agregar
                                     </button>
+                                    @endif
+                                    @if($carga->estado == 1)
                                     <button type="button"
                                             class="btn btn-outline-danger btn-anular-carga"
                                             data-id="{{ $carga->id }}"
@@ -337,6 +352,7 @@
             </div>
             @endif
         </div>
+    </div>
     </div>
 
 </div>
@@ -528,8 +544,51 @@
 
 @section('js')
 <script>
+const csrfToken = '{{ csrf_token() }}';
+const urlHistorialDatos = "{{ route('admin.cargar_stock.historial.datos') }}";
+
 $(document).ready(function () {
     $(".loader").fadeOut("slow");
+
+    // Filtrar por fetch POST, sin recargar la página ni tocar la URL
+    $('#form_filtros').on('submit', async function (e) {
+        e.preventDefault();
+        const $btn = $(this).find('button[type="submit"]');
+        const originalHtml = $btn.html();
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+
+        try {
+            const response = await fetch(urlHistorialDatos, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({
+                    vendedor_id: $('#filtro_vendedor_id').val(),
+                    fecha_desde: $('#filtro_fecha_desde').val(),
+                    fecha_hasta: $('#filtro_fecha_hasta').val()
+                })
+            });
+            if (!response.ok) throw new Error('Error al filtrar el historial.');
+            const htmlText = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlText, 'text/html');
+            $('#historial-stats').html(doc.querySelector('#historial-stats').innerHTML);
+            $('#historial-table-card').html(doc.querySelector('#historial-table-card').innerHTML);
+        } catch (error) {
+            console.error(error);
+            $('body').prepend(
+                `<div class="alert alert-danger alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3 shadow-lg" style="z-index:9999; border-radius:12px; min-width:360px;">
+                    <i class="mdi mdi-alert-circle me-2"></i> No se pudo filtrar el historial. Intente de nuevo.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>`
+            );
+        } finally {
+            $btn.prop('disabled', false).html(originalHtml);
+        }
+    });
 
     // Ver Detalle
     $(document).on('click', '.btn-ver-detalle', function () {

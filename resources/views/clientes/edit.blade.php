@@ -105,20 +105,7 @@ Editar Cliente
                                     <label class="form-label" for="id_sector_uno">Sector <strong style="color:red">(*)</strong></label>
                                     <select name="id_sector" id="id_sector_uno" class="form-control">
                                         <option value="">--Seleccionar--</option>
-                                        @foreach($sector as $s)
-
-                                        @if($clientes->id_sector== $s->id)
-
-                                        <option value="{{$s->id}}" selected>{{$s->nomb_sec}}</option>
-
-                                        @else
-
-                                        <option value="{{$s->id}}">{{$s->nomb_sec}}</option>
-
-                                        @endif
-
-                                        @endforeach
-
+                                        @include('partials.sector-options', ['sector' => $sector, 'selectedId' => $clientes->id_sector])
                                     </select>
                                 </div>
 

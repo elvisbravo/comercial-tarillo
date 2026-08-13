@@ -1,7 +1,7 @@
 @extends('layouts.main')
 
 @section('title')
-Sectores
+Zonas
 @endsection
 
 @section('css')
@@ -30,7 +30,7 @@ Sectores
     <div class="row">
         <div class="col-12">
             <div class="page-title-box d-sm-flex align-items-center justify-content-between">
-                <h4 class="mb-sm-0 font-size-18">Listado Sectores</h4>
+                <h4 class="mb-sm-0 font-size-18">Listado Zonas</h4>
 
                 <div class="page-title-right">
                     <ol class="breadcrumb m-0">
@@ -46,29 +46,25 @@ Sectores
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    @if(App\Permisos::hasPermission('sectores', 2))
-                    <button type="button" class="btn btn-primary" onclick="abrimodal(0)" data-bs-toggle="modal" data-bs-target="#staticBackdrop"> <i class="btn-icon-prepend" data-feather="plus"></i> crear Nuevo Sector</button>
+                    @if(App\Permisos::hasPermission('zonas', 2))
+                    <button type="button" class="btn btn-primary" onclick="abrimodal(0)" data-bs-toggle="modal" data-bs-target="#staticBackdrop"> <i class="btn-icon-prepend" data-feather="plus"></i> crear Nueva Zona</button>
                     @endif
                 </div>
 
                 <div class="card-body">
-
-                    <!-- Static Backdrop modal Button -->
-                    <i data-feather="star"></i>
 
                     <div class="table-responsive">
                         <table id="datatable" class="table table-bordered dt-responsive  nowrap w-100">
                             <thead>
                                 <tr>
                                     <th>#</th>
-                                    <th>Sector</th>
                                     <th>Zona</th>
+                                    <th>Estado</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
 
-
-                            <tbody id="listadecolores">
+                            <tbody id="listadezonas">
 
                             </tbody>
                         </table>
@@ -82,14 +78,6 @@ Sectores
 
 </div>
 
-
-
-
-
-
-
-
-
 <!-- Static Backdrop Modal -->
 <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="staticBackdropLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document">
@@ -99,20 +87,11 @@ Sectores
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <input type="hidden" name="name" id="valor" value="0" />
+                <input type="hidden" name="id" id="valor" value="0" />
                 <div class="form-group">
-                    <label for="">Nombre del Sector</label>
-                    <input type="text" class="form-control obligatorio limpiar" placeholder="Nombre del sector" id="nomb_sec">
+                    <label for="">Nombre de la Zona</label>
+                    <input type="text" class="form-control obligatorio limpiar" placeholder="Nombre de la zona" id="nomb_zona">
 
-                </div>
-                <div class="form-group mt-2">
-                    <label for="">Zona</label>
-                    <select class="form-control limpiar" id="zona_id">
-                        <option value="">— Sin Zona —</option>
-                        @foreach($zonas as $z)
-                            <option value="{{ $z->id }}">{{ $z->nomb_zona }}</option>
-                        @endforeach
-                    </select>
                 </div>
 
             </div>
@@ -126,16 +105,10 @@ Sectores
     </div>
 </div>
 
-
-
-
 @endsection
 
 @section('js')
 
-<!-- Sweet Alerts js -->
-
-<!-- Required datatable js -->
 <!-- Sweet Alerts js -->
 <script src="{{ asset('assets/libs/sweetalert2/sweetalert2.min.js') }}"></script>
 <!-- Required datatable js -->
@@ -143,11 +116,10 @@ Sectores
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
 
 <script>
-    const canEdit = {{ App\Permisos::hasPermission('sectores', 3) ? 'true' : 'false' }};
-    const canDelete = {{ App\Permisos::hasPermission('sectores', 4) ? 'true' : 'false' }};
+    const canEdit = {{ App\Permisos::hasPermission('zonas', 3) ? 'true' : 'false' }};
+    const canDelete = {{ App\Permisos::hasPermission('zonas', 4) ? 'true' : 'false' }};
 </script>
 
-<script src="{{ asset('js/sector.js') }}">
-</script>
+<script src="{{ asset('js/zona.js') }}"></script>
 
 @endsection

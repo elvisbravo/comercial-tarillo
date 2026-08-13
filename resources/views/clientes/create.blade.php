@@ -93,9 +93,7 @@ Crear Cliente
                                     <label class="form-label" for="formrow-email-input">Sector <strong style="color:red">(*)</strong></label>
                                     <select name="id_sector" id="id_sector" class="form-control" required>
                                         <option value="">--Seleccionar--</option>
-                                        @foreach($sector as $s)
-                                        <option value="{{$s->id}}">{{$s->nomb_sec}}</option>
-                                        @endforeach
+                                        @include('partials.sector-options', ['sector' => $sector])
                                     </select>
                                 </div>
                             </div>

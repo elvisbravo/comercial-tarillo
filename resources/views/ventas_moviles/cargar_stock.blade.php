@@ -74,6 +74,9 @@
                     <a href="{{ route('admin.cargar_stock.historial') }}" class="btn {{ Request::routeIs('admin.cargar_stock.historial') ? 'btn-warning' : 'btn-light' }} btn-action">
                         <i class="mdi mdi-history me-1"></i> Historial de Cargas
                     </a>
+                    <a href="{{ route('admin.recojo') }}" class="btn {{ Request::routeIs('admin.recojo') ? 'btn-danger' : 'btn-light' }} btn-action">
+                        <i class="mdi mdi-package-variant-remove me-1"></i> Recojo de Mercadería
+                    </a>
                 </div>
             </div>
         </div>
@@ -106,6 +109,7 @@
 
     <form action="{{ route('admin.cargar_stock.procesar') }}" method="POST" id="form_cargar_stock">
         @csrf
+        <input type="hidden" name="confirmar_pendiente" id="confirmar_pendiente_input" value="0">
         <div class="row">
             <!-- Formulario e Inputs de Selección -->
             <div class="col-lg-4 mb-4">
@@ -115,15 +119,19 @@
                         <p class="text-muted font-size-12 mb-0">Seleccione el vendedor y agregue los productos a la carga diaria.</p>
                     </div>
                     <div class="card-body px-4">
-                        
+
                         <!-- Selección del Vendedor -->
                         <div class="mb-4">
                             <label class="form-label font-weight-bold text-dark">Vendedor Destinatario</label>
                             <select class="form-select" name="vendedor_id" id="vendedor_select" required style="border-radius: 8px;">
                                 <option value="">-- Seleccionar Vendedor --</option>
                                 @foreach($vendedores as $v)
-                                    <option value="{{ $v->id }}">
-                                        {{ $v->name }}
+                                    <option value="{{ $v->id }}" data-stock-pendiente="{{ $v->stock_pendiente_desde }}">
+                                        @if($v->stock_pendiente_desde)
+                                            ⚠ {{ $v->name }} (pendiente desde {{ \Carbon\Carbon::parse($v->stock_pendiente_desde)->format('d-m-Y') }})
+                                        @else
+                                            {{ $v->name }}
+                                        @endif
                                     </option>
                                 @endforeach
                             </select>
@@ -331,12 +339,24 @@
 
         // Validación final antes de enviar
         $('#form_cargar_stock').on('submit', function() {
-            let vendedorNombre = $('#vendedor_select option:selected').text().trim();
+            let vendedorOption = $('#vendedor_select option:selected');
+            let vendedorNombre = vendedorOption.text().trim();
+            let stockPendienteDesde = vendedorOption.attr('data-stock-pendiente');
             let count = $('#tabla_items_carga tbody tr').not('.tr-empty').length;
 
             if ($('#vendedor_select').val() === '') {
                 alert('Por favor, seleccione el vendedor.');
                 return false;
+            }
+
+            if (stockPendienteDesde) {
+                let confirmado = confirm(
+                    'Este vendedor tiene stock pendiente de retornar desde el ' + stockPendienteDesde + '.\n' +
+                    '¿Confirma que desea cargarle ' + count + ' producto(s) de todos modos?'
+                );
+                if (!confirmado) return false;
+                $('#confirmar_pendiente_input').val('1');
+                return true;
             }
 
             return confirm('¿Está seguro de procesar la carga diaria de ' + count + ' producto(s) a ' + vendedorNombre + '?');

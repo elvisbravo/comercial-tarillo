@@ -156,7 +156,7 @@ class VentaController extends Controller
 
         $vendedores = Vendedor::where('estado', '=', 1)->get();
 
-        $sectores = Sector::where('estado', '=', 'ACTIVO')->get();
+        $sectores = Sector::with('zona')->where('estado', '=', 'ACTIVO')->orderBy('zona_id')->get();
 
         return view('ventas.pos', compact('almacenes', 'ubicaciones', 'userId', 'vendedores', 'sectores'));
     }
@@ -314,6 +314,7 @@ class VentaController extends Controller
                 $cliente->email = $post['correo_cliente'];
                 $cliente->razon_social = $post['nombre_cliente'];
                 $cliente->id_sector = empty($post['sectores']) ? null : $post['sectores'];
+                $cliente->referencia = $post['referencia_cliente'] ?? null;
 
                 $cliente->save();
 
@@ -327,6 +328,7 @@ class VentaController extends Controller
                 $cliente_->dire_per = $post['direccion_cliente'];
                 $cliente_->razon_social = $post['nombre_cliente'];
                 $cliente_->id_sector = empty($post['sectores']) ? null : $post['sectores'];
+                $cliente_->referencia = $post['referencia_cliente'] ?? null;
 
                 $cliente_->save();
             }

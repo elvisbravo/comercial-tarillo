@@ -76,7 +76,7 @@ class ClientesController extends Controller
     public function create()
     {
         $tipo_documento = Tipo_documento::all();
-        $sector = Sector::where('estado', '=', 'ACTIVO')->get();
+        $sector = Sector::with('zona')->where('estado', '=', 'ACTIVO')->orderBy('zona_id')->get();
         return view('clientes.create', compact('tipo_documento', 'sector'));
     }
 
@@ -186,14 +186,14 @@ class ClientesController extends Controller
             ->where('cliente_id', '=', $id)
             ->get();
         $tipo_documento = Tipo_documento::all();
-        $sector = Sector::where('estado', '=', 'ACTIVO')->get();
+        $sector = Sector::with('zona')->where('estado', '=', 'ACTIVO')->orderBy('zona_id')->get();
 
         return view('clientes.edit', compact('clientes', 'direcciones', 'tipo_documento', 'sector'));
     }
 
     public function sector()
     {
-        $sector = Sector::where('estado', '=', 'ACTIVO')->get();
+        $sector = Sector::with('zona')->where('estado', '=', 'ACTIVO')->orderBy('zona_id')->get();
         return response()->json($sector);
     }
 

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Vendedor;
 use App\VendedorSector;
 use App\Sector;
+use App\Zona;
 use App\Clientes;
 use App\Productos;
 use App\Venta;
@@ -23,10 +24,17 @@ use App\Tipo_comprobantes;
 use App\Tipo_documento;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\servicios\FuncionesController;
+use Spatie\Permission\Models\Role;
 
 class MobileSalesController extends Controller
 {
+    // Identifica los traslados de carga de stock a furgonetas. Se usa el `motivo`
+    // (fijado por la propia app, siempre igual) en vez de la `serie` porque la serie
+    // es configurable por sede en `correlativos` y puede no ser "CAR".
+    const MOTIVO_CARGA_STOCK = 'CARGA DIARIA DE STOCK A MOVILES';
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -34,7 +42,7 @@ class MobileSalesController extends Controller
         $this->middleware(function ($request, $next) {
             $user = $request->user();
             if ($request->is('vendedor/*') || $request->is('vendedor')) {
-                if ($user && !$user->roles()->where('id', 6)->exists() && !$user->hasAnyRole(['VENDEDOR', 'COBRADOR', 'vendedor', 'cobrador', 'Vendedor', 'Cobrador'])) {
+                if ($user && !$user->esVendedorOCobrador()) {
                     abort(403, 'Acceso denegado. Este módulo es exclusivo para vendedores o cobradores.');
                 }
             }
@@ -94,6 +102,25 @@ class MobileSalesController extends Controller
             }
         }
         return $vendedor;
+    }
+
+    /**
+     * Verifica que el vendedor pertenezca a la sede indicada (vía su usuario),
+     * para evitar que se consulte/liquide la caja de un vendedor de otra sede.
+     */
+    private function vendedorPerteneceASede(int $vendedorId, int $idsede): bool
+    {
+        $vendedor = Vendedor::with('usuario')->find($vendedorId);
+        return $vendedor && $vendedor->usuario && (int) $vendedor->usuario->sede_id === $idsede;
+    }
+
+    /**
+     * IDs de los roles Vendedor (a), Cobrador (a) y Cobrador (a) / Vendedor (a) —
+     * cualquiera de los tres da acceso al módulo vendedor/cobrador.
+     */
+    private function rolesVendedorCobradorIds()
+    {
+        return Role::whereIn('name', ['VENDEDOR (a)', 'COBRADOR (a)', 'COBRADOR (a) / VENDEDOR (a)'])->pluck('id');
     }
 
     public function index()
@@ -181,7 +208,7 @@ class MobileSalesController extends Controller
             // Cargado HOY a este vendedor, agrupado por producto
             $loadedByProduct = DB::table('detalle_traslado as dt')
                 ->join('traslados as t', 't.id', '=', 'dt.traslado_id')
-                ->where('t.serie', '=', 'CAR')
+                ->where('t.motivo', '=', self::MOTIVO_CARGA_STOCK)
                 ->where('t.cliente_id', '=', $usuario->id)
                 ->where('t.fecha', '=', $fechaHoy)
                 ->where('t.estado', '=', 1)
@@ -299,7 +326,7 @@ class MobileSalesController extends Controller
             ->select('cb.id', 'cb.cuenta_corriente', 'b.abreviatura')
             ->get();
         
-        $sectores = Sector::where('estado', 'ACTIVO')->get();
+        $sectores = Sector::with('zona')->where('estado', 'ACTIVO')->orderBy('zona_id')->get();
 
         return view('ventas_moviles.venta', compact(
             'vendedor',
@@ -427,11 +454,162 @@ class MobileSalesController extends Controller
     // SECCIÓN ADMINISTRATIVA (ESCRITORIO)
     // ==========================================
 
+    /**
+     * Consultas agregadas (una por tabla, sin N+1) de ventas contado/crédito,
+     * inicial de crédito (venta_formapago) y cobranzas pendientes de liquidar,
+     * agrupadas por vendedor, para la fecha dada.
+     */
+    private function resumenVendedoresPendientes(array $vendedorIds, string $fecha): array
+    {
+        $ventasPorVendedor = DB::table('ventas')
+            ->select('vendedor_id', 'tipo_pago_id', DB::raw('SUM(monto) as total'))
+            ->whereIn('vendedor_id', $vendedorIds)
+            ->where('estado_liquidacion', 'PENDIENTE')
+            ->where('fecha', $fecha)
+            ->groupBy('vendedor_id', 'tipo_pago_id')
+            ->get()
+            ->groupBy('vendedor_id');
+
+        // Cuota inicial de ventas al crédito: dinero cobrado en efectivo al momento
+        // de la venta, guardado en venta_formapago (no en recibos).
+        $inicialPorVendedor = DB::table('venta_formapago as vf')
+            ->join('ventas as v', 'v.id', '=', 'vf.venta_id')
+            ->select('v.vendedor_id', DB::raw('SUM(vf.monto) as total'))
+            ->whereIn('v.vendedor_id', $vendedorIds)
+            ->where('v.estado_liquidacion', 'PENDIENTE')
+            ->where('v.fecha', $fecha)
+            ->where('v.tipo_pago_id', 2)
+            ->groupBy('v.vendedor_id')
+            ->get()
+            ->keyBy('vendedor_id');
+
+        $cobrosPorVendedor = DB::table('recibos')
+            ->select('vendedor_id', DB::raw('SUM(mont_rec) as total'))
+            ->whereIn('vendedor_id', $vendedorIds)
+            ->where('estado_liquidacion', 'PENDIENTE')
+            ->where('fech_rec', $fecha)
+            ->groupBy('vendedor_id')
+            ->get()
+            ->keyBy('vendedor_id');
+
+        return compact('ventasPorVendedor', 'inicialPorVendedor', 'cobrosPorVendedor');
+    }
+
+    /**
+     * Total pendiente por vendedor y por forma de pago (Efectivo/Yape/etc.), sumando
+     * lo cobrado en ventas al contado + inicial de crédito (venta_formapago) y
+     * cobranzas (recibos, vía movimientos). Devuelve [vendedor_id => [forma_pago_id => monto]].
+     */
+    private function resumenFormaPagoPendiente(array $vendedorIds, string $fecha): array
+    {
+        $porVenta = DB::table('venta_formapago as vf')
+            ->join('ventas as v', 'v.id', '=', 'vf.venta_id')
+            ->select('v.vendedor_id', 'vf.forma_pago_id', DB::raw('SUM(vf.monto) as total'))
+            ->whereIn('v.vendedor_id', $vendedorIds)
+            ->where('v.estado_liquidacion', 'PENDIENTE')
+            ->where('v.fecha', $fecha)
+            ->groupBy('v.vendedor_id', 'vf.forma_pago_id')
+            ->get();
+
+        $porCobros = DB::table('recibos as r')
+            ->leftJoin('movimientos as m', 'm.id', '=', 'r.id_movimiento')
+            ->select('r.vendedor_id', 'm.forma_pago_id', DB::raw('SUM(r.mont_rec) as total'))
+            ->whereIn('r.vendedor_id', $vendedorIds)
+            ->where('r.estado_liquidacion', 'PENDIENTE')
+            ->where('r.fech_rec', $fecha)
+            ->groupBy('r.vendedor_id', 'm.forma_pago_id')
+            ->get();
+
+        $porVendedor = [];
+        foreach ($porVenta->concat($porCobros) as $fila) {
+            // forma_pago_id null (movimiento sin forma de pago asociada) se agrupa
+            // bajo la clave 0 ("Sin especificar") para no perder el monto del total.
+            $fpId = $fila->forma_pago_id ?? 0;
+            $porVendedor[$fila->vendedor_id][$fpId] = ($porVendedor[$fila->vendedor_id][$fpId] ?? 0) + (float) $fila->total;
+        }
+
+        return $porVendedor;
+    }
+
+    /**
+     * Convierte un array [forma_pago_id => monto] en una lista lista para mostrar,
+     * con la descripción de cada forma de pago (0 = "Sin especificar").
+     */
+    private function listaResumenFormaPago(array $totalesPorForma, $formasPago): array
+    {
+        $lista = $formasPago->map(function ($fp) use ($totalesPorForma) {
+            return [
+                'forma_pago_id' => $fp->id,
+                'descripcion' => $fp->descripcion,
+                'monto' => round($totalesPorForma[$fp->id] ?? 0, 2),
+            ];
+        })->values()->all();
+
+        if (!empty($totalesPorForma[0])) {
+            $lista[] = ['forma_pago_id' => 0, 'descripcion' => 'Sin especificar', 'monto' => round($totalesPorForma[0], 2)];
+        }
+
+        return $lista;
+    }
+
+    /**
+     * Query de las filas de inicial de crédito pendientes de un vendedor/fecha,
+     * con nombre de cliente y comprobante, para el detalle del modal.
+     */
+    private function inicialesPendientes(int $vendedorId, string $fecha)
+    {
+        return DB::table('venta_formapago as vf')
+            ->join('ventas as v', 'v.id', '=', 'vf.venta_id')
+            ->join('clientes as c', 'v.cliente_id', '=', 'c.id')
+            ->leftJoin('forma_pagos as fp', 'fp.id', '=', 'vf.forma_pago_id')
+            ->select(
+                'v.id',
+                'v.fecha',
+                'v.serie_comprobante',
+                'v.numero_comprobante',
+                'vf.monto',
+                DB::raw("COALESCE(c.razon_social, c.nomb_per, 'Cliente Desconocido') as nombre_cliente"),
+                'fp.descripcion as forma_pago'
+            )
+            ->where('v.vendedor_id', $vendedorId)
+            ->where('v.estado_liquidacion', 'PENDIENTE')
+            ->where('v.fecha', $fecha)
+            ->where('v.tipo_pago_id', 2)
+            ->orderBy('v.fecha', 'desc')
+            ->get();
+    }
+
     // A. Liquidación de caja en efectivo
     public function liquidarCajaIndex(Request $request)
     {
+        $fecha = $request->input('fecha', date('Y-m-d'));
+        $idsede = session('key')->sede_id;
+
+        // Detalle de productos de una venta puntual (para el modal "Ver productos"
+        // del tab Ventas Pendientes, tanto contado como crédito).
+        if ($request->input('format') == 'json' && $request->filled('venta_id')) {
+            $ventaId = $request->venta_id;
+            $ventaValida = DB::table('ventas')->where('id', $ventaId)->where('sede_id', $idsede)->exists();
+            if (!$ventaValida) {
+                abort(403, 'No autorizado para ver esta venta.');
+            }
+
+            $productos = DB::table('detalle_venta as dv')
+                ->join('productos as p', 'p.id', '=', 'dv.producto_id')
+                ->select('p.nomb_pro as nombre', 'dv.cantidad', 'dv.precio', 'dv.subtotal')
+                ->where('dv.venta_id', $ventaId)
+                ->orderBy('p.nomb_pro')
+                ->get();
+
+            return response()->json(['productos' => $productos]);
+        }
+
         if ($request->input('format') == 'json' && $request->vendedor_id) {
             $vendedorId = $request->vendedor_id;
+
+            if (!$this->vendedorPerteneceASede((int) $vendedorId, (int) $idsede)) {
+                abort(403, 'No autorizado para ver la caja de este vendedor.');
+            }
 
             // Ventas con nombre del cliente (join explícito)
             $ventas = DB::table('ventas as v')
@@ -446,16 +624,29 @@ class MobileSalesController extends Controller
                     'v.tipo_pago_id',
                     'v.estado_liquidacion',
                     DB::raw("COALESCE(c.razon_social, c.nomb_per, 'Cliente Desconocido') as nombre_cliente"),
-                    'tc.descripcion as tipo_comprobante'
+                    'tc.descripcion as tipo_comprobante',
+                    // La venta al crédito en sí no tiene forma de pago (solo la cuota
+                    // inicial, si existe, que ya se muestra en su propio tab con su
+                    // propio monto) — mostrarla aquí junto al monto total del crédito
+                    // sugeriría erróneamente que toda la venta se cobró así.
+                    DB::raw("CASE WHEN v.tipo_pago_id = 2 THEN NULL ELSE
+                        (SELECT fp.descripcion FROM venta_formapago vf JOIN forma_pagos fp ON fp.id = vf.forma_pago_id WHERE vf.venta_id = v.id ORDER BY vf.id LIMIT 1)
+                        END as forma_pago")
                 )
                 ->where('v.vendedor_id', $vendedorId)
                 ->where('v.estado_liquidacion', 'PENDIENTE')
+                ->where('v.fecha', $fecha)
                 ->orderBy('v.fecha', 'desc')
                 ->get();
 
             // Cobros (recibos) con nombre del cliente (join explícito)
+            // Nota: la forma de pago de un recibo NO se lee de recibos.fpag_rec (esa
+            // columna es la fecha de pago, no un id pese al nombre) sino vía
+            // recibos.id_movimiento -> movimientos.forma_pago_id -> forma_pagos.id.
             $cobros = DB::table('recibos as r')
                 ->join('clientes as c', 'r.cliente_id', '=', 'c.id')
+                ->leftJoin('movimientos as m', 'm.id', '=', 'r.id_movimiento')
+                ->leftJoin('forma_pagos as fp', 'fp.id', '=', 'm.forma_pago_id')
                 ->select(
                     'r.id',
                     'r.fech_rec',
@@ -463,60 +654,109 @@ class MobileSalesController extends Controller
                     'r.mont_rec',
                     'r.docu_ref',
                     'r.estado_liquidacion',
-                    DB::raw("COALESCE(c.razon_social, c.nomb_per, 'Cliente Desconocido') as nombre_cliente")
+                    DB::raw("COALESCE(c.razon_social, c.nomb_per, 'Cliente Desconocido') as nombre_cliente"),
+                    'fp.descripcion as forma_pago'
                 )
                 ->where('r.vendedor_id', $vendedorId)
                 ->where('r.estado_liquidacion', 'PENDIENTE')
+                ->where('r.fech_rec', $fecha)
                 ->orderBy('r.fech_rec', 'desc')
                 ->get();
 
+            $iniciales = $this->inicialesPendientes((int) $vendedorId, $fecha);
+
+            $formasPago = DB::table('forma_pagos')->orderBy('id')->get(['id', 'descripcion']);
+            $resumenPorVendedor = $this->resumenFormaPagoPendiente([(int) $vendedorId], $fecha);
+            $resumenFormaPago = $this->listaResumenFormaPago($resumenPorVendedor[(int) $vendedorId] ?? [], $formasPago);
+
             return response()->json([
                 'ventas' => $ventas,
-                'cobros' => $cobros
+                'cobros' => $cobros,
+                'iniciales' => $iniciales,
+                'resumen_forma_pago' => $resumenFormaPago,
             ]);
         }
 
-        // Obtener sede activa de la sesión
-        $idsede = session('key')->sede_id;
-
-        // Obtener usuarios activos de esta sede con rol ID 6
+        // Obtener usuarios activos de esta sede con rol vendedor/cobrador
+        $rolesIds = $this->rolesVendedorCobradorIds();
         $usuariosVendedoresIds = \App\User::where('sede_id', $idsede)
             ->where('estado', 1)
-            ->whereHas('roles', function($q) {
-                $q->where('id', 6);
+            ->whereHas('roles', function($q) use ($rolesIds) {
+                $q->whereIn('id', $rolesIds);
             })->pluck('id');
 
-        $vendedores = Vendedor::where('estado', 1)
+        $vendedores = Vendedor::with('stockLocation')
+                              ->where('estado', 1)
                               ->whereIn('usuario_id', $usuariosVendedoresIds)
                               ->get();
+
+        $vendedorIds = $vendedores->pluck('id')->all();
+
+        [
+            'ventasPorVendedor' => $ventasPorVendedor,
+            'inicialPorVendedor' => $inicialPorVendedor,
+            'cobrosPorVendedor' => $cobrosPorVendedor,
+        ] = $this->resumenVendedoresPendientes($vendedorIds, $fecha);
+
+        $formasPago = DB::table('forma_pagos')->orderBy('id')->get(['id', 'descripcion']);
+        $resumenFormaPagoPorVendedor = $this->resumenFormaPagoPendiente($vendedorIds, $fecha);
+        $resumenFormaPagoGeneralTotales = [];
+        foreach ($resumenFormaPagoPorVendedor as $porForma) {
+            foreach ($porForma as $fpId => $monto) {
+                $resumenFormaPagoGeneralTotales[$fpId] = ($resumenFormaPagoGeneralTotales[$fpId] ?? 0) + $monto;
+            }
+        }
+        $resumenFormaPagoGeneral = $this->listaResumenFormaPago($resumenFormaPagoGeneralTotales, $formasPago);
 
         $totalGralEfectivo = 0;
         $totalGralVentasContado = 0;
         $totalGralVentasCredito = 0;
+        $totalGralInicialCredito = 0;
         $totalGralCobranzas = 0;
 
         foreach ($vendedores as $v) {
-            // Ventas pendientes de liquidar
-            $v_ventas = Venta::where('vendedor_id', $v->id)
-                             ->where('estado_liquidacion', 'PENDIENTE')
-                             ->get();
-            
-            $v->total_ventas_contado = $v_ventas->where('tipo_pago_id', 1)->sum('monto');
-            $v->total_ventas_credito = $v_ventas->where('tipo_pago_id', 2)->sum('monto');
-            
-            // Cobros de crédito pendientes de liquidar
-            $v->total_cobros_credito = Recibos::where('vendedor_id', $v->id)
-                                             ->where('estado_liquidacion', 'PENDIENTE')
-                                             ->sum('mont_rec');
-            
-            $v->total_efectivo_pendiente = $v->total_ventas_contado + $v->total_cobros_credito;
+            $filasVentas = $ventasPorVendedor->get($v->id, collect());
+            $v->total_ventas_contado = (float) $filasVentas->where('tipo_pago_id', 1)->sum('total');
+            $v->total_ventas_credito = (float) $filasVentas->where('tipo_pago_id', 2)->sum('total');
+            $v->total_inicial_credito = (float) ($inicialPorVendedor->get($v->id)->total ?? 0);
+            $v->total_cobros_credito = (float) ($cobrosPorVendedor->get($v->id)->total ?? 0);
+
+            $v->total_efectivo_pendiente = $v->total_ventas_contado + $v->total_inicial_credito + $v->total_cobros_credito;
             $v->tiene_pendiente = $v->total_efectivo_pendiente > 0 || $v->total_ventas_credito > 0;
 
             // Totales acumulados generales
             $totalGralEfectivo += $v->total_efectivo_pendiente;
             $totalGralVentasContado += $v->total_ventas_contado;
             $totalGralVentasCredito += $v->total_ventas_credito;
+            $totalGralInicialCredito += $v->total_inicial_credito;
             $totalGralCobranzas += $v->total_cobros_credito;
+        }
+
+        if ($request->input('format') == 'json') {
+            return response()->json([
+                'fecha' => $fecha,
+                'totales' => [
+                    'efectivo' => $totalGralEfectivo,
+                    'ventas_contado' => $totalGralVentasContado,
+                    'ventas_credito' => $totalGralVentasCredito,
+                    'inicial_credito' => $totalGralInicialCredito,
+                    'cobranzas' => $totalGralCobranzas,
+                ],
+                'resumen_forma_pago' => $resumenFormaPagoGeneral,
+                'vendedores' => $vendedores->map(function ($v) {
+                    return [
+                        'id' => $v->id,
+                        'nombre' => $v->nombre,
+                        'furgoneta' => optional($v->stockLocation)->name,
+                        'total_ventas_contado' => $v->total_ventas_contado,
+                        'total_ventas_credito' => $v->total_ventas_credito,
+                        'total_inicial_credito' => $v->total_inicial_credito,
+                        'total_cobros_credito' => $v->total_cobros_credito,
+                        'total_efectivo_pendiente' => $v->total_efectivo_pendiente,
+                        'tiene_pendiente' => $v->tiene_pendiente,
+                    ];
+                })->values(),
+            ]);
         }
 
         return view('ventas_moviles.liquidar', compact(
@@ -524,7 +764,10 @@ class MobileSalesController extends Controller
             'totalGralEfectivo',
             'totalGralVentasContado',
             'totalGralVentasCredito',
-            'totalGralCobranzas'
+            'totalGralInicialCredito',
+            'totalGralCobranzas',
+            'resumenFormaPagoGeneral',
+            'fecha'
         ));
     }
 
@@ -535,10 +778,16 @@ class MobileSalesController extends Controller
             return redirect()->back()->with('error', 'Debe seleccionar un vendedor.');
         }
 
+        $idsede = session('key')->sede_id;
+        if (!$this->vendedorPerteneceASede((int) $vendedorId, (int) $idsede)) {
+            abort(403, 'No autorizado para liquidar la caja de este vendedor.');
+        }
+
+        $fecha = $request->input('fecha', date('Y-m-d'));
+
         DB::beginTransaction();
 
         try {
-            $idsede = session('key')->sede_id;
             $user_id = Auth::user()->id;
             $servicios = new FuncionesController;
             $envio = $servicios->tipo_envio_sunat();
@@ -557,6 +806,7 @@ class MobileSalesController extends Controller
             // 1. Procesar Ventas
             $ventas = Venta::where('vendedor_id', $vendedorId)
                            ->where('estado_liquidacion', 'PENDIENTE')
+                           ->where('fecha', $fecha)
                            ->get();
 
             foreach ($ventas as $venta) {
@@ -591,6 +841,7 @@ class MobileSalesController extends Controller
             // 2. Procesar Amortizaciones (Recibos)
             $recibos = Recibos::where('vendedor_id', $vendedorId)
                               ->where('estado_liquidacion', 'PENDIENTE')
+                              ->where('fech_rec', $fecha)
                               ->get();
 
             foreach ($recibos as $recibo) {
@@ -610,7 +861,12 @@ class MobileSalesController extends Controller
             return redirect()->route('admin.liquidar')->with('success', 'La caja del vendedor fue liquidada correctamente.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error al liquidar caja: ' . $e->getMessage());
+            Log::error('Error al liquidar caja', [
+                'vendedor_id' => $vendedorId,
+                'fecha' => $fecha,
+                'message' => $e->getMessage(),
+            ]);
+            return redirect()->back()->with('error', 'No se pudo liquidar la caja. Intente nuevamente o contacte a soporte.');
         }
     }
 
@@ -620,26 +876,44 @@ class MobileSalesController extends Controller
         $servicios = new FuncionesController;
         $envio = $servicios->tipo_envio_sunat();
 
+        $fecha = $request->input('fecha', date('Y-m-d'));
+
         $idsede = session('key')->sede_id;
         $almacenPrincipal = \App\Almacen::where('sede_id', $idsede)->first();
+        if (!$almacenPrincipal) {
+            return redirect()->route('admin.liquidar')->with('error', 'No se encontró el almacén principal de la sede. Contacte a soporte.');
+        }
         $ubicacionMoviles = DB::table('stock_location')
                                 ->where('almacen_id', $almacenPrincipal->id)
                                 ->where(DB::raw('LOWER(name)'), 'moviles')
                                 ->first();
-        
+
         $moviles_id = $ubicacionMoviles ? $ubicacionMoviles->id : null;
 
         if ($request->input('format') == 'json' && $request->vendedor_id) {
-            $vendedor = Vendedor::find($request->vendedor_id);
+            // vendedor_id aquí es users.id (igual que en cargarStockIndex/historial-cargas),
+            // no vendedores.id -- la tabla vendedores ya no es fuente de verdad de esto.
+            $perteneceASede = \App\User::where('id', $request->vendedor_id)
+                ->where('sede_id', $idsede)
+                ->exists();
+            if (!$perteneceASede) {
+                abort(403, 'El vendedor no pertenece a su sede.');
+            }
             $stock = DB::table('stock_vendedor as sv')
                 ->join('productos as p', 'p.id', '=', 'sv.producto_id')
-                ->select('p.id', 'p.nomb_pro', DB::raw('SUM(sv.cantidad_disponible) as stock'))
-                ->where('sv.vendedor_id', '=', $vendedor->usuario_id)
-                ->where('sv.fecha_carga', '=', date('Y-m-d'))
+                ->select(
+                    'p.id',
+                    'p.nomb_pro',
+                    DB::raw('SUM(sv.cantidad_disponible) as stock'),
+                    DB::raw('SUM(sv.cantidad_cargada) as cargado'),
+                    DB::raw('SUM(sv.cantidad_vendida) as vendido')
+                )
+                ->where('sv.vendedor_id', '=', $request->vendedor_id)
+                ->where('sv.fecha_carga', '=', $fecha)
                 ->where('sv.estado', '=', 1)
                 ->where('p.estado', '=', '1')
                 ->groupBy('p.id', 'p.nomb_pro')
-                ->havingRaw('SUM(sv.cantidad_disponible) > 0')
+                ->havingRaw('SUM(sv.cantidad_cargada) > 0')
                 ->get();
             return response()->json($stock);
         }
@@ -647,36 +921,65 @@ class MobileSalesController extends Controller
         // Obtener sede activa de la sesión
         $idsede = session('key')->sede_id;
 
-        // Obtener usuarios activos de esta sede con rol ID 6
-        $usuariosVendedoresIds = \App\User::where('sede_id', $idsede)
+        // Obtener usuarios activos de esta sede con rol vendedor/cobrador.
+        // Fuente de verdad: users + rol (igual que cargarStockIndex/historial-cargas).
+        // La tabla vendedores ya no se mantiene como negocio, así que solo se usa
+        // acá como dato complementario opcional (nombre de furgoneta), sin excluir
+        // a nadie si la fila falta, está desactualizada o sin stock_location_id.
+        $rolesIds = $this->rolesVendedorCobradorIds();
+        $usuarios = \App\User::where('sede_id', $idsede)
             ->where('estado', 1)
-            ->whereHas('roles', function($q) {
-                $q->where('id', 6);
-            })->pluck('id');
+            ->whereHas('roles', function($q) use ($rolesIds) {
+                $q->whereIn('id', $rolesIds);
+            })->orderBy('name', 'asc')->get();
 
-        $vendedores = Vendedor::with('stockLocation')
-                              ->whereIn('usuario_id', $usuariosVendedoresIds)
-                              ->whereNotNull('stock_location_id')
-                              ->where('estado', 1)
-                              ->get();
+        $usuarioIds = $usuarios->pluck('id')->all();
 
-        foreach ($vendedores as $v) {
-            $v_stock = DB::table('stock_vendedor as sv')
-                ->join('productos as p', 'p.id', '=', 'sv.producto_id')
-                ->where('sv.vendedor_id', '=', $v->usuario_id)
-                ->where('sv.fecha_carga', '=', date('Y-m-d'))
-                ->where('sv.estado', '=', 1)
-                ->where('p.estado', '=', '1')
-                ->select(DB::raw('SUM(sv.cantidad_disponible) as stock'))
-                ->groupBy('sv.producto_id')
-                ->havingRaw('SUM(sv.cantidad_disponible) > 0')
-                ->get();
+        $furgonetasPorUsuario = Vendedor::with('stockLocation')
+            ->whereIn('usuario_id', $usuarioIds)
+            ->get()
+            ->keyBy('usuario_id');
 
-            $v->total_items = $v_stock->count();
-            $v->total_unidades = (int) $v_stock->sum('stock');
+        $stockPorUsuarioYProducto = DB::table('stock_vendedor as sv')
+            ->join('productos as p', 'p.id', '=', 'sv.producto_id')
+            ->select('sv.vendedor_id', 'sv.producto_id', DB::raw('SUM(sv.cantidad_disponible) as stock'))
+            ->whereIn('sv.vendedor_id', $usuarioIds)
+            ->where('sv.fecha_carga', '=', $fecha)
+            ->where('sv.estado', '=', 1)
+            ->where('p.estado', '=', '1')
+            ->groupBy('sv.vendedor_id', 'sv.producto_id')
+            ->havingRaw('SUM(sv.cantidad_disponible) > 0')
+            ->get()
+            ->groupBy('vendedor_id');
+
+        $vendedores = $usuarios->map(function ($u) use ($stockPorUsuarioYProducto, $furgonetasPorUsuario) {
+            $filas = $stockPorUsuarioYProducto->get($u->id, collect());
+            $furgoneta = $furgonetasPorUsuario->get($u->id);
+            return (object) [
+                'id' => $u->id, // users.id: identidad usada en todo este flujo
+                'nombre' => $u->name,
+                'stockLocation' => optional($furgoneta)->stockLocation,
+                'total_items' => $filas->count(),
+                'total_unidades' => (float) $filas->sum('stock'),
+            ];
+        });
+
+        if ($request->input('format') == 'json') {
+            return response()->json([
+                'fecha' => $fecha,
+                'vendedores' => $vendedores->map(function ($v) {
+                    return [
+                        'id' => $v->id,
+                        'nombre' => $v->nombre,
+                        'furgoneta' => $v->stockLocation->name ?? 'Sin furgoneta',
+                        'total_items' => $v->total_items,
+                        'total_unidades' => $v->total_unidades,
+                    ];
+                })->values(),
+            ]);
         }
 
-        return view('ventas_moviles.retorno', compact('vendedores'));
+        return view('ventas_moviles.retorno', compact('vendedores', 'fecha'));
     }
 
     public function retornoStockProcesar(Request $request)
@@ -684,24 +987,55 @@ class MobileSalesController extends Controller
         $vendedorId = $request->vendedor_id;
         $productosIds = $request->productos; // array
         $fisicoRecibido = $request->fisico; // array de producto_id => cantidad_fisica
+        $fecha = $request->input('fecha', date('Y-m-d')); // fecha de carga que se está reconciliando
 
         if (!$vendedorId || empty($productosIds)) {
             return redirect()->back()->with('error', 'Debe seleccionar un vendedor y al menos un producto.');
         }
 
-        $vendedor = Vendedor::find($vendedorId);
         $idsede = session('key')->sede_id;
-        
+
+        // vendedor_id es users.id (ver nota en retornoStockIndex): ya no se usa vendedores.id.
+        $vendedor = \App\User::where('id', $vendedorId)
+            ->where('sede_id', $idsede)
+            ->first();
+        if (!$vendedor) {
+            abort(403, 'El vendedor no pertenece a su sede.');
+        }
+
         $almacenPrincipal = \App\Almacen::where('sede_id', $idsede)->first();
+        if (!$almacenPrincipal) {
+            return redirect()->back()->with('error', 'No se encontró el almacén principal de la sede.');
+        }
         $ubicacionMoviles = DB::table('stock_location')
                                 ->where('almacen_id', $almacenPrincipal->id)
                                 ->where(DB::raw('LOWER(name)'), 'moviles')
                                 ->first();
-        
+
         $origen_id = $ubicacionMoviles ? $ubicacionMoviles->id : null;
 
         if (!$origen_id) {
             return redirect()->back()->with('error', 'No se encontró la ubicación de stock "moviles".');
+        }
+
+        // Validación server-side: el físico recibido no puede superar el stock teórico ni ser negativo
+        $stockTeoricoPorProducto = [];
+        foreach ($productosIds as $productId) {
+            $stockTeorico = (float) (DB::table('stock_vendedor')
+                              ->where('vendedor_id', $vendedor->id)
+                              ->where('producto_id', $productId)
+                              ->where('fecha_carga', $fecha)
+                              ->where('estado', 1)
+                              ->sum('cantidad_disponible') ?? 0);
+            $stockFisico = (float) ($fisicoRecibido[$productId] ?? 0);
+
+            if ($stockFisico < 0 || $stockFisico > $stockTeorico) {
+                $producto = Productos::find($productId);
+                $nombreProducto = $producto ? $producto->nomb_pro : "producto #{$productId}";
+                return redirect()->back()->with('error', 'El físico recibido de "' . $nombreProducto . '" no puede ser mayor al stock teórico ni negativo.');
+            }
+
+            $stockTeoricoPorProducto[$productId] = $stockTeorico;
         }
 
         DB::beginTransaction();
@@ -749,19 +1083,17 @@ class MobileSalesController extends Controller
             $traslado->user_recepcion = $user_id;
             $traslado->fecha_recibido = date('Y-m-d');
             $traslado->hora_recibido = date('H:i:s');
+            $observacion = trim((string) $request->input('observacion', ''));
+            $traslado->observacion = $observacion ?: null;
             $traslado->save();
 
             // 2. Procesar productos
             foreach ($productosIds as $productId) {
-                // Stock teórico = suma de lo que el vendedor tiene cargado HOY en stock_vendedor
-                $stockTeorico = (int) (DB::table('stock_vendedor')
-                                  ->where('vendedor_id', $vendedor->usuario_id)
-                                  ->where('producto_id', $productId)
-                                  ->where('fecha_carga', date('Y-m-d'))
-                                  ->where('estado', 1)
-                                  ->sum('cantidad_disponible') ?? 0);
+                // Stock teórico = suma de lo cargado en stock_vendedor en la fecha reconciliada
+                // (ya validado y calculado antes de abrir la transacción, se reutiliza para no repetir la consulta)
+                $stockTeorico = $stockTeoricoPorProducto[$productId];
 
-                $stockFisico = (int)($fisicoRecibido[$productId] ?? 0);
+                $stockFisico = (float) ($fisicoRecibido[$productId] ?? 0);
                 $diferencia = $stockTeorico - $stockFisico; // Positivo es pérdida, negativo excedente
 
                 // Crear detalle del traslado
@@ -776,9 +1108,9 @@ class MobileSalesController extends Controller
 
                 // Cerrar registros de stock_vendedor (estado=2 = reportado/retornado)
                 DB::table('stock_vendedor')
-                    ->where('vendedor_id', $vendedor->usuario_id)
+                    ->where('vendedor_id', $vendedor->id)
                     ->where('producto_id', $productId)
-                    ->where('fecha_carga', date('Y-m-d'))
+                    ->where('fecha_carga', $fecha)
                     ->where('estado', 1)
                     ->update([
                         'cantidad_disponible' => 0,
@@ -799,19 +1131,26 @@ class MobileSalesController extends Controller
                 }
             }
 
-            // 3. Marcar todos los traslados CAR del día como cerrados (para que no aparezcan en venta del vendedor)
+            // 3. Marcar todos los traslados CAR de la fecha reconciliada como cerrados (para que no aparezcan en venta del vendedor)
+            // estado = 2 = CERRADA POR RETORNO (distinto de 0 = ANULADA, que es una reversión real de stock)
+            // traslados.cliente_id guarda clientes.id (no users.id), hay que resolverlo primero.
+            $clienteVendedorId = Clientes::where('usuario', $vendedor->id)->value('id');
             DB::table('traslados')
-                ->where('cliente_id', $vendedor->usuario_id)
-                ->where('serie', 'CAR')
-                ->where('fecha', date('Y-m-d'))
+                ->where('cliente_id', $clienteVendedorId)
+                ->where('motivo', self::MOTIVO_CARGA_STOCK)
+                ->where('fecha', $fecha)
                 ->where('estado', 1)
-                ->update(['estado' => 0]);
+                ->update(['estado' => 2]);
 
             DB::commit();
-            return redirect()->route('vendedor.dashboard')->with('success', 'El retorno de mercadería fue procesado con éxito.');
+            return redirect()->route('admin.retorno', ['fecha' => $fecha])->with('success', 'El retorno de mercadería fue procesado con éxito.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error al procesar retorno: ' . $e->getMessage());
+            Log::error('Error al procesar retorno de stock', [
+                'vendedor_id' => $vendedorId,
+                'message' => $e->getMessage(),
+            ]);
+            return redirect()->back()->with('error', 'No se pudo procesar el retorno de stock. Intente nuevamente o contacte a soporte.');
         }
     }
 
@@ -820,13 +1159,15 @@ class MobileSalesController extends Controller
     {
         $idsede = session('key')->sede_id;
 
-        // Obtener usuarios directamente de la tabla users unidos con model_has_roles para rol_id = 6
+        // Obtener usuarios directamente de la tabla users unidos con model_has_roles para rol vendedor/cobrador
+        $rolesIds = $this->rolesVendedorCobradorIds();
         $usuariosVendedores = DB::table('users')
             ->join('model_has_roles', 'model_has_roles.model_id', '=', 'users.id')
-            ->where('model_has_roles.role_id', 6)
+            ->whereIn('model_has_roles.role_id', $rolesIds)
             ->where('users.sede_id', $idsede)
             ->where('users.estado', 1)
             ->select('users.*')
+            ->distinct()
             ->get();
 
         // Asegurar que cada usuario tenga registro en vendedores
@@ -839,55 +1180,111 @@ class MobileSalesController extends Controller
                               ->whereIn('usuario_id', collect($usuariosVendedores)->pluck('id'))
                               ->get();
 
-        $sectores = Sector::where('estado', 'ACTIVO')->get();
+        $sectores = Sector::with('zona')->where('estado', 'ACTIVO')->orderBy('zona_id')->get();
+        $zonas = Zona::where('estado', 'ACTIVO')->orderBy('nomb_zona')->get();
 
-        $historial = VendedorSector::with(['vendedor', 'sector'])
-                                    ->orderBy('fecha', 'desc')
-                                    ->get()
-                                    ->groupBy(function($item) {
-                                        return $item->fecha . '_' . $item->vendedor_id;
-                                    });
+        // Filtro de fecha del historial: por defecto, del último mes hasta hoy.
+        // Los campos siguen siendo editables si se quiere ver programación a futuro.
+        // La búsqueda y la paginación de lo que cae dentro de este rango las maneja
+        // DataTables del lado del cliente (mismo componente usado en el resto del panel).
+        $fechaDesde = $request->input('fecha_desde', date('Y-m-d', strtotime('-1 month')));
+        $fechaHasta = $request->input('fecha_hasta', date('Y-m-d'));
 
-        return view('ventas_moviles.asignar', compact('vendedores', 'sectores', 'historial'));
+        $historial = VendedorSector::with(['vendedor', 'sector.zona'])
+            ->where('fecha', '>=', $fechaDesde)
+            ->when($fechaHasta, function ($q) use ($fechaHasta) {
+                $q->where('fecha', '<=', $fechaHasta);
+            })
+            ->orderBy('fecha', 'desc')
+            ->orderBy('vendedor_id')
+            ->get()
+            ->groupBy(function ($item) {
+                return $item->fecha . '_' . $item->vendedor_id;
+            });
+
+        return view('ventas_moviles.asignar', compact('vendedores', 'sectores', 'zonas', 'historial', 'fechaDesde', 'fechaHasta'));
     }
 
     public function asignarRutaGuardar(Request $request)
     {
         $request->validate([
             'vendedor_id' => 'required|exists:users,id',
-            'sector_id' => 'required|exists:sectores,id',
-            'fecha' => 'required|date'
+            'sectores_ids' => 'required|array|min:1',
+            'sectores_ids.*' => 'exists:sectores,id,estado,ACTIVO',
+            'fecha' => 'required|date',
+            'tipo' => 'required|in:VENTA,COBRANZA,AMBOS'
         ]);
 
-        // Evitar asignación duplicada del mismo sector al mismo vendedor el mismo día
-        $existe = VendedorSector::where('vendedor_id', $request->vendedor_id)
-                                ->where('sector_id', $request->sector_id)
-                                ->where('fecha', $request->fecha)
-                                ->exists();
+        // Nota: aquí "vendedor_id" es el users.id (así lo guarda vendedor_sector), no el id
+        // de la tabla vendedores -no aplica el helper vendedorPerteneceASede(), que espera este último-.
+        $idsede = session('key')->sede_id;
+        $perteneceASede = \App\User::where('id', $request->vendedor_id)
+            ->where('sede_id', $idsede)
+            ->exists();
 
-        if ($existe) {
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['status' => 'error', 'message' => 'Esta asignación de ruta ya existe para esta fecha.'], 422);
-            }
-            return redirect()->back()->with('error', 'Esta asignación de ruta ya existe para esta fecha.');
+        if (!$perteneceASede) {
+            abort(403, 'El vendedor no pertenece a su sede.');
         }
 
-        VendedorSector::create([
-            'vendedor_id' => $request->vendedor_id,
-            'sector_id' => $request->sector_id,
-            'fecha' => $request->fecha
-        ]);
+        $creados = 0;
+        $omitidos = 0;
+
+        foreach ($request->sectores_ids as $sectorId) {
+            // Evitar asignación duplicada del mismo sector al mismo vendedor el mismo día
+            $existe = VendedorSector::where('vendedor_id', $request->vendedor_id)
+                                    ->where('sector_id', $sectorId)
+                                    ->where('fecha', $request->fecha)
+                                    ->exists();
+
+            if ($existe) {
+                $omitidos++;
+                continue;
+            }
+
+            VendedorSector::create([
+                'vendedor_id' => $request->vendedor_id,
+                'sector_id' => $sectorId,
+                'fecha' => $request->fecha,
+                'tipo' => $request->tipo
+            ]);
+            $creados++;
+        }
+
+        if ($creados === 0) {
+            $mensaje = 'Todos los sectores seleccionados ya estaban asignados a este vendedor para esa fecha.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['status' => 'error', 'message' => $mensaje], 422);
+            }
+            return redirect()->back()->with('error', $mensaje);
+        }
+
+        $mensaje = "Se asignaron {$creados} sector(es).";
+        if ($omitidos > 0) {
+            $mensaje .= " {$omitidos} ya estaba(n) asignado(s) para esa fecha y se omitieron.";
+        }
 
         if ($request->ajax() || $request->wantsJson()) {
-            return response()->json(['status' => 'success', 'message' => 'Ruta asignada exitosamente.']);
+            return response()->json(['status' => 'success', 'message' => $mensaje, 'creados' => $creados, 'omitidos' => $omitidos]);
         }
 
-        return redirect()->back()->with('success', 'Ruta asignada exitosamente.');
+        return redirect()->back()->with('success', $mensaje);
     }
 
     public function asignarRutaEliminar($id)
     {
         $asignacion = VendedorSector::findOrFail($id);
+
+        // asignacion->vendedor_id es el users.id (así lo guarda vendedor_sector), no el id
+        // de la tabla vendedores -no aplica el helper vendedorPerteneceASede(), que espera este último-.
+        $idsede = session('key')->sede_id;
+        $perteneceASede = \App\User::where('id', $asignacion->vendedor_id)
+            ->where('sede_id', $idsede)
+            ->exists();
+
+        if (!$perteneceASede) {
+            abort(403, 'No autorizado para eliminar esta asignación.');
+        }
+
         $asignacion->delete();
 
         if (request()->ajax() || request()->wantsJson()) {
@@ -928,19 +1325,36 @@ class MobileSalesController extends Controller
             ->orderBy('p.nomb_pro', 'asc')
             ->get();
 
-        // Obtener usuarios activos de esta sede con rol ID 6 (vendedores)
+        // Obtener usuarios activos de esta sede con rol vendedor/cobrador
+        $rolesIds = $this->rolesVendedorCobradorIds();
         $vendedores = \App\User::where('sede_id', $idsede)
             ->where('estado', 1)
-            ->whereHas('roles', function($q) {
-                $q->where('id', 6);
+            ->whereHas('roles', function($q) use ($rolesIds) {
+                $q->whereIn('id', $rolesIds);
             })->orderBy('name', 'asc')->get();
+
+        // Advertir si un vendedor arrastra stock de furgoneta sin retornar de un día anterior
+        $usuarioIds = $vendedores->pluck('id')->all();
+        $pendientesPorVendedor = DB::table('stock_vendedor')
+            ->select('vendedor_id', DB::raw('MIN(fecha_carga) as desde'))
+            ->whereIn('vendedor_id', $usuarioIds)
+            ->where('estado', 1)
+            ->where('fecha_carga', '<', date('Y-m-d'))
+            ->groupBy('vendedor_id')
+            ->get()
+            ->keyBy('vendedor_id');
+
+        foreach ($vendedores as $v) {
+            $pendiente = $pendientesPorVendedor->get($v->id);
+            $v->stock_pendiente_desde = $pendiente ? $pendiente->desde : null;
+        }
 
         return view('ventas_moviles.cargar_stock', compact('vendedores', 'productos', 'ubicacionOrigen'));
     }
 
     public function cargarStockProcesar(Request $request)
     {
-        $vendedorUserId = $request->vendedor_id; // users.id del vendedor (rol_id = 6)
+        $vendedorUserId = $request->vendedor_id; // users.id del vendedor/cobrador
         $productosIds = $request->productos; // array de producto_id
         $cantidades = $request->cantidades; // array de producto_id => cantidad
 
@@ -948,11 +1362,12 @@ class MobileSalesController extends Controller
             return redirect()->back()->with('error', 'Debe seleccionar un vendedor y al menos un producto.');
         }
 
-        // Buscar al usuario con rol de vendedor (rol_id = 6) en la tabla users
+        // Buscar al usuario con rol de vendedor/cobrador en la tabla users
+        $rolesIds = $this->rolesVendedorCobradorIds();
         $vendedor = \App\User::where('id', $vendedorUserId)
             ->where('estado', 1)
-            ->whereHas('roles', function($q) {
-                $q->where('id', 6);
+            ->whereHas('roles', function($q) use ($rolesIds) {
+                $q->whereIn('id', $rolesIds);
             })->first();
         if (!$vendedor) {
             return redirect()->back()->with('error', 'El usuario seleccionado no es un vendedor activo válido.');
@@ -966,7 +1381,20 @@ class MobileSalesController extends Controller
         if (!$tieneRutasHoy) {
             return redirect()->back()->with('error', 'El vendedor "' . $vendedor->name . '" no tiene rutas asignadas para la fecha actual (' . $fechaHoy . '). Debe asignarle sus rutas antes de poder cargar stock.');
         }
-        
+
+        // Advertir (no bloquear) si el vendedor arrastra stock de furgoneta sin retornar
+        // de un día anterior. El flujo normal ya lo confirma del lado del cliente (JS);
+        // esto es una red de seguridad por si se llega aquí sin pasar por esa confirmación.
+        $tienePendiente = DB::table('stock_vendedor')
+            ->where('vendedor_id', $vendedorUserId)
+            ->where('estado', 1)
+            ->where('fecha_carga', '<', $fechaHoy)
+            ->exists();
+
+        if ($tienePendiente && !$request->boolean('confirmar_pendiente')) {
+            return redirect()->back()->with('error', 'El vendedor "' . $vendedor->name . '" tiene stock pendiente de retornar de un día anterior. Vuelva a intentar la carga para confirmar.');
+        }
+
         // Asegurar que existe un registro en clientes para este vendedor
         $cliente = Clientes::where('usuario', $vendedor->id)->first();
         if (!$cliente) {
@@ -1026,16 +1454,17 @@ class MobileSalesController extends Controller
             
             $destino_id = $ubicacionDestino->id;
 
-            // 1. Verificar si ya existe un traslado CAR para este vendedor hoy con estado ATENDIDO (0)
+            // 1. Verificar si ya existe un traslado CAR activo para este vendedor hoy (estado 1 = CARGADO)
             // Si existe, se reutiliza para agregarle más productos; si no, se crea uno nuevo
             $trasladoExistente = Traslado::where('cliente_id', $cliente->id)
                 ->where('fecha', $fechaHoy)
-                ->where('estado', 0)  // ATENDIDO - buscar uno ya atendido del día
+                ->where('estado', 1)  // CARGADO - buscar uno activo del día
                 ->where('sede_id', $idsede)
+                ->where('motivo', self::MOTIVO_CARGA_STOCK)
                 ->first();
 
             if ($trasladoExistente) {
-                // Reutilizar traslado existente (mantiene estado = 0 Atendido)
+                // Reutilizar traslado existente (mantiene estado = 1 Cargado)
                 $traslado = $trasladoExistente;
             } else {
                 // Obtener correlativo de la tabla correlativos según GUIA INTERNA (tipo_comprobante_id = 7)
@@ -1070,7 +1499,7 @@ class MobileSalesController extends Controller
                 $traslado->id_ubicacion_destino = $destino_id;
                 $traslado->motivo = 'CARGA DIARIA DE STOCK A MOVILES';
                 $traslado->cliente_id = $cliente->id; // clientes.id del vendedor
-                $traslado->estado = 0; // 0 = GUIA ATENDIDO
+                $traslado->estado = 1; // 1 = CARGADO (activa; 0 = ANULADA, 2 = CERRADA por retorno)
                 $traslado->tipo_envio = $envio;
                 $traslado->sede_id = $idsede;
                 $traslado->user_id = $user_id;
@@ -1173,16 +1602,11 @@ class MobileSalesController extends Controller
         $servicios = new FuncionesController;
         $envio = $servicios->tipo_envio_sunat();
 
-        // Obtener las series configuradas para GUIA INTERNA (tipo_comprobante_id = 7) en correlativos
-        $seriesGuia = DB::table('correlativos')
-            ->where('sede_id', $idsede)
-            ->where('tipo_envio', $envio)
-            ->where('tipo_comprobante_id', 7)
-            ->pluck('serie')
-            ->toArray();
-
         $query = DB::table('traslados as t')
-            ->leftJoin('vendedores as v', 'v.usuario_id', '=', 't.cliente_id')
+            ->leftJoin('clientes as cl', 'cl.id', '=', 't.cliente_id')
+            ->leftJoin('vendedores as v', function ($join) {
+                $join->on('v.usuario_id', '=', DB::raw('CASE WHEN cl.usuario ~ \'^[0-9]+$\' THEN cl.usuario::integer ELSE NULL END'));
+            })
             ->leftJoin('users as u', 'u.id', '=', 't.user_id')
             ->select(
                 't.id',
@@ -1197,18 +1621,11 @@ class MobileSalesController extends Controller
             )
             ->where('t.sede_id', $idsede)
             ->where('t.tipo_envio', $envio)
-            ->where('t.motivo', 'CARGA DIARIA DE STOCK A MOVILES');
+            ->where('t.motivo', self::MOTIVO_CARGA_STOCK);
 
-        // Filtrar por series de correlativos si existen, sino buscar por serie que contenga 'CAR'
-        if (!empty($seriesGuia)) {
-            $query->whereIn('t.serie', $seriesGuia);
-        } else {
-            $query->where('t.serie', 'LIKE', 'CAR%');
-        }
-
-        // Filtro por vendedor
+        // Filtro por vendedor (vendedor_id llega como users.id, igual que cl.usuario)
         if ($request->filled('vendedor_id')) {
-            $query->where('t.cliente_id', $request->vendedor_id);
+            $query->where('cl.usuario', $request->vendedor_id);
         }
 
         // Filtro por fecha (por defecto: hoy, para que coincida con los inputs)
@@ -1220,9 +1637,10 @@ class MobileSalesController extends Controller
         $cargas = $query->orderBy('t.id', 'desc')->get();
 
         // Lista de vendedores activos de la sede para el filtro
+        $rolesIds = $this->rolesVendedorCobradorIds();
         $usuariosVendedoresIds = \App\User::where('sede_id', $idsede)
             ->where('estado', 1)
-            ->whereHas('roles', function($q) { $q->where('id', 6); })
+            ->whereHas('roles', function($q) use ($rolesIds) { $q->whereIn('id', $rolesIds); })
             ->pluck('id');
 
         $vendedores = Vendedor::whereIn('usuario_id', $usuariosVendedoresIds)
@@ -1234,18 +1652,34 @@ class MobileSalesController extends Controller
 
     public function cargarStockDetalle($id)
     {
+        $usuario = Auth::user();
+
         $traslado = DB::table('traslados as t')
-            ->leftJoin('vendedores as v', 'v.usuario_id', '=', 't.cliente_id')
+            ->leftJoin('clientes as cl', 'cl.id', '=', 't.cliente_id')
+            ->leftJoin('vendedores as v', function ($join) {
+                $join->on('v.usuario_id', '=', DB::raw('CASE WHEN cl.usuario ~ \'^[0-9]+$\' THEN cl.usuario::integer ELSE NULL END'));
+            })
             ->leftJoin('users as u', 'u.id', '=', 't.user_id')
             ->select(
                 't.id', 't.fecha', 't.hora', 't.serie', 't.correlativo',
+                't.sede_id', 't.cliente_id',
+                'cl.usuario as vendedor_usuario_id',
                 'v.nombre as vendedor_nombre',
                 'u.name as usuario_nombre'
             )
             ->where('t.id', $id)
             ->first();
 
-        if (!$traslado) {
+        // La sede activa puede ser distinta de Auth::user()->sede_id si un super-admin
+        // cambió de sede con el selector (session('key') queda con la sede elegida).
+        $idsedeActiva = session('key')->sede_id;
+        if (!$traslado || (int) $traslado->sede_id !== (int) $idsedeActiva) {
+            return response()->json(['error' => 'Registro no encontrado.'], 404);
+        }
+
+        // Un vendedor/cobrador solo puede ver el detalle de sus propias cargas;
+        // el panel admin (no vendedor/cobrador) puede ver cualquier carga de su sede.
+        if ($usuario->esVendedorOCobrador() && (int) $traslado->vendedor_usuario_id !== (int) $usuario->id) {
             return response()->json(['error' => 'Registro no encontrado.'], 404);
         }
 
@@ -1278,6 +1712,9 @@ class MobileSalesController extends Controller
         $envio = $servicios->tipo_envio_sunat();
 
         $almacenPrincipal = Almacen::where('sede_id', $idsede)->first();
+        if (!$almacenPrincipal) {
+            return response()->json([]);
+        }
         $ubicacionStock = DB::table('stock_location')
             ->where('almacen_id', $almacenPrincipal->id)
             ->where('name', 'Stock')
@@ -1317,21 +1754,28 @@ class MobileSalesController extends Controller
         }
 
         $traslado = Traslado::find($trasladoId);
-        if (!$traslado) {
+        if (!$traslado || $traslado->motivo !== self::MOTIVO_CARGA_STOCK) {
             return response()->json(['error' => 'Traslado no encontrado'], 404);
+        }
+
+        $idsede = session('key')->sede_id;
+        if ((int) $traslado->sede_id !== (int) $idsede) {
+            return response()->json(['error' => 'No autorizado para modificar esta carga.'], 403);
         }
 
         if ($traslado->estado != 1) {
             return response()->json(['error' => 'No se puede modificar una carga anulada'], 400);
         }
 
-        $idsede = session('key')->sede_id;
         $user_id = Auth::user()->id;
         $servicios = new FuncionesController;
         $envio = $servicios->tipo_envio_sunat();
 
         // Obtener ubicación Stock
         $almacenPrincipal = Almacen::where('sede_id', $idsede)->first();
+        if (!$almacenPrincipal) {
+            return response()->json(['error' => 'No se encontró el almacén principal de la sede.'], 422);
+        }
         $ubicacionStock = DB::table('stock_location')
             ->where('almacen_id', $almacenPrincipal->id)
             ->where('name', 'Stock')
@@ -1357,7 +1801,7 @@ class MobileSalesController extends Controller
 
                 if (!$stockOrigen || $stockOrigen->stock < $cantidad) {
                     $nomProd = DB::table('productos')->where('id', $productoId)->value('nomb_pro');
-                    throw new \Exception("Stock insuficiente para el producto: $nomProd. Disponible: " . ($stockOrigen->stock ?? 0));
+                    throw new \RuntimeException("Stock insuficiente para el producto: $nomProd. Disponible: " . ($stockOrigen->stock ?? 0));
                 }
 
                 // Descontar del almacén Stock
@@ -1418,9 +1862,16 @@ class MobileSalesController extends Controller
 
             DB::commit();
             return response()->json(['success' => 'Productos agregados correctamente a la carga']);
+        } catch (\RuntimeException $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => $e->getMessage()], 400);
+            Log::error('Error al agregar productos a carga', [
+                'traslado_id' => $trasladoId,
+                'message' => $e->getMessage(),
+            ]);
+            return response()->json(['error' => 'No se pudieron agregar los productos. Intente nuevamente o contacte a soporte.'], 500);
         }
     }
 
@@ -1445,7 +1896,7 @@ class MobileSalesController extends Controller
                 't.estado',
                 'u.name as usuario_nombre'
             )
-            ->where('t.serie', 'CAR')
+            ->where('t.motivo', self::MOTIVO_CARGA_STOCK)
             ->where('t.cliente_id', $usuario->id)
             ->where('t.sede_id', $idsede)
             ->where('t.tipo_envio', $envio);
@@ -1589,9 +2040,8 @@ class MobileSalesController extends Controller
 
         $query = DB::table('recibos as r')
             ->join('clientes as c', 'r.cliente_id', '=', 'c.id')
-            ->leftJoin('forma_pagos as fp', function($join) {
-                $join->whereRaw('r.fpag_rec = CAST(fp.id AS varchar)');
-            })
+            ->leftJoin('movimientos as m', 'm.id', '=', 'r.id_movimiento')
+            ->leftJoin('forma_pagos as fp', 'fp.id', '=', 'm.forma_pago_id')
             ->select(
                 'r.id',
                 'r.fech_rec',
@@ -1641,9 +2091,8 @@ class MobileSalesController extends Controller
 
         $recibo = DB::table('recibos as r')
             ->join('clientes as c', 'r.cliente_id', '=', 'c.id')
-            ->leftJoin('forma_pagos as fp', function($join) {
-                $join->whereRaw('r.fpag_rec = CAST(fp.id AS varchar)');
-            })
+            ->leftJoin('movimientos as m', 'm.id', '=', 'r.id_movimiento')
+            ->leftJoin('forma_pagos as fp', 'fp.id', '=', 'm.forma_pago_id')
             ->select(
                 'r.id',
                 'r.fech_rec',
@@ -1700,29 +2149,34 @@ class MobileSalesController extends Controller
     // -----------------------------------------------------------------------
     public function anularCargaStock($id)
     {
+        $traslado = Traslado::find($id);
+
+        if (!$traslado || $traslado->motivo !== self::MOTIVO_CARGA_STOCK) {
+            return response()->json(['error' => 'Registro de carga no encontrado.'], 404);
+        }
+
+        $idsede = session('key')->sede_id;
+        if ((int) $traslado->sede_id !== (int) $idsede) {
+            return response()->json(['error' => 'No autorizado para anular esta carga.'], 403);
+        }
+
+        if ($traslado->estado == 0) {
+            return response()->json(['error' => 'Esta carga ya fue anulada previamente.'], 422);
+        }
+
+        $servicios  = new FuncionesController;
+        $envio      = $servicios->tipo_envio_sunat();
+        $user_id    = Auth::user()->id;
+
+        $origen_id  = $traslado->id_ubicacion_origen;
+        $destino_id = $traslado->id_ubicacion_destino;
+
+        if (!$origen_id || !$destino_id) {
+            return response()->json(['error' => 'No se pudieron determinar las ubicaciones de origen/destino de esta carga.'], 422);
+        }
+
         DB::beginTransaction();
         try {
-            $traslado = Traslado::find($id);
-
-            if (!$traslado || $traslado->serie !== 'CAR') {
-                return response()->json(['error' => 'Registro de carga no encontrado.'], 404);
-            }
-
-            if ($traslado->estado == 0) {
-                return response()->json(['error' => 'Esta carga ya fue anulada previamente.'], 422);
-            }
-
-            $servicios  = new FuncionesController;
-            $envio      = $servicios->tipo_envio_sunat();
-            $user_id    = Auth::user()->id;
-
-            $origen_id  = $traslado->id_ubicacion_origen;
-            $destino_id = $traslado->id_ubicacion_destino;
-
-            if (!$origen_id || !$destino_id) {
-                return response()->json(['error' => 'No se pudieron determinar las ubicaciones de origen/destino de esta carga.'], 422);
-            }
-
             // Obtener nombre del vendedor para el kardex
             $vendedor = Vendedor::where('usuario_id', $traslado->cliente_id)->first();
             $vendedorNombre = $vendedor ? $vendedor->nombre : 'Desconocido';
@@ -1744,7 +2198,7 @@ class MobileSalesController extends Controller
                 if (!$stockDestino || $stockDestino->stock < $cantidad) {
                     $nomProd = DB::table('productos')->where('id', $productId)->value('nomb_pro');
                     $stockActual = $stockDestino ? $stockDestino->stock : 0;
-                    throw new \Exception(
+                    throw new \RuntimeException(
                         "No se puede anular: el producto \"{$nomProd}\" tiene solo {$stockActual} unidad(es) en la furgoneta, " .
                         "pero se necesita revertir {$cantidad}. Es posible que parte del stock ya fue vendido."
                     );
@@ -1786,9 +2240,16 @@ class MobileSalesController extends Controller
                 'success' => "La carga {$codCarga} fue anulada exitosamente. El stock fue devuelto al almacén principal."
             ]);
 
+        } catch (\RuntimeException $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => $e->getMessage()], 500);
+            Log::error('Error al anular carga de stock', [
+                'traslado_id' => $id,
+                'message' => $e->getMessage(),
+            ]);
+            return response()->json(['error' => 'No se pudo anular la carga. Intente nuevamente o contacte a soporte.'], 500);
         }
     }
 }

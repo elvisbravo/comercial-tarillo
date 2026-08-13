@@ -33,6 +33,7 @@ function llenarmarca(data) {
         contenido += "<tr>";
         contenido += "<td style='padding:1px;text-align:center'>" + parseInt(i + 1, 10) + "</td>";
         contenido += "<td style='padding:1px;text-align:center'> " + data[i].nomb_sec + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + (data[i].zona_nombre || '—') + "</td>";
         contenido += "<td style='padding:1px;text-align:center'>";
         
         if (typeof canEdit !== 'undefined' && canEdit) {
@@ -60,9 +61,11 @@ function llenarmarca(data) {
         var frm = new FormData();
         var csrf = document.querySelector('meta[name="csrf-token"]').content;
         var nomb_sec=$("#nomb_sec").val();
+        var zona_id=$("#zona_id").val();
 
 
         frm.append("nomb_sec", nomb_sec);
+        frm.append("zona_id", zona_id);
         frm.append("_token", csrf);
 
 
@@ -118,6 +121,7 @@ function abrimodal(id){
       //console.log(data["Codigo"]);
       $("#valor").val(id);
       document.getElementById("nomb_sec").value = data["nomb_sec"];
+      document.getElementById("zona_id").value = data["zona_id"] || "";
 
 
   });
@@ -135,10 +139,12 @@ $("#actualizar").on("click",function(){
     var frm = new FormData();
     var csrf = document.querySelector('meta[name="csrf-token"]').content;
     var nomb_sec=$("#nomb_sec").val();
+    var zona_id=$("#zona_id").val();
     var id=$("#valor").val();
 
             frm.append("id", id);
             frm.append("nomb_sec", nomb_sec);
+            frm.append("zona_id", zona_id);
             frm.append("_token", csrf);
 
             $.ajax({

@@ -170,7 +170,7 @@ Reporte Cuotas Vencidas
                 <div class="card-body py-3">
                     <form id="filtro-form">
                         <div class="row align-items-end">
-                            <div class="col-md-5 mb-2 mb-md-0">
+                            <div class="col-md-4 mb-2 mb-md-0">
                                 <label class="form-label fw-bold mb-1">Buscar Cliente / Documento</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-search"></i></span>
@@ -178,12 +178,21 @@ Reporte Cuotas Vencidas
                                         placeholder="Raz&oacute;n social o documento...">
                                 </div>
                             </div>
-                            <div class="col-md-5 mb-2 mb-md-0">
+                            <div class="col-md-2 mb-2 mb-md-0">
+                                <label class="form-label fw-bold mb-1">Zona</label>
+                                <select class="form-control" id="filtro_zona">
+                                    <option value="">— Todas —</option>
+                                    @foreach($zonas as $zona)
+                                    <option value="{{ $zona->id }}">{{ $zona->nomb_zona }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-2 mb-md-0">
                                 <label class="form-label fw-bold mb-1">Sector(es)</label>
                                 <select class="form-control select2" id="sectores" multiple
                                     data-placeholder="Seleccione sectores...">
                                     @foreach($sectores as $sector)
-                                    <option value="{{ $sector->id }}">{{ $sector->nomb_sec }}</option>
+                                    <option value="{{ $sector->id }}" data-zona="{{ $sector->zona_id }}">{{ $sector->nomb_sec }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -268,6 +277,19 @@ Reporte Cuotas Vencidas
         });
         // Pequena pausa para que el navegador pinte la pagina antes de iniciar la carga
         setTimeout(cargarDatos, 150);
+    });
+
+    // Al elegir una zona, marca en el multi-select de sectores todos los que pertenecen
+    // a esa zona (solo ayuda a seleccionar, no cambia lo que se envia al backend).
+    $('#filtro_zona').on('change', function() {
+        const zonaId = $(this).val();
+        if (!zonaId) return;
+
+        const idsDeLaZona = $('#sectores option[data-zona="' + zonaId + '"]')
+            .map(function() { return $(this).val(); })
+            .get();
+
+        $('#sectores').val(idsDeLaZona).trigger('change');
     });
 
     $('#filtro-form').on('submit', function(e) {

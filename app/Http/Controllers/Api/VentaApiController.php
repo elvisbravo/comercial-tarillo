@@ -28,7 +28,7 @@ class VentaApiController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        if (!$this->esVendedor($user)) {
+        if (!$user->esVendedorOCobrador()) {
             return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
         }
 
@@ -57,9 +57,14 @@ class VentaApiController extends Controller
                 ->join('bancos as b', 'b.id', '=', 'cb.banco_id')
                 ->select('cb.id', 'b.nombre as banco', 'cb.cuenta_corriente as numero_cuenta', 'cb.cuenta_cci as cci')
                 ->get(),
-            'sectores'         => Sector::where('estado', 'ACTIVO')
-                ->get(['id', 'nomb_sec'])
-                ->map(fn ($s) => ['id' => (int) $s->id, 'nombre' => $s->nomb_sec])
+            'sectores'         => Sector::with('zona')->where('estado', 'ACTIVO')
+                ->get(['id', 'nomb_sec', 'zona_id'])
+                ->map(fn ($s) => [
+                    'id' => (int) $s->id,
+                    'nombre' => $s->nomb_sec,
+                    'zona_id' => $s->zona_id ? (int) $s->zona_id : null,
+                    'zona_nombre' => optional($s->zona)->nomb_zona,
+                ])
                 ->values(),
         ]);
     }
@@ -106,7 +111,7 @@ class VentaApiController extends Controller
     public function guardar(Request $request)
     {
         $user = Auth::user();
-        if (!$this->esVendedor($user)) {
+        if (!$user->esVendedorOCobrador()) {
             \Log::warning('API guardar venta - acceso denegado');
             return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
         }
@@ -358,12 +363,6 @@ class VentaApiController extends Controller
 
     // =================== helpers ===================
 
-    private function esVendedor($user): bool
-    {
-        return $user->roles()->where('id', 6)->exists()
-            || $user->hasAnyRole(['VENDEDOR', 'COBRADOR']);
-    }
-
     private function resolveVendedor($usuario)
     {
         $vendedor = Vendedor::where('usuario_id', $usuario->id)->first();
@@ -375,20 +374,28 @@ class VentaApiController extends Controller
                 'usuario_id' => $usuario->id,
                 'estado'    => 1,
             ]);
-            $almacen = Almacen::where('sede_id', $usuario->sede_id)->first();
-            if ($almacen) {
-                $default = DB::table('stock_location')
-                    ->where('almacen_id', $almacen->id)
-                    ->where('name', '!=', 'Transferencias')
-                    ->orderByRaw("CASE WHEN name = 'Stock' THEN 1 ELSE 2 END")
-                    ->first();
-                if ($default) {
-                    $vendedor->stock_location_id = $default->id;
-                    $vendedor->save();
-                }
-            }
+            $this->asignarUbicacionDefault($vendedor, $usuario->sede_id);
+        } elseif (!$vendedor->stock_location_id) {
+            // Vendedor ya existente al que le falta la ubicación (evita que quede invisible en retorno-stock)
+            $this->asignarUbicacionDefault($vendedor, $usuario->sede_id);
         }
         return $vendedor;
+    }
+
+    private function asignarUbicacionDefault($vendedor, $idsede)
+    {
+        $almacen = Almacen::where('sede_id', $idsede)->first();
+        if ($almacen) {
+            $default = DB::table('stock_location')
+                ->where('almacen_id', $almacen->id)
+                ->where('name', '!=', 'Transferencias')
+                ->orderByRaw("CASE WHEN name = 'Stock' THEN 1 ELSE 2 END")
+                ->first();
+            if ($default) {
+                $vendedor->stock_location_id = $default->id;
+                $vendedor->save();
+            }
+        }
     }
 
     private function mapCliente($c): array

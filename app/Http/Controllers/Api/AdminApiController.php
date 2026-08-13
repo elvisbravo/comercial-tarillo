@@ -3,184 +3,138 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\servicios\FuncionesController;
-use App\Clientes;
 use App\Sede;
-use App\Vendedor;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class HistorialApiController extends Controller
+class AdminApiController extends Controller
 {
     /**
-     * GET /api/vendedor/historial-cargas?fecha_desde&fecha_hasta&buscar
+     * GET /api/admin/dashboard?sede_id=&fecha=
+     * Resumen agregado de la fecha consultada (por defecto hoy): ventas y cobranzas
+     * de todas las sedes/vendedores, con desglose por sede. Incluye la lista de
+     * sedes para el filtro del cliente.
      */
-    public function cargas(Request $request)
+    public function dashboard(Request $request)
     {
-        $user = Auth::user();
-        if (!$user->esVendedorOCobrador()) {
-            return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
+        $fecha = $request->input('fecha', date('Y-m-d'));
+
+        $ventasQuery = DB::table('ventas')
+            ->where('fecha', $fecha)
+            ->whereNull('fecha_eliminacion');
+        $cobrosQuery = DB::table('recibos')
+            ->where('fech_rec', $fecha)
+            ->where('esta_rec', '!=', 'ANULADO');
+        $inicialQuery = DB::table('venta_formapago as vf')
+            ->join('ventas as v', 'v.id', '=', 'vf.venta_id')
+            ->where('v.fecha', $fecha)
+            ->whereNull('v.fecha_eliminacion')
+            ->where('v.tipo_pago_id', 2);
+
+        if ($request->filled('sede_id')) {
+            $ventasQuery->where('sede_id', $request->sede_id);
+            $cobrosQuery->where('sede_id', $request->sede_id);
+            $inicialQuery->where('v.sede_id', $request->sede_id);
         }
 
-        // Buscar el cliente por usuario = user_id
-        $cliente = Clientes::where('usuario', $user->id)->first();
-        if (!$cliente) {
-            return response()->json(['status' => true, 'items' => [], 'total' => 0]);
-        }
+        $ventasContadoQuery = (clone $ventasQuery)->where('tipo_pago_id', '!=', 2);
+        $totalVentasContado = (float) $ventasContadoQuery->sum('monto');
+        $cantVentasContado  = (int) $ventasContadoQuery->count();
 
-        $query = DB::table('traslados as t')
-            ->leftJoin('users as u', 'u.id', '=', 't.user_id')
+        $ventasCreditoQuery = (clone $ventasQuery)->where('tipo_pago_id', 2);
+        $totalVentasCredito = (float) $ventasCreditoQuery->sum('monto');
+        $cantVentasCredito  = (int) $ventasCreditoQuery->count();
+
+        $totalInicial = (float) (clone $inicialQuery)->sum('vf.monto');
+        $cantInicial  = (int) (clone $inicialQuery)->count();
+
+        $totalCobranzas = (float) (clone $cobrosQuery)->sum('mont_rec');
+        $cantCobranzas  = (int) (clone $cobrosQuery)->count();
+
+        $ventasPorSede = DB::table('ventas')
+            ->join('sedes as s', 'ventas.sede_id', '=', 's.id')
+            ->where('ventas.fecha', $fecha)
+            ->whereNull('ventas.fecha_eliminacion')
             ->select(
-                't.id', 't.fecha', 't.hora', 't.serie', 't.correlativo',
-                't.motivo', 't.estado', 't.tipo_envio',
-                'u.name as usuario_nombre',
-                DB::raw('(SELECT COALESCE(SUM(dt.cantidad), 0) FROM detalle_traslado dt WHERE dt.traslado_id = t.id) as total_unidades')
+                's.id as sede_id',
+                's.nombre as sede_nombre',
+                DB::raw('COALESCE(SUM(ventas.monto),0) as total_ventas'),
+                DB::raw('COUNT(ventas.id) as cantidad_ventas')
             )
-            ->where('t.cliente_id', $cliente->id);
+            ->groupBy('s.id', 's.nombre')
+            ->get()
+            ->keyBy('sede_id');
 
-        if ($request->filled('fecha_desde')) {
-            $query->where('t.fecha', '>=', $request->fecha_desde);
-        }
-        if ($request->filled('fecha_hasta')) {
-            $query->where('t.fecha', '<=', $request->fecha_hasta);
-        }
-        if ($request->filled('buscar')) {
-            $buscar = $request->buscar;
-            $query->where(function ($q) use ($buscar) {
-                $q->where('t.correlativo', 'like', "%$buscar%")
-                  ->orWhere('t.motivo', 'like', "%$buscar%");
-            });
-        }
+        $cobrosPorSede = DB::table('recibos')
+            ->join('sedes as s', 'recibos.sede_id', '=', 's.id')
+            ->where('recibos.fech_rec', $fecha)
+            ->where('recibos.esta_rec', '!=', 'ANULADO')
+            ->select(
+                's.id as sede_id',
+                DB::raw('COALESCE(SUM(recibos.mont_rec),0) as total_cobros'),
+                DB::raw('COUNT(recibos.id) as cantidad_cobros')
+            )
+            ->groupBy('s.id')
+            ->get()
+            ->keyBy('sede_id');
 
-        $items = $query->orderBy('t.id', 'desc')->limit(200)->get()->map(function ($t) {
+        $sedes = Sede::where('estado', '1')
+            ->where('nombre', 'not ilike', 'TODOS')
+            ->orderBy('nombre')
+            ->get(['id', 'nombre']);
+        $porSede = $sedes->map(function ($s) use ($ventasPorSede, $cobrosPorSede) {
+            $v = $ventasPorSede->get($s->id);
+            $c = $cobrosPorSede->get($s->id);
             return [
-                'id'              => (int) $t->id,
-                'fecha'           => $t->fecha,
-                'hora'            => $t->hora,
-                'serie'           => $t->serie,
-                'correlativo'     => $t->correlativo,
-                'motivo'          => $t->motivo,
-                'estado'          => (int) $t->estado,
-                'estado_legible'  => $t->estado == 0 ? 'ATENDIDO' : ($t->estado == 1 ? 'PENDIENTE' : ($t->estado == 2 ? 'PARCIAL' : 'ANULADO')),
-                'total_unidades'  => (float) $t->total_unidades,
-                'usuario_nombre'  => $t->usuario_nombre,
+                'sede_id'         => $s->id,
+                'sede_nombre'     => $s->nombre,
+                'ventas_total'    => (float) ($v->total_ventas ?? 0),
+                'ventas_cantidad' => (int) ($v->cantidad_ventas ?? 0),
+                'cobros_total'    => (float) ($c->total_cobros ?? 0),
+                'cobros_cantidad' => (int) ($c->cantidad_cobros ?? 0),
             ];
         })->values();
 
         return response()->json([
-            'status' => true,
-            'items'  => $items,
-            'total'  => $items->count(),
-        ]);
-    }
-
-    /**
-     * GET /api/vendedor/historial-cargas/{id}/detalle
-     */
-    public function cargaDetalle($id)
-    {
-        $user = Auth::user();
-        if (!$user->esVendedorOCobrador()) {
-            return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
-        }
-
-        // Buscar el cliente por usuario = user_id
-        $cliente = Clientes::where('usuario', $user->id)->first();
-        if (!$cliente) {
-            return response()->json(['status' => false, 'message' => 'Carga no encontrada.'], 404);
-        }
-
-        $traslado = DB::table('traslados as t')
-            ->leftJoin('users as u', 'u.id', '=', 't.user_id')
-            ->where('t.id', $id)
-            ->where('t.cliente_id', $cliente->id)
-            ->select(
-                't.id', 't.fecha', 't.hora', 't.serie', 't.correlativo',
-                't.motivo', 't.estado', 't.tipo_envio',
-                'u.name as usuario_nombre'
-            )
-            ->first();
-
-        if (!$traslado) {
-            return response()->json(['status' => false, 'message' => 'Carga no encontrada.'], 404);
-        }
-
-        $productos = DB::table('detalle_traslado as dt')
-            ->join('productos as p', 'p.id', '=', 'dt.producto_id')
-            ->leftJoin('precios as pr', 'pr.articulo_id', '=', 'p.id')
-            ->where('dt.traslado_id', $id)
-            ->select(
-                'p.id',
-                'p.nomb_pro as nombre',
-                'p.codigo_barras',
-                'dt.cantidad',
-                DB::raw('COALESCE(pr.precio_contado, 0) as precio_unitario'),
-                DB::raw('dt.cantidad * COALESCE(pr.precio_contado, 0) as subtotal')
-            )
-            ->orderBy('p.nomb_pro')
-            ->get()
-            ->map(fn ($p) => [
-                'id'              => (int) $p->id,
-                'nombre'          => $p->nombre,
-                'codigo_barras'   => $p->codigo_barras,
-                'cantidad'        => (float) $p->cantidad,
-                'precio_unitario' => (float) $p->precio_unitario,
-                'subtotal'        => (float) $p->subtotal,
-            ])
-            ->values();
-
-        return response()->json([
-            'status'         => true,
-            'traslado'       => [
-                'id'             => (int) $traslado->id,
-                'fecha'          => $traslado->fecha,
-                'hora'           => $traslado->hora,
-                'serie'          => $traslado->serie,
-                'correlativo'    => $traslado->correlativo,
-                'motivo'         => $traslado->motivo,
-                'estado'         => (int) $traslado->estado,
-                'estado_legible' => $traslado->estado == 0 ? 'ATENDIDO' : ($traslado->estado == 1 ? 'PENDIENTE' : ($traslado->estado == 2 ? 'PARCIAL' : 'ANULADO')),
-                'usuario_nombre' => $traslado->usuario_nombre,
+            'status'    => true,
+            'fecha'     => $fecha,
+            'ventas'    => [
+                'contado' => ['total' => round($totalVentasContado, 2), 'cantidad' => $cantVentasContado],
+                'credito' => ['total' => round($totalVentasCredito, 2), 'cantidad' => $cantVentasCredito],
+                'inicial_credito' => ['total' => round($totalInicial, 2), 'cantidad' => $cantInicial],
             ],
-            'productos'      => $productos,
-            'total_unidades' => $productos->sum('cantidad'),
-            'total_valor'    => $productos->sum('subtotal'),
+            'cobranzas' => ['total' => round($totalCobranzas, 2), 'cantidad' => $cantCobranzas],
+            'sedes'     => $sedes,
+            'por_sede'  => $porSede,
         ]);
     }
 
     /**
-     * GET /api/vendedor/historial-ventas?fecha_desde&fecha_hasta&buscar
+     * GET /api/admin/ventas?fecha_desde&fecha_hasta&sede_id&buscar
+     * Ventas de todas las sedes/vendedores (sin restricción por vendedor logueado).
      */
     public function ventas(Request $request)
     {
-        $user = Auth::user();
-        if (!$user->esVendedorOCobrador()) {
-            return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
-        }
-        $vendedor = $this->resolveVendedor($user);
-        $idsede = $user->sede_id;
-        $envio = $this->tipoEnvio($idsede);
-
         $query = DB::table('ventas as v')
             ->join('clientes as c', 'v.cliente_id', '=', 'c.id')
-            ->leftJoin('tipo_comprobantes as tc', 'v.tipo_comprobante_id', '=', 'tc.id')
+            ->join('sedes as s', 'v.sede_id', '=', 's.id')
+            ->leftJoin('vendedores as vd', 'v.vendedor_id', '=', 'vd.id')
             ->leftJoin('tipo_pagos as tp', 'v.tipo_pago_id', '=', 'tp.id')
             ->select(
                 'v.id', 'v.fecha', 'v.hora',
                 'v.serie_comprobante', 'v.numero_comprobante',
                 'v.monto', 'v.tipo_pago_id', 'v.venta_estado',
                 'v.estado_liquidacion', 'v.estado_nota', 'v.fecha_eliminacion',
+                'v.sede_id', 's.nombre as sede_nombre',
+                'v.vendedor_id', 'vd.nombre as vendedor_nombre',
                 DB::raw("COALESCE(c.razon_social, CONCAT(c.nomb_per, ' ', c.pate_per, ' ', c.mate_per)) as cliente_nombre"),
                 'c.documento as cliente_documento',
-                'tc.descripcion as tipo_comprobante',
-                'tp.descripcion as tipo_pago',
-                DB::raw('(SELECT COALESCE(SUM(dv.cantidad), 0) FROM detalle_venta dv WHERE dv.venta_id = v.id) as total_unidades')
-            )
-            ->where('v.vendedor_id', $vendedor->id)
-            ->where('v.sede_id', $idsede)
-            ->where('v.tipo_envio', $envio);
+                'tp.descripcion as tipo_pago'
+            );
 
+        if ($request->filled('sede_id')) {
+            $query->where('v.sede_id', $request->sede_id);
+        }
         if ($request->filled('fecha_desde')) {
             $query->where('v.fecha', '>=', $request->fecha_desde);
         }
@@ -195,6 +149,7 @@ class HistorialApiController extends Controller
                   ->orWhere('c.pate_per', 'ilike', "%$buscar%")
                   ->orWhere('c.mate_per', 'ilike', "%$buscar%")
                   ->orWhere('c.documento', 'like', "%$buscar%")
+                  ->orWhere('vd.nombre', 'ilike', "%$buscar%")
                   ->orWhere('v.serie_comprobante', 'like', "%$buscar%")
                   ->orWhere('v.numero_comprobante', 'like', "%$buscar%");
             });
@@ -212,57 +167,46 @@ class HistorialApiController extends Controller
                 $estado = 'POR LIQUIDAR';
             }
             return [
-                'id'                  => (int) $v->id,
-                'fecha'               => $v->fecha,
-                'hora'                => $v->hora,
-                'serie'               => $v->serie_comprobante,
-                'numero'              => $v->numero_comprobante,
-                'comprobante'         => trim(($v->serie_comprobante ?? '') . '-' . ($v->numero_comprobante ?? ''), '-'),
-                'monto'               => (float) $v->monto,
-                'tipo_pago_id'        => (int) $v->tipo_pago_id,
-                'tipo_pago'           => $v->tipo_pago,
-                'tipo_comprobante'    => $v->tipo_comprobante,
-                'cliente_nombre'      => $v->cliente_nombre,
-                'cliente_documento'   => $v->cliente_documento,
-                'estado'              => $estado,
-                'estado_liquidacion'  => $v->estado_liquidacion,
-                'total_unidades'      => (float) $v->total_unidades,
+                'id'                 => (int) $v->id,
+                'fecha'              => $v->fecha,
+                'hora'               => $v->hora,
+                'comprobante'        => trim(($v->serie_comprobante ?? '') . '-' . ($v->numero_comprobante ?? ''), '-'),
+                'monto'              => (float) $v->monto,
+                'tipo_pago_id'       => (int) $v->tipo_pago_id,
+                'tipo_pago'          => $v->tipo_pago,
+                'sede_id'            => (int) $v->sede_id,
+                'sede_nombre'        => $v->sede_nombre,
+                'vendedor_id'        => $v->vendedor_id !== null ? (int) $v->vendedor_id : null,
+                'vendedor_nombre'    => $v->vendedor_nombre,
+                'cliente_nombre'     => $v->cliente_nombre,
+                'cliente_documento'  => $v->cliente_documento,
+                'estado'             => $estado,
+                'estado_liquidacion' => $v->estado_liquidacion,
             ];
         })->values();
 
-        return response()->json([
-            'status' => true,
-            'items'  => $items,
-            'total'  => $items->count(),
-        ]);
+        return response()->json(['status' => true, 'items' => $items, 'total' => $items->count()]);
     }
 
     /**
-     * GET /api/vendedor/historial-ventas/{id}/detalle
+     * GET /api/admin/ventas/{id}/detalle
      */
     public function ventaDetalle($id)
     {
-        $user = Auth::user();
-        if (!$user->esVendedorOCobrador()) {
-            return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
-        }
-        $vendedor = $this->resolveVendedor($user);
-        $idsede = $user->sede_id;
-        $envio = $this->tipoEnvio($idsede);
-
         $venta = DB::table('ventas as v')
             ->join('clientes as c', 'v.cliente_id', '=', 'c.id')
+            ->join('sedes as s', 'v.sede_id', '=', 's.id')
+            ->leftJoin('vendedores as vd', 'v.vendedor_id', '=', 'vd.id')
             ->leftJoin('tipo_comprobantes as tc', 'v.tipo_comprobante_id', '=', 'tc.id')
             ->leftJoin('tipo_pagos as tp', 'v.tipo_pago_id', '=', 'tp.id')
             ->where('v.id', $id)
-            ->where('v.vendedor_id', $vendedor->id)
-            ->where('v.sede_id', $idsede)
-            ->where('v.tipo_envio', $envio)
             ->select(
                 'v.id', 'v.fecha', 'v.hora',
                 'v.serie_comprobante', 'v.numero_comprobante',
                 'v.monto', 'v.descuento', 'v.tipo_pago_id',
                 'v.venta_estado', 'v.estado_liquidacion', 'v.estado_nota', 'v.fecha_eliminacion',
+                'v.sede_id', 's.nombre as sede_nombre',
+                'v.vendedor_id', 'vd.nombre as vendedor_nombre',
                 DB::raw("COALESCE(c.razon_social, CONCAT(c.nomb_per, ' ', c.pate_per, ' ', c.mate_per)) as cliente_nombre"),
                 'c.documento as cliente_documento',
                 'c.dire_per as cliente_direccion',
@@ -291,8 +235,8 @@ class HistorialApiController extends Controller
             ->values();
 
         return response()->json([
-            'status'   => true,
-            'venta'    => [
+            'status' => true,
+            'venta'  => [
                 'id'                 => (int) $venta->id,
                 'fecha'              => $venta->fecha,
                 'hora'               => $venta->hora,
@@ -301,44 +245,48 @@ class HistorialApiController extends Controller
                 'numero'             => $venta->numero_comprobante,
                 'monto'              => (float) $venta->monto,
                 'descuento'          => (float) $venta->descuento,
+                'tipo_pago_id'       => (int) $venta->tipo_pago_id,
                 'tipo_pago'          => $venta->tipo_pago,
                 'tipo_comprobante'   => $venta->tipo_comprobante,
+                'sede_id'            => (int) $venta->sede_id,
+                'sede_nombre'        => $venta->sede_nombre,
+                'vendedor_id'        => $venta->vendedor_id !== null ? (int) $venta->vendedor_id : null,
+                'vendedor_nombre'    => $venta->vendedor_nombre,
                 'cliente_nombre'     => $venta->cliente_nombre,
                 'cliente_documento'  => $venta->cliente_documento,
                 'cliente_direccion'  => $venta->cliente_direccion,
                 'estado_liquidacion' => $venta->estado_liquidacion,
             ],
-            'productos' => $productos,
+            'productos'      => $productos,
             'total_unidades' => $productos->sum('cantidad'),
         ]);
     }
 
     /**
-     * GET /api/vendedor/historial-cobros?fecha_desde&fecha_hasta&buscar
+     * GET /api/admin/cobros?fecha_desde&fecha_hasta&sede_id&buscar
+     * Cobranzas (recibos) de todas las sedes/vendedores.
      */
     public function cobros(Request $request)
     {
-        $user = Auth::user();
-        if (!$user->esVendedorOCobrador()) {
-            return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
-        }
-        $vendedor = $this->resolveVendedor($user);
-        $idsede = $user->sede_id;
-
         $query = DB::table('recibos as r')
             ->join('clientes as c', 'r.cliente_id', '=', 'c.id')
+            ->join('sedes as s', 'r.sede_id', '=', 's.id')
+            ->leftJoin('vendedores as vd', 'r.vendedor_id', '=', 'vd.id')
             ->leftJoin('movimientos as m', 'm.id', '=', 'r.id_movimiento')
             ->leftJoin('forma_pagos as fp', 'fp.id', '=', 'm.forma_pago_id')
             ->select(
                 'r.id', 'r.fech_rec', 'r.num_recibo', 'r.mont_rec',
                 'r.esta_rec', 'r.estado_liquidacion', 'r.created_at',
+                'r.sede_id', 's.nombre as sede_nombre',
+                'r.vendedor_id', 'vd.nombre as vendedor_nombre',
                 DB::raw("COALESCE(c.razon_social, CONCAT(c.nomb_per, ' ', c.pate_per, ' ', c.mate_per)) as cliente_nombre"),
                 'c.documento as cliente_documento',
                 'fp.descripcion as forma_pago'
-            )
-            ->where('r.vendedor_id', $vendedor->id)
-            ->where('r.sede_id', $idsede);
+            );
 
+        if ($request->filled('sede_id')) {
+            $query->where('r.sede_id', $request->sede_id);
+        }
         if ($request->filled('fecha_desde')) {
             $query->where('r.fech_rec', '>=', $request->fecha_desde);
         }
@@ -353,6 +301,7 @@ class HistorialApiController extends Controller
                   ->orWhere('c.pate_per', 'ilike', "%$buscar%")
                   ->orWhere('c.mate_per', 'ilike', "%$buscar%")
                   ->orWhere('c.documento', 'like', "%$buscar%")
+                  ->orWhere('vd.nombre', 'ilike', "%$buscar%")
                   ->orWhere('r.num_recibo', 'like', "%$buscar%");
             });
         }
@@ -366,6 +315,10 @@ class HistorialApiController extends Controller
                 'estado'             => $r->esta_rec,
                 'estado_legible'     => $r->esta_rec == 'ANULADO' ? 'ANULADO' : 'EMITIDO',
                 'estado_liquidacion' => $r->estado_liquidacion,
+                'sede_id'            => (int) $r->sede_id,
+                'sede_nombre'        => $r->sede_nombre,
+                'vendedor_id'        => $r->vendedor_id !== null ? (int) $r->vendedor_id : null,
+                'vendedor_nombre'    => $r->vendedor_nombre,
                 'cliente_nombre'     => $r->cliente_nombre,
                 'cliente_documento'  => $r->cliente_documento,
                 'forma_pago'         => $r->forma_pago,
@@ -373,36 +326,26 @@ class HistorialApiController extends Controller
             ];
         })->values();
 
-        return response()->json([
-            'status' => true,
-            'items'  => $items,
-            'total'  => $items->count(),
-        ]);
+        return response()->json(['status' => true, 'items' => $items, 'total' => $items->count()]);
     }
 
     /**
-     * GET /api/vendedor/historial-cobros/{id}/detalle
+     * GET /api/admin/cobros/{id}/detalle
      */
     public function cobroDetalle($id)
     {
-        $user = Auth::user();
-        if (!$user->esVendedorOCobrador()) {
-            return response()->json(['status' => false, 'message' => 'Acceso denegado.'], 403);
-        }
-        $vendedor = $this->resolveVendedor($user);
-        $idsede = $user->sede_id;
-
         $recibo = DB::table('recibos as r')
             ->join('clientes as c', 'r.cliente_id', '=', 'c.id')
+            ->join('sedes as s', 'r.sede_id', '=', 's.id')
+            ->leftJoin('vendedores as vd', 'r.vendedor_id', '=', 'vd.id')
             ->leftJoin('movimientos as m', 'm.id', '=', 'r.id_movimiento')
             ->leftJoin('forma_pagos as fp', 'fp.id', '=', 'm.forma_pago_id')
             ->where('r.id', $id)
-            ->where('r.vendedor_id', $vendedor->id)
-            ->where('r.sede_id', $idsede)
             ->select(
                 'r.id', 'r.fech_rec', 'r.num_recibo', 'r.mont_rec',
                 'r.esta_rec', 'r.estado_liquidacion', 'r.obse_rec',
-                'r.created_at', 'r.vendedor_id',
+                'r.created_at', 'r.sede_id', 's.nombre as sede_nombre',
+                'r.vendedor_id', 'vd.nombre as vendedor_nombre',
                 DB::raw("COALESCE(c.razon_social, CONCAT(c.nomb_per, ' ', c.pate_per, ' ', c.mate_per)) as cliente_nombre"),
                 'c.documento as cliente_documento',
                 'c.dire_per as cliente_direccion',
@@ -446,8 +389,8 @@ class HistorialApiController extends Controller
             ->values();
 
         return response()->json([
-            'status'   => true,
-            'recibo'   => [
+            'status' => true,
+            'recibo' => [
                 'id'                 => (int) $recibo->id,
                 'fecha'              => $recibo->fech_rec,
                 'num_recibo'         => $recibo->num_recibo,
@@ -456,56 +399,17 @@ class HistorialApiController extends Controller
                 'estado_legible'     => $recibo->esta_rec == 'ANULADO' ? 'ANULADO' : 'EMITIDO',
                 'estado_liquidacion' => $recibo->estado_liquidacion,
                 'observacion'        => $recibo->obse_rec,
+                'sede_id'            => (int) $recibo->sede_id,
+                'sede_nombre'        => $recibo->sede_nombre,
+                'vendedor_id'        => $recibo->vendedor_id !== null ? (int) $recibo->vendedor_id : null,
+                'vendedor_nombre'    => $recibo->vendedor_nombre,
                 'cliente_nombre'     => $recibo->cliente_nombre,
                 'cliente_documento'  => $recibo->cliente_documento,
                 'cliente_direccion'  => $recibo->cliente_direccion,
                 'forma_pago'         => $recibo->forma_pago,
             ],
-            'amortizaciones' => $amortizaciones,
+            'amortizaciones'   => $amortizaciones,
             'total_amortizado' => $recibo->mont_rec,
         ]);
-    }
-
-    // =================== helpers ===================
-
-    private function resolveVendedor($usuario)
-    {
-        $vendedor = Vendedor::where('usuario_id', $usuario->id)->first();
-        if (!$vendedor) {
-            $vendedor = Vendedor::create([
-                'nombre'     => $usuario->name,
-                'documento'  => '00000000',
-                'direccion'  => 'Dirección por defecto',
-                'usuario_id' => $usuario->id,
-                'estado'     => 1,
-            ]);
-            $this->asignarUbicacionDefault($vendedor, $usuario->sede_id);
-        } elseif (!$vendedor->stock_location_id) {
-            // Vendedor ya existente al que le falta la ubicación (evita que quede invisible en retorno-stock)
-            $this->asignarUbicacionDefault($vendedor, $usuario->sede_id);
-        }
-        return $vendedor;
-    }
-
-    private function asignarUbicacionDefault($vendedor, $idsede)
-    {
-        $almacen = \App\Almacen::where('sede_id', $idsede)->first();
-        if ($almacen) {
-            $default = DB::table('stock_location')
-                ->where('almacen_id', $almacen->id)
-                ->where('name', '!=', 'Transferencias')
-                ->orderByRaw("CASE WHEN name = 'Stock' THEN 1 ELSE 2 END")
-                ->first();
-            if ($default) {
-                $vendedor->stock_location_id = $default->id;
-                $vendedor->save();
-            }
-        }
-    }
-
-    private function tipoEnvio($idsede)
-    {
-        $sede = Sede::find($idsede);
-        return $sede ? $sede->tipo_envio : null;
     }
 }

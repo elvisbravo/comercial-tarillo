@@ -11,7 +11,7 @@ class VendedorSector extends Model
     public $timestamps = true;
 
     protected $fillable = [
-        'vendedor_id', 'sector_id', 'fecha'
+        'vendedor_id', 'sector_id', 'fecha', 'tipo'
     ];
 
     public function vendedor()

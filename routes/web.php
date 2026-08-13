@@ -257,6 +257,14 @@ Route::post('sectores/crear', 'SectorController@crear');
 Route::post('sectores/modificar', 'SectorController@update');
 Route::resource('sectores', 'SectorController');
 
+//CONTROLADOR PARA CREAR LAS ZONAS (agrupan sectores)
+Route::get('zonas', 'ZonaController@index');
+Route::get('zonas/listado', 'ZonaController@listado');
+Route::get('zonas/edit/{id}', 'ZonaController@edit');
+Route::delete('zonas/eliminar/{id}', 'ZonaController@eliminar');
+Route::post('zonas/crear', 'ZonaController@crear');
+Route::post('zonas/modificar', 'ZonaController@update');
+
 //REPORTES DE CREDITOS PENDIENTES
 Route::get('creditos-pendientes/listadoclientes', 'ReporteCreditos@listadoclientes');
 Route::get('creditos-pendientes/creditos/{codigo}/{estado}', 'ReporteCreditos@creditos');
@@ -504,19 +512,32 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('ventas-moviles', 'MobileSalesController@index');
     Route::get('ventas-moviles/asignar', 'MobileSalesController@asignar');
     Route::get('ventas-moviles/liquidar-caja', 'MobileSalesController@liquidarCajaIndex')->name('admin.liquidar');
+    Route::post('ventas-moviles/liquidar-caja', 'MobileSalesController@liquidarCajaIndex')->name('admin.liquidar.datos');
     Route::post('ventas-moviles/liquidar-caja/procesar', 'MobileSalesController@liquidarCajaProcesar')->name('admin.liquidar.procesar');
     Route::get('ventas-moviles/retorno-stock', 'MobileSalesController@retornoStockIndex')->name('admin.retorno');
+    Route::post('ventas-moviles/retorno-stock', 'MobileSalesController@retornoStockIndex')->name('admin.retorno.datos');
     Route::post('ventas-moviles/retorno-stock/procesar', 'MobileSalesController@retornoStockProcesar')->name('admin.retorno.procesar');
     Route::get('ventas-moviles/cargar-stock', 'MobileSalesController@cargarStockIndex')->name('admin.cargar_stock');
     Route::post('ventas-moviles/cargar-stock/procesar', 'MobileSalesController@cargarStockProcesar')->name('admin.cargar_stock.procesar');
     Route::get('ventas-moviles/historial-cargas', 'MobileSalesController@cargarStockHistorial')->name('admin.cargar_stock.historial');
+    Route::post('ventas-moviles/historial-cargas', 'MobileSalesController@cargarStockHistorial')->name('admin.cargar_stock.historial.datos');
     Route::get('ventas-moviles/historial-cargas/detalle/{id}', 'MobileSalesController@cargarStockDetalle')->name('admin.cargar_stock.detalle');
     Route::post('ventas-moviles/historial-cargas/anular/{id}', 'MobileSalesController@anularCargaStock')->name('admin.cargar_stock.anular');
     Route::post('ventas-moviles/historial-cargas/agregar-productos', 'MobileSalesController@agregarProductosCarga')->name('admin.cargar_stock.agregar_productos');
     Route::get('ventas-moviles/productos-stock', 'MobileSalesController@productosStockAlmacen')->name('admin.cargar_stock.productos_stock');
     Route::get('ventas-moviles/asignar-ruta', 'MobileSalesController@asignarRutaIndex')->name('admin.asignar');
+    Route::post('ventas-moviles/asignar-ruta', 'MobileSalesController@asignarRutaIndex')->name('admin.asignar.datos');
     Route::post('ventas-moviles/asignar-ruta/guardar', 'MobileSalesController@asignarRutaGuardar')->name('admin.asignar.guardar');
     Route::delete('ventas-moviles/asignar-ruta/eliminar/{id}', 'MobileSalesController@asignarRutaEliminar')->name('admin.asignar.eliminar');
+
+    // RECOJO DE MERCADERIA (crédito incobrable)
+    Route::get('ventas-moviles/recojo-mercaderia', 'RecojoMercaderiaController@index')->name('admin.recojo');
+    Route::post('ventas-moviles/recojo-mercaderia', 'RecojoMercaderiaController@index')->name('admin.recojo.datos');
+    Route::get('ventas-moviles/recojo-mercaderia/buscar-cliente', 'RecojoMercaderiaController@buscarCliente')->name('admin.recojo.buscar_cliente');
+    Route::get('ventas-moviles/recojo-mercaderia/creditos/{cliente}', 'RecojoMercaderiaController@creditosDelCliente')->name('admin.recojo.creditos');
+    Route::get('ventas-moviles/recojo-mercaderia/detalle/{credito}', 'RecojoMercaderiaController@detalleCredito')->name('admin.recojo.detalle');
+    Route::get('ventas-moviles/recojo-mercaderia/ver/{id}', 'RecojoMercaderiaController@verDetalle')->name('admin.recojo.ver');
+    Route::post('ventas-moviles/recojo-mercaderia/procesar', 'RecojoMercaderiaController@procesar')->name('admin.recojo.procesar');
 
     // VENDEDOR
     Route::get('vendedor/dashboard', 'MobileSalesController@vendedorDashboard')->name('vendedor.dashboard');

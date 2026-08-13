@@ -13,10 +13,12 @@ class Sector extends Model
     public $timestamps=true;
 
     protected $fillable = [
-        'nomb_sec','estado'
+        'nomb_sec','estado','zona_id'
     ];
 
-
-
+    public function zona()
+    {
+        return $this->belongsTo(Zona::class, 'zona_id');
+    }
 
 }

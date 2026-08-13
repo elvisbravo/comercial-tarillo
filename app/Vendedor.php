@@ -18,6 +18,11 @@ class Vendedor extends Model
         return $this->belongsTo(StokLocation::class, 'stock_location_id', 'id');
     }
 
+    public function usuario()
+    {
+        return $this->belongsTo(\App\User::class, 'usuario_id', 'id');
+    }
+
     public function sectores()
     {
         return $this->belongsToMany(Sector::class, 'vendedor_sector', 'vendedor_id', 'sector_id')

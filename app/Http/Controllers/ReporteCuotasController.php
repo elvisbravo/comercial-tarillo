@@ -18,9 +18,14 @@ class ReporteCuotasController extends Controller
      */
     public function index(Request $request)
     {
-        $sectores = DB::table('sectores')->where('estado', '=', 'ACTIVO')->get();
+        $sectores = DB::table('sectores')
+            ->where('estado', '=', 'ACTIVO')
+            ->orderBy('zona_id')
+            ->get();
 
-        return view('reportecuotas.index', compact('sectores'));
+        $zonas = DB::table('zonas')->where('estado', '=', 'ACTIVO')->orderBy('nomb_zona')->get();
+
+        return view('reportecuotas.index', compact('sectores', 'zonas'));
     }
 
     /**

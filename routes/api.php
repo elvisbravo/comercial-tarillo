@@ -33,4 +33,13 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/vendedor/historial-cobros/{id}/detalle',          'Api\HistorialApiController@cobroDetalle');
 
     Route::post('/consultar-dni-ruc',            'Api\ConsultaController@consultarDniRuc');
+
+    // Admin
+    Route::middleware('admin')->prefix('admin')->group(function () {
+        Route::get('/dashboard',              'Api\AdminApiController@dashboard');
+        Route::get('/ventas',                 'Api\AdminApiController@ventas');
+        Route::get('/ventas/{id}/detalle',    'Api\AdminApiController@ventaDetalle');
+        Route::get('/cobros',                 'Api\AdminApiController@cobros');
+        Route::get('/cobros/{id}/detalle',    'Api\AdminApiController@cobroDetalle');
+    });
 });
