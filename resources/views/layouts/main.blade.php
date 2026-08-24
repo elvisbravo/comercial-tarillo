@@ -296,18 +296,6 @@
     <script src="{{ asset('assets/js/app.js') }}"></script>
     <script src="{{ asset('js/utils.js') }}"></script>
 
-    <script>
-        function fetchData() {
-            // Aquí deberías escribir el código para hacer la petición a la API
-            $.get('http://127.0.0.1:8000/amortizacion/cantidad_amortizada', function(data) {
-
-                console.log(data);
-            })
-        }
-
-        //setInterval(fetchData, 10000);
-    </script>
-
     @yield('js')
 
 

@@ -110,7 +110,7 @@ class HomeController extends Controller
             DB::raw('EXTRACT(MONTH FROM fecha) as mes'),
             DB::raw('SUM(monto) as total')
         )
-        ->where(DB::raw('EXTRACT(YEAR FROM fecha)'), '=', $anioActual);
+        ->whereBetween('fecha', ["$anioActual-01-01", "$anioActual-12-31"]);
 
         if ($usuario->sede_id != 1) {
             $query->where('sede_id', $usuario->sede_id);
@@ -134,7 +134,7 @@ class HomeController extends Controller
             DB::raw('EXTRACT(YEAR FROM fecha) as anio'),
             DB::raw('EXTRACT(MONTH FROM fecha) as mes'),
             DB::raw('SUM(monto) as total')
-        )->where(DB::raw('EXTRACT(YEAR FROM fecha)'), '=', $anioActual);
+        )->whereBetween('fecha', ["$anioActual-01-01", "$anioActual-12-31"]);
 
         $qContado = clone $baseQuery;
         $qCredito = clone $baseQuery;

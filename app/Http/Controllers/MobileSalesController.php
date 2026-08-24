@@ -35,6 +35,11 @@ class MobileSalesController extends Controller
     // es configurable por sede en `correlativos` y puede no ser "CAR".
     const MOTIVO_CARGA_STOCK = 'CARGA DIARIA DE STOCK A MOVILES';
 
+    // Traslado automatico generado al liquidar, por ventas moviles hechas en una
+    // zona que pertenece a otra sede (ver VentaController::generar_venta, que
+    // corrige venta.sede_id/sede_origen_id al momento de guardar la venta).
+    const MOTIVO_VENTA_FUERA_SEDE = 'VENTA MOVIL FUERA DE SEDE';
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -838,6 +843,17 @@ class MobileSalesController extends Controller
                 }
             }
 
+            // 1b. Generar traslado(s) intersede por las ventas de este vendedor que
+            // se atribuyeron a una sede distinta a la suya (ver VentaController::generar_venta)
+            $ventasFueraDeSede = $ventas->filter(fn ($v) =>
+                $v->sede_origen_id !== null && (int) $v->sede_origen_id !== (int) $v->sede_id
+            );
+            if ($ventasFueraDeSede->isNotEmpty()) {
+                $this->generarTrasladosInterSedePorVentaMovil(
+                    $ventasFueraDeSede, (int) $vendedorId, $fecha, (int) $idsede, $user_id, $servicios, $envio
+                );
+            }
+
             // 2. Procesar Amortizaciones (Recibos)
             $recibos = Recibos::where('vendedor_id', $vendedorId)
                               ->where('estado_liquidacion', 'PENDIENTE')
@@ -867,6 +883,109 @@ class MobileSalesController extends Controller
                 'message' => $e->getMessage(),
             ]);
             return redirect()->back()->with('error', 'No se pudo liquidar la caja. Intente nuevamente o contacte a soporte.');
+        }
+    }
+
+    /**
+     * Genera un traslado (auto-completado, sin paso de recepcion manual) por cada
+     * sede destino distinta en la que el vendedor tuvo ventas fuera de su sede ese
+     * dia, para dejar el rastro de kardex que respalde el ingreso/consumo de esa
+     * mercaderia en la sede a la que ahora se le atribuye la venta.
+     *
+     * No se escribe nada en el kardex de origen: el stock ya salio de esos libros
+     * cuando se cargo al vendedor (CARGA DIARIA) y cuando se realizo la venta. En
+     * destino se escribe un par entrada+salida (no solo entrada) para que el saldo
+     * neto quede en cero y no infle el stock fisico real de esa sede si mas adelante
+     * se corre KardexController::recalculateKardex().
+     */
+    private function generarTrasladosInterSedePorVentaMovil($ventasFueraDeSede, int $vendedorId, string $fecha, int $idsedeOrigen, int $userId, FuncionesController $servicios, int $envio): void
+    {
+        $lineasPorSedeDestino = DB::table('detalle_venta as dv')
+            ->join('ventas as v', 'v.id', '=', 'dv.venta_id')
+            ->whereIn('v.id', $ventasFueraDeSede->pluck('id'))
+            ->select('v.sede_id as sede_destino_id', 'dv.producto_id', DB::raw('SUM(dv.cantidad) as cantidad'))
+            ->groupBy('v.sede_id', 'dv.producto_id')
+            ->get()
+            ->groupBy('sede_destino_id');
+
+        if ($lineasPorSedeDestino->isEmpty()) {
+            return;
+        }
+
+        $vendedorNombre = \App\User::where('id', $vendedorId)->value('name') ?? "vendedor #{$vendedorId}";
+        $clienteVendedorId = Clientes::where('usuario', $vendedorId)->value('id');
+
+        $almacenOrigen = Almacen::where('sede_id', $idsedeOrigen)->first();
+        $origenId = $almacenOrigen
+            ? DB::table('stock_location')
+                ->where('almacen_id', $almacenOrigen->id)
+                ->where(DB::raw('LOWER(name)'), 'moviles')
+                ->value('id')
+            : null;
+
+        foreach ($lineasPorSedeDestino as $sedeDestinoId => $lineas) {
+            $almacenDestino = Almacen::where('sede_id', $sedeDestinoId)->first();
+            $destinoId = $almacenDestino
+                ? DB::table('stock_location')->where('almacen_id', $almacenDestino->id)->where('name', 'Stock')->value('id')
+                : null;
+
+            if (!$almacenDestino || !$destinoId) {
+                Log::warning('Traslado intersede por venta fuera de sede: sede destino sin almacen/ubicacion Stock configurada', [
+                    'vendedor_id' => $vendedorId,
+                    'fecha' => $fecha,
+                    'sede_destino_id' => $sedeDestinoId,
+                ]);
+                continue;
+            }
+
+            $ultimoTraslado = Traslado::where('serie', 'VFS')->orderBy('id', 'desc')->first();
+            $correlativo = $ultimoTraslado ? ((int) $ultimoTraslado->correlativo + 1) : 1;
+
+            $traslado = new Traslado;
+            $traslado->fecha = date('Y-m-d');
+            $traslado->hora = date('H:i:s');
+            $traslado->serie = 'VFS';
+            $traslado->correlativo = $correlativo;
+            $traslado->almacen_origen = $almacenOrigen ? $almacenOrigen->id : null;
+            $traslado->almacen_destino = $almacenDestino->id;
+            $traslado->id_ubicacion_origen = $origenId;
+            $traslado->id_ubicacion_destino = $destinoId;
+            $traslado->motivo = self::MOTIVO_VENTA_FUERA_SEDE;
+            $traslado->cliente_id = $clienteVendedorId;
+            $traslado->estado = 0; // 0 = recibido/completo -- auto-completado, no es envio fisico en transito
+            $traslado->tipo_envio = $envio;
+            $traslado->sede_id = $idsedeOrigen;
+            $traslado->sede_destino = $sedeDestinoId;
+            $traslado->user_id = $userId;
+            $traslado->user_recepcion = $userId;
+            $traslado->fecha_recibido = date('Y-m-d');
+            $traslado->hora_recibido = date('H:i:s');
+            $traslado->observacion = "Traslado automatico por venta(s) movil(es) fuera de sede. Vendedor: {$vendedorNombre}. Fecha de venta: {$fecha}.";
+            $traslado->save();
+
+            foreach ($lineas as $linea) {
+                $detalle = new Detalle_traslado;
+                $detalle->producto_id = $linea->producto_id;
+                $detalle->traslado_id = $traslado->id;
+                $detalle->cantidad = $linea->cantidad;
+                $detalle->cantidad_recibido = $linea->cantidad;
+                $detalle->diferencia = 0;
+                $detalle->estado = 1;
+                $detalle->save();
+
+                $precioUnitario = DB::table('precios')->where('articulo_id', $linea->producto_id)->value('precio_contado') ?? 0;
+
+                $servicios->movimiento_kardex_producto(
+                    $destinoId, $linea->producto_id, $linea->cantidad, 1,
+                    "TRASLADO INTERSEDE POR VENTA MOVIL (Vendedor: {$vendedorNombre}, Sede origen: {$idsedeOrigen})",
+                    'VFS', $correlativo, $precioUnitario, 9, date('Y-m-d'), date('Y-m-d')
+                );
+                $servicios->movimiento_kardex_producto(
+                    $destinoId, $linea->producto_id, $linea->cantidad, 2,
+                    "VENTA MOVIL FUERA DE SEDE (Vendedor: {$vendedorNombre})",
+                    'VFS', $correlativo, $precioUnitario, 9, date('Y-m-d'), date('Y-m-d')
+                );
+            }
         }
     }
 
@@ -1785,6 +1904,13 @@ class MobileSalesController extends Controller
             return response()->json(['error' => 'No se encontró la ubicación Stock'], 400);
         }
 
+        // traslado->cliente_id es clientes.id (no users.id); stock_vendedor.vendedor_id
+        // es FK a users.id, así que hay que resolverlo vía clientes.usuario.
+        $vendedorUsuarioId = Clientes::where('id', $traslado->cliente_id)->value('usuario');
+        if (!$vendedorUsuarioId) {
+            return response()->json(['error' => 'No se pudo determinar el vendedor de esta carga.'], 422);
+        }
+
         DB::beginTransaction();
         try {
             foreach ($productosData as $item) {
@@ -1833,7 +1959,7 @@ class MobileSalesController extends Controller
                 }
 
                 // Agregar a stock_vendedor
-                $stockVendedorExistente = StockVendedor::where('vendedor_id', $traslado->cliente_id)
+                $stockVendedorExistente = StockVendedor::where('vendedor_id', $vendedorUsuarioId)
                     ->where('producto_id', $productoId)
                     ->where('traslado_id', $trasladoId)
                     ->where('estado', 1)
@@ -1845,7 +1971,7 @@ class MobileSalesController extends Controller
                     $stockVendedorExistente->save();
                 } else {
                     StockVendedor::create([
-                        'vendedor_id' => $traslado->cliente_id,
+                        'vendedor_id' => $vendedorUsuarioId,
                         'producto_id' => $productoId,
                         'traslado_id' => $trasladoId,
                         'detalle_traslado_id' => $detalleTrasladoId ?? null,

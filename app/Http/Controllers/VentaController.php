@@ -110,7 +110,7 @@ class VentaController extends Controller
                     ->orWhere('clientes.nomb_per', 'ilike', "%$search%")
                     ->orWhere('ventas.serie_comprobante', 'like', "%$search%")
                     ->orWhere('ventas.numero_comprobante', 'like', "%$search%")
-                    ->orWhereRaw("CONCAT(ventas.serie_comprobante, '-', ventas.numero_comprobante) ILIKE ?", ["%$search%"]);
+                    ->orWhereRaw("(ventas.serie_comprobante || '-' || ventas.numero_comprobante) ILIKE ?", ["%$search%"]);
             });
         }
 
@@ -197,8 +197,16 @@ class VentaController extends Controller
         $productos = DB::table('productos as p')
             ->leftJoin('categorias as ca', 'ca.id', '=', 'p.categoria_id')
             ->leftJoin('detalle_almacen_productos as dp', 'dp.producto_id', '=', 'p.id')
-            ->leftJoin('precios as pr', 'p.id', '=', 'pr.articulo_id')
-            ->select('p.id', 'p.nomb_pro', 'dp.stock', 'pr.precio_contado', 'pr.precio_credito', 'p.img', 'ca.categoria', 'dp.ubicacion_id')
+            ->select(
+                'p.id',
+                'p.nomb_pro',
+                'dp.stock',
+                DB::raw('(SELECT precio_contado FROM precios WHERE precios.articulo_id = p.id ORDER BY precios.id ASC LIMIT 1) as precio_contado'),
+                DB::raw('(SELECT precio_credito FROM precios WHERE precios.articulo_id = p.id ORDER BY precios.id ASC LIMIT 1) as precio_credito'),
+                'p.img',
+                'ca.categoria',
+                'dp.ubicacion_id'
+            )
             ->where('dp.ubicacion_id', '=', $id_ubicacion)
             ->where('dp.tipo_envio', '=', $envio)
             ->where('p.estado', '=', '1')
@@ -286,7 +294,10 @@ class VentaController extends Controller
             $serie = $serie_num->serie;
             $numero = $serie_num->correlativo;
 
-            $num_documento = $post['numeroDocumento'];
+            // Si no llega documento (venta al contado "cliente varios"), usar un documento
+            // reservado fijo en vez de dejarlo vacío -- evita que se mezcle/reutilice con
+            // cualquier cliente real que también tenga el documento vacío en la base.
+            $num_documento = !empty($post['numeroDocumento']) ? $post['numeroDocumento'] : '00000001';
 
             $desc_comp = $serie . "-" . $numero;
 
@@ -331,6 +342,23 @@ class VentaController extends Controller
                 $cliente_->referencia = $post['referencia_cliente'] ?? null;
 
                 $cliente_->save();
+            }
+
+            // Si es venta movil y el sector del cliente pertenece a una zona de otra
+            // sede, la venta (y el credito, si aplica) se atribuyen a esa sede destino
+            // en vez de la sede del vendedor, para que esa sede la vea en sus reportes
+            // y liquidaciones. Sin corregir: cliente sin sector, sector sin zona, o
+            // zona sin sede_id asignada todavia.
+            $idsedeVenta = $idsede;
+            if (!empty($post['es_movil'])) {
+                $clienteVenta = Clientes::find($id_cliente);
+                if ($clienteVenta && $clienteVenta->id_sector) {
+                    $sectorVenta = Sector::with('zona')->find($clienteVenta->id_sector);
+                    if ($sectorVenta && $sectorVenta->zona && $sectorVenta->zona->sede_id
+                        && (int) $sectorVenta->zona->sede_id !== (int) $idsede) {
+                        $idsedeVenta = (int) $sectorVenta->zona->sede_id;
+                    }
+                }
             }
 
             // Si es venta a crédito, verificar primero si el cliente está en lista negra
@@ -509,7 +537,8 @@ class VentaController extends Controller
             $venta->serie_comprobante = $serie;
             $venta->numero_comprobante = $numero;
             $venta->monto = $post['total_venta'];
-            $venta->sede_id = $idsede;
+            $venta->sede_id = $idsedeVenta;
+            $venta->sede_origen_id = $idsede;
             $venta->venta_estado = 1;
             $venta->monto_entregado = $post['total_recibido'];
             $venta->vuelto = $post['vuelto'];
@@ -555,8 +584,8 @@ class VentaController extends Controller
                 $credito->usuario = $user_id;
                 $credito->tipo_doc = $post['tipoDocumentoIdentidad'] ?? 1;
                 $credito->id_venta = $id_venta;
-                $credito->periodo_pago = 'MENSUAL';
-                $credito->sede_id = $idsede;
+                $credito->periodo_pago = $post['periodo_pago'] ?? 'Mensual';
+                $credito->sede_id = $idsedeVenta;
                 $credito->id_con = $post['concepto_credito_id'] ?? 1;
                 $credito->save();
 

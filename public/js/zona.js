@@ -24,9 +24,12 @@ function llenarZonas(data) {
             ? '<span class="badge bg-success">Activo</span>'
             : '<span class="badge bg-danger">Inactivo</span>';
 
+        const nombreSede = data[i].sede ? data[i].sede.nombre : '-';
+
         contenido += "<tr>";
         contenido += "<td style='padding:1px;text-align:center'>" + parseInt(i + 1, 10) + "</td>";
         contenido += "<td style='padding:1px;text-align:center'> " + data[i].nomb_zona + "</td>";
+        contenido += "<td style='padding:1px;text-align:center'> " + nombreSede + "</td>";
         contenido += "<td style='padding:1px;text-align:center'>" + badge + "</td>";
         contenido += "<td style='padding:1px;text-align:center'>";
 
@@ -51,8 +54,10 @@ $("#guardar").on("click", function () {
         var frm = new FormData();
         var csrf = document.querySelector('meta[name="csrf-token"]').content;
         var nomb_zona = $("#nomb_zona").val();
+        var sede_id = $("#sede_id").val();
 
         frm.append("nomb_zona", nomb_zona);
+        frm.append("sede_id", sede_id);
         frm.append("_token", csrf);
 
         $.ajax({
@@ -89,6 +94,7 @@ function abrimodal(id) {
         $.get(urlgeeneral + "/zonas/edit/" + id, function (data) {
             $("#valor").val(id);
             document.getElementById("nomb_zona").value = data["nomb_zona"];
+            document.getElementById("sede_id").value = data["sede_id"] ?? "";
         });
     }
 }
@@ -98,10 +104,12 @@ $("#actualizar").on("click", function () {
         var frm = new FormData();
         var csrf = document.querySelector('meta[name="csrf-token"]').content;
         var nomb_zona = $("#nomb_zona").val();
+        var sede_id = $("#sede_id").val();
         var id = $("#valor").val();
 
         frm.append("id", id);
         frm.append("nomb_zona", nomb_zona);
+        frm.append("sede_id", sede_id);
         frm.append("_token", csrf);
 
         $.ajax({

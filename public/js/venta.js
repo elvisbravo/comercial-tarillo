@@ -11,6 +11,7 @@ function listadoventas() {
     initDataTable("#datatable", {
         processing: true,
         serverSide: true,
+        searchDelay: 400,
         ajax: {
             url: urlgeneral + "/ventas/listado",
             type: "GET",

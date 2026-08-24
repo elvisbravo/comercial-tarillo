@@ -11,12 +11,17 @@ class Zona extends Model
     public $timestamps = true;
 
     protected $fillable = [
-        'nomb_zona', 'estado'
+        'nomb_zona', 'estado', 'sede_id'
     ];
 
     public function sectores()
     {
         return $this->hasMany(Sector::class, 'zona_id');
+    }
+
+    public function sede()
+    {
+        return $this->belongsTo(Sede::class, 'sede_id');
     }
 
 }

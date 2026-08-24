@@ -145,36 +145,12 @@ fetch(urlgeeneral+'/top5ProductosMasVendidos')
     }),
     option && "object" == typeof option && myChart.setOption(option, !0);
 
-
-
-
-
-
-
-})
-.catch(error => console.error('Error al obtener los datos:', error));
-
-
-
-
-
-
-fetch(urlgeeneral+'/top5ProductosMasVendidos')
-.then(response => response.json()) // Convierte la respuesta a formato JSON
-.then(data => {
-
-
-    const nombresProductos = data.map(item => item.nombre_producto);
-    const valoresProductos = data.map(item => item.total_unidades_vendidas);
-
-
-
-var pieColors = getChartColorsArray("#pie-chart"),
-dom = document.getElementById("pie-chart"),
-myChart = echarts.init(dom),
-app = {};
-(option = null),
-(option = {
+    var pieColors = getChartColorsArray("#pie-chart"),
+    pieDom = document.getElementById("pie-chart"),
+    myPieChart = echarts.init(pieDom),
+    pieApp = {};
+(pieOption = null),
+(pieOption = {
     tooltip: { trigger: "item", formatter: "{a} <br/>{b} : {c} ({d}%)" },
     legend: { orient: "vertical", left: "left", data: nombresProductos, textStyle: { color: "#858d98" } },
     color: pieColors,
@@ -189,10 +165,7 @@ app = {};
         },
     ],
 }),
-option && "object" == typeof option && myChart.setOption(option, !0);
-
-
-
+pieOption && "object" == typeof pieOption && myPieChart.setOption(pieOption, !0);
 
 })
 .catch(error => console.error('Error al obtener los datos:', error));

@@ -59,6 +59,7 @@ Zonas
                                 <tr>
                                     <th>#</th>
                                     <th>Zona</th>
+                                    <th>Sede</th>
                                     <th>Estado</th>
                                     <th>Acciones</th>
                                 </tr>
@@ -92,6 +93,15 @@ Zonas
                     <label for="">Nombre de la Zona</label>
                     <input type="text" class="form-control obligatorio limpiar" placeholder="Nombre de la zona" id="nomb_zona">
 
+                </div>
+                <div class="form-group">
+                    <label for="">Sede</label>
+                    <select class="form-control obligatorio limpiar" id="sede_id">
+                        <option value="">--Seleccionar--</option>
+                        @foreach($sedes as $sede)
+                        <option value="{{ $sede->id }}">{{ $sede->nombre }}</option>
+                        @endforeach
+                    </select>
                 </div>
 
             </div>

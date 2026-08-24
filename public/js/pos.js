@@ -189,7 +189,7 @@ function render_productos() {
                 html += `
             <div class="col-md-3 col-6">
                 <div class="card">
-                    <img class="card-img-top img-fluid" src="img/productos/${pro.img}" alt="Card image cap" style="height: 105px">
+                    <img class="card-img-top img-fluid" src="img/productos/${pro.img}" alt="Card image cap" style="height: 105px" loading="lazy">
                     <div class="card-body p-1">
                         <p class="text-center mb-1 mt-1 fw-bold">${pro.nomb_pro}</p>
                         <div class="row">
@@ -243,7 +243,11 @@ function renderCategorias() {
         });
 }
 
-buscar.addEventListener("keyup", render_productos);
+let buscarProductoDebounce;
+buscar.addEventListener("keyup", () => {
+    clearTimeout(buscarProductoDebounce);
+    buscarProductoDebounce = setTimeout(render_productos, 300);
+});
 tipo_venta.addEventListener("change", (e) => {
     document.getElementById("contentCarrito").innerHTML = "";
     render_productos();
@@ -435,7 +439,6 @@ function sumaTotal() {
         fetch(urlgeneral + "/traer_candado/" + total)
             .then((res) => res.json())
             .then((data) => {
-                console.log(data);
                 monto_inicial.textContent = data.monto_inicial;
                 meses.textContent = data.nmeses;
             });
@@ -515,7 +518,6 @@ btnConsulta.addEventListener("click", (e) => {
 
 documento.addEventListener("change", (e) => {
     const valor = e.target.value;
-    console.log(valor);
 
     if (valor === "2") {
         tipoDocumentoIdentidad.value = "6";
