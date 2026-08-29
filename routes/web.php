@@ -266,11 +266,13 @@ Route::post('zonas/crear', 'ZonaController@crear');
 Route::post('zonas/modificar', 'ZonaController@update');
 
 //REPORTES DE CREDITOS PENDIENTES
-Route::get('creditos-pendientes/listadoclientes', 'ReporteCreditos@listadoclientes');
+Route::get('creditos-pendientes/buscar-clientes', 'ReporteCreditos@buscarClientes');
 Route::get('creditos-pendientes/creditos/{codigo}/{estado}', 'ReporteCreditos@creditos');
 Route::get('creditos-pendientes/estado/{codigo}', 'ReporteCreditos@estado');
 Route::get('creditos-pendientes/cuotas/{codigo}', 'ReporteCreditos@cuotas');
 Route::get('creditos-pendientes/cuota/{codigo}', 'ReporteCreditos@cuota');
+Route::get('creditos-pendientes/historial/{codigo}', 'ReporteCreditos@historial');
+Route::get('creditos-pendientes/amortizaciones/{codigo}', 'ReporteCreditos@amortizaciones');
 Route::get('creditos-pendientes/estado_cuenta/{codigo}/{estado}', 'ReporteCreditos@estado_cuenta');
 Route::resource('creditos-pendientes', 'ReporteCreditos');
 

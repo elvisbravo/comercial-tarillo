@@ -33,12 +33,27 @@ class ReporteCreditos extends Controller
 
     }
 
-    public function listadoclientes(){
+    //METODO PARA BUSCAR CLIENTES POR NOMBRE O DOCUMENTO (usado por el select2 de "Buscar Cliente")
+    public function buscarClientes(Request $request)
+    {
+        $q = trim((string) $request->input('q', ''));
 
+        if (strlen($q) < 2) {
+            return response()->json([]);
+        }
 
-        $clientes=Clientes::where('estado_per','=','1')->get();
+        $clientes = Clientes::where('estado_per', '=', '1')
+            ->where(function ($qq) use ($q) {
+                $qq->where('razon_social', 'ilike', "%{$q}%")
+                   ->orWhere('nomb_per', 'ilike', "%{$q}%")
+                   ->orWhere('documento', 'ilike', "%{$q}%");
+            })
+            ->select('id', 'razon_social', 'documento', 'dire_per')
+            ->orderBy('razon_social')
+            ->limit(20)
+            ->get();
+
         return response()->json($clientes);
-
     }
 
     //METODO PARA CARGAR LOS CREDITOS PENDIENTES POR EL CLIENTE
@@ -86,8 +101,20 @@ class ReporteCreditos extends Controller
         $credito=DB::table('creditos as c')
         ->join('clientes as cl','c.cliente_id','=','cl.id')
         ->join('cuotas as cu','cu.credito_id','=','c.id')
+        ->leftJoin(DB::raw('(SELECT cuota_id, MAX(created_at) as fecha_pago FROM amortizaciones GROUP BY cuota_id) as up'), 'up.cuota_id', '=', 'cu.id')
         ->select('c.id','cl.id as codigo','cl.razon_social','cl.documento','c.fpag_cre','c.esta_cre','c.impo_cre','c.peri_cre',
-        'c.periodo_pago','cl.dire_per','cu.id','cu.credito_id','cu.numero_cuo','cu.mont_cuo','cu.capi_cuo','cu.fven_cuo','cu.esta_cuo','cu.saldo_cuo')
+        'c.periodo_pago','cl.dire_per','cu.id','cu.credito_id','cu.numero_cuo','cu.mont_cuo','cu.capi_cuo','cu.esta_cuo','cu.saldo_cuo',
+        DB::raw("to_char(cu.fven_cuo, 'DD-MM-YYYY') as fven_cuo"),
+        DB::raw("
+            CASE
+                WHEN cu.numero_cuo = 0 THEN NULL
+                WHEN cu.esta_cuo = 'COBRADA' AND up.fecha_pago::date <= cu.fven_cuo THEN 'PUNTUAL'
+                WHEN cu.esta_cuo = 'COBRADA' AND up.fecha_pago::date > cu.fven_cuo THEN 'ATRASADO'
+                WHEN cu.esta_cuo = 'PENDIENTE' AND cu.fven_cuo < CURRENT_DATE THEN 'VENCIDA'
+                WHEN cu.esta_cuo = 'PENDIENTE' THEN 'PENDIENTE'
+                ELSE cu.esta_cuo
+            END as condicion
+        "))
         //->where('c.esta_cre','=','1')
         ->where('c.id','=',$id)
         //->whereIn('cu.esta_cuo', ['PENDIENTE'])
@@ -97,6 +124,69 @@ class ReporteCreditos extends Controller
             return response()->json($credito);
 
 
+   }
+
+   //METODO PARA DEVOLVER EL HISTORIAL DE PAGOS DE UN CREDITO (incluye pagados y anulados)
+   public function historial($id)
+   {
+        $credito = DB::table('creditos as c')
+            ->join('clientes as cl', 'c.cliente_id', '=', 'cl.id')
+            ->select(
+                'c.id',
+                'c.esta_cre',
+                'c.f_anulacion',
+                'cl.documento',
+                'cl.razon_social',
+                DB::raw('(SELECT COUNT(*) FROM cuotas WHERE cuotas.credito_id = c.id AND cuotas.numero_cuo > 0) as total_cuotas')
+            )
+            ->where('c.id', '=', $id)
+            ->first();
+
+        // Detalle por cuota: una fila por cada amortizacion (a que cuota se aplicó cada pago)
+        $pagos = DB::table('amortizaciones as a')
+            ->join('cuotas as c', 'a.cuota_id', '=', 'c.id')
+            ->join('recibos as r', 'a.recibo_id', '=', 'r.id')
+            ->leftJoin('movimientos as m', 'r.id_movimiento', '=', 'm.id')
+            ->leftJoin('forma_pagos as fp', 'm.forma_pago_id', '=', 'fp.id')
+            ->select(
+                DB::raw("to_char(a.created_at, 'DD-MM-YYYY') as fecha_pago"),
+                DB::raw("to_char(a.created_at, 'YYYY-MM-DD HH24:MI:SS') as fecha_orden"),
+                'c.numero_cuo',
+                'a.mont_amo',
+                'a.tipo_amo',
+                'fp.descripcion as forma_pago',
+                'r.num_recibo',
+                'r.esta_rec'
+            )
+            ->where('c.credito_id', '=', $id)
+            ->orderBy('a.created_at', 'asc')
+            ->get();
+
+        return response()->json(['credito' => $credito, 'pagos' => $pagos]);
+   }
+
+   //METODO PARA DEVOLVER LAS AMORTIZACIONES (RESUMEN POR RECIBO) DE UN CREDITO
+   public function amortizaciones($id)
+   {
+        $amortizaciones = DB::table('amortizaciones as a')
+            ->join('cuotas as c', 'a.cuota_id', '=', 'c.id')
+            ->join('recibos as r', 'a.recibo_id', '=', 'r.id')
+            ->leftJoin('movimientos as m', 'r.id_movimiento', '=', 'm.id')
+            ->leftJoin('forma_pagos as fp', 'm.forma_pago_id', '=', 'fp.id')
+            ->select(
+                DB::raw("to_char(a.created_at, 'DD-MM-YYYY HH24:MI') as fecha_amo"),
+                DB::raw("to_char(a.created_at, 'YYYY-MM-DD HH24:MI:SS') as fecha_orden"),
+                'r.num_recibo',
+                'fp.descripcion as forma_pago',
+                'r.esta_rec',
+                DB::raw('SUM(a.mont_amo) as monto')
+            )
+            ->where('c.credito_id', '=', $id)
+            ->groupBy('a.created_at', 'r.num_recibo', 'fp.descripcion', 'r.esta_rec')
+            ->orderBy('a.created_at', 'asc')
+            ->get();
+
+        return response()->json($amortizaciones);
    }
 
    //METODO PARA IMPRIMIR EN PDF EL ESTADO DE LA DEUDA

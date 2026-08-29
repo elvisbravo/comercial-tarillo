@@ -324,57 +324,68 @@ function listaproductos(){
 
 
 //METODO PARA BUSCAR LOS PRODUCTOS EN EL BUSCADOR
+var buscarProductoTimeout;
 function buscar(){
 
-     document.getElementById("inyecciondos").innerHTML = "";
+     clearTimeout(buscarProductoTimeout);
 
      var searctxt=$("#navbarForm").val().toUpperCase();
 
-     if(searctxt==""){
-
-         listaproductos();
-
-     }else{
-
-            $.get(urlgeeneral+"/productos/searchproduct/"+searctxt,function(data){
-
-              var contenido = "";
-
-              for (var i = 0; i < data.length; i++) {
-
-                  var imgSrc = data[i].img == null
-                      ? urlgeeneral+'/img/productos/product.png'
-                      : urlgeeneral+'/img/productos/'+data[i].img;
-
-                  contenido += '<div class="product-card" onclick="modal(\''+data[i].id+'\')">';
-                  contenido += '  <div class="product-card-img">';
-                  contenido += '    <img src="'+imgSrc+'" alt="'+data[i].nomb_pro+'" class="img-fluid">';
-                  contenido += '  </div>';
-                  contenido += '  <div class="product-card-body">';
-                  contenido += '    <h6 class="product-name" title="'+data[i].nomb_pro+'">'+data[i].nomb_pro+'</h6>';
-                  contenido += '    <div class="product-meta">';
-                  contenido += '      <span class="meta-tag"><i class="mdi mdi-tag-outline"></i>'+(data[i].categoria || 'Sin categoría')+'</span>';
-                  contenido += '      <span class="meta-tag"><i class="mdi mdi-shape-outline"></i>'+(data[i].subcategoria || 'Sin subcat')+'</span>';
-                  contenido += '      <span class="meta-tag"><i class="mdi mdi-factory-outline"></i>'+(data[i].marca || 'Sin marca')+'</span>';
-                  contenido += '    </div>';
-                  contenido += '    <div class="product-price">';
-                  contenido += '      <span class="price-label">PRECIO:</span>';
-                  contenido += '      <span class="price-value">S/ '+parseFloat(data[i].prec_compra || 0).toFixed(2)+'</span>';
-                  contenido += '    </div>';
-                  contenido += '  </div>';
-                  contenido += '  <input id="product'+data[i].id+'" type="hidden" value="'+data[i].nomb_pro+'">';
-                  contenido += '  <input id="costo'+data[i].id+'" type="hidden" value="'+(data[i].prec_compra || 0)+'">';
-                  contenido += '</div>';
-
-              }
-
-              document.getElementById("inyecciondos").innerHTML = contenido;
-
-
-          });
-
-
+     if (searctxt.length === 1) {
+         return; // esperar al menos 2 caracteres antes de buscar
      }
+
+     buscarProductoTimeout = setTimeout(function () {
+
+         document.getElementById("inyecciondos").innerHTML = "";
+
+         if(searctxt==""){
+
+             listaproductos();
+
+         }else{
+
+                $.get(urlgeeneral+"/productos/searchproduct/"+searctxt,function(data){
+
+                  var contenido = "";
+
+                  for (var i = 0; i < data.length; i++) {
+
+                      var imgSrc = data[i].img == null
+                          ? urlgeeneral+'/img/productos/product.png'
+                          : urlgeeneral+'/img/productos/'+data[i].img;
+
+                      contenido += '<div class="product-card" onclick="modal(\''+data[i].id+'\')">';
+                      contenido += '  <div class="product-card-img">';
+                      contenido += '    <img src="'+imgSrc+'" alt="'+data[i].nomb_pro+'" class="img-fluid">';
+                      contenido += '  </div>';
+                      contenido += '  <div class="product-card-body">';
+                      contenido += '    <h6 class="product-name" title="'+data[i].nomb_pro+'">'+data[i].nomb_pro+'</h6>';
+                      contenido += '    <div class="product-meta">';
+                      contenido += '      <span class="meta-tag"><i class="mdi mdi-tag-outline"></i>'+(data[i].categoria || 'Sin categoría')+'</span>';
+                      contenido += '      <span class="meta-tag"><i class="mdi mdi-shape-outline"></i>'+(data[i].subcategoria || 'Sin subcat')+'</span>';
+                      contenido += '      <span class="meta-tag"><i class="mdi mdi-factory-outline"></i>'+(data[i].marca || 'Sin marca')+'</span>';
+                      contenido += '    </div>';
+                      contenido += '    <div class="product-price">';
+                      contenido += '      <span class="price-label">PRECIO:</span>';
+                      contenido += '      <span class="price-value">S/ '+parseFloat(data[i].prec_compra || 0).toFixed(2)+'</span>';
+                      contenido += '    </div>';
+                      contenido += '  </div>';
+                      contenido += '  <input id="product'+data[i].id+'" type="hidden" value="'+data[i].nomb_pro+'">';
+                      contenido += '  <input id="costo'+data[i].id+'" type="hidden" value="'+(data[i].prec_compra || 0)+'">';
+                      contenido += '</div>';
+
+                  }
+
+                  document.getElementById("inyecciondos").innerHTML = contenido;
+
+
+              });
+
+
+         }
+
+     }, 350);
 
     // alert(searctxt);
 

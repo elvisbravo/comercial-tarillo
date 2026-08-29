@@ -49,19 +49,20 @@ class TrasladoController extends Controller
     {
         $idsede = session('key')->sede_id;
 
-        //$origen = Almacen::where('sede_id','=',$idsede)->where('estado','=',1)->get();
-        //$destinos = Almacen::where('sede_id','!=', $idsede)->where('sede_id','!=',1)->where('estado','=',1)->get();
-
         $origen = DB::table('stock_location as sl')
             ->join('almacenes as a', 'a.id', 'sl.almacen_id')
+            ->join('sedes as s', 's.id', '=', 'a.sede_id')
             ->select('a.id as id_almacen', 'sl.id', 'a.abreviatura', 'sl.name as ubicacion')
-            //->where('a.sede_id','=',$idsede)
+            ->where('a.estado', 1)
+            ->where('s.estado', 1)
             ->get();
 
         $destinos = DB::table('stock_location as sl')
             ->join('almacenes as a', 'a.id', 'sl.almacen_id')
+            ->join('sedes as s', 's.id', '=', 'a.sede_id')
             ->select('a.id as id_almacen', 'sl.id', 'a.abreviatura', 'sl.name as ubicacion')
-            //->where('a.sede_id','=',$sede_id)
+            ->where('a.estado', 1)
+            ->where('s.estado', 1)
             ->get();
 
 
