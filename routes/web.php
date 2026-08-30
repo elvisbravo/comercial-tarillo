@@ -62,6 +62,7 @@ Route::get('traslado/lista_conductor/{documento}', 'TrasladoController@lista_con
 Route::get('traslado/detalle/{id}', 'TrasladoController@detail');
 Route::get('traslado/render_producto/{id}/{ubicacion_id}', 'TrasladoController@render_producto');
 Route::get('traslado/traer_clientes', 'TrasladoController@clientes');
+Route::get('traslado/buscar-clientes', 'TrasladoController@buscarClientes');
 Route::get('traslado/traer_ubigeo/{id}', 'TrasladoController@ubigeo');
 Route::get('traslado/mostrar', 'TrasladoController@mostrar');
 Route::get('traslado/guia', 'TrasladoController@guia');

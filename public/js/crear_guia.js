@@ -39,7 +39,6 @@ example.setChoices([
 
 traer_ubigeo();
 traer_productos();
-//traer_clientes();
 var cont = 0;
 
 btn_add.addEventListener("click", () => {
@@ -327,61 +326,36 @@ function traer_ubigeo() {
         });
 }
 
-function traer_clientes() {
-    // Si la tabla ya fue inicializada previamente, la destruimos para evitar duplicidad
-    if ($.fn.DataTable.isDataTable("#datatablesx")) {
-        $("#datatablesx").DataTable().destroy();
-    }
-    
-    // Limpiamos el HTML en caso de que existiera
-    document.getElementById("listaclientes").innerHTML = "";
-
-    $("#datatablesx").DataTable({
-        ajax: {
-            url: urlgeneral + "/creditos-pendientes/listadoclientes",
-            type: "GET",
-            dataSrc: "" // La API devuelve directamente un arreglo
+//METODO PARA BUSCAR CLIENTES POR NOMBRE O DOCUMENTO (select2 con ajax)
+$('#cliente_select').select2({
+    placeholder: 'Buscar cliente por nombre o DNI...',
+    minimumInputLength: 2,
+    ajax: {
+        url: urlgeneral + '/traslado/buscar-clientes',
+        dataType: 'json',
+        delay: 300,
+        data: function (params) {
+            return { q: params.term };
         },
-        deferRender: true, // Esto es fundamental: solo dibuja en el HTML las filas de la paginación actual, haciendo que la carga sea súper rápida
-        columns: [
-            {
-                data: "documento",
-                className: "text-center",
-                render: function (data, type, row) {
-                    return "<span id='documento" + row.id + "'>" + data + "</span>";
-                }
-            },
-            {
-                data: "razon_social",
-                className: "text-center",
-                render: function (data, type, row) {
-                    return "<span id='nombre" + row.id + "'>" + (data ? data : '') + "</span>";
-                }
-            },
-            {
-                data: "dire_per",
-                className: "text-center"
-            },
-            {
-                data: null,
-                className: "text-center",
-                render: function (data, type, row) {
-                    return '<a href="#" onclick="seleccionar(\'' + row.id + '\')" type="button" class="btn btn-success"><i class="fas fa-check"></i> </a>';
-                }
-            }
-        ]
-    });
-}
+        processResults: function (data) {
+            return {
+                results: data.map(function (c) {
+                    return { id: c.id, text: c.razon_social + ' - ' + c.documento };
+                })
+            };
+        },
+        cache: true
+    },
+    language: {
+        inputTooShort: function () { return 'Escribe al menos 2 caracteres'; },
+        searching: function () { return 'Buscando...'; },
+        noResults: function () { return 'No se encontraron clientes'; }
+    }
+});
 
-function seleccionar(id) {
-    $("#documento").val($("#documento" + id).text());
-    $("#nombresdata").val($("#nombre" + id).text());
-    $("#id_persona_tempe").val(id);
-
-    console.log("hola " + id);
-
-    $(".bs-example-modal-xl").modal("hide");
-}
+$('#cliente_select').on('select2:select', function (e) {
+    $("#id_persona_tempe").val(e.params.data.id);
+});
 
 function traer_productos() {
     fetch(urlgeneral + "/traslado/traer_productos")

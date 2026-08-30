@@ -13,6 +13,28 @@ traslado | nuevo
 <!-- DataTables -->
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
 
+<!-- Select2 -->
+<link href="{{ asset('assets/libs/select2/select2.min.css') }}" rel="stylesheet" type="text/css" />
+
+<style>
+    /* Corregir el alto del Select2 para que coincida con los inputs de Bootstrap */
+    .select2-container .select2-selection--single {
+        height: 38px !important;
+        border: 1px solid #ced4da !important;
+        border-radius: 0.25rem !important;
+        padding: 5px 12px;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+        right: 8px !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 26px !important;
+        padding-left: 0 !important;
+        color: #495057 !important;
+    }
+</style>
+
 @endsection
 @section('contenido')
 
@@ -49,18 +71,7 @@ traslado | nuevo
                                         <label class="form-label" for="formrow-email-input">Selecciona un Cliente <strong style="color:red">*</strong></label>
                                         <input type="hidden" id="id_persona_tempe">
 
-                                        <div class="input-group">
-                                            <button href="#" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target=".bs-example-modal-xl" onclick="traer_clientes();">
-
-                                                <i data-feather="search"></i>
-
-                                            </button>
-                                            <input type="text" class="form-control" disabled="true" id="nombresdata" placeholder="Search here...">
-                                        </div>
-
-                                        <!-- <select class="form-control" name="cliente" id="change_cliente">
-                                                <option value="">Seleccione un cliente</option>
-                                            </select>!-->
+                                        <select id="cliente_select" class="form-select" style="width:100%"></select>
 
                                     </div>
                                 </div>
@@ -398,55 +409,6 @@ traslado | nuevo
 
 
 
-<!--  Extra Large modal example -->
-<div class="modal fade bs-example-modal-xl" tabindex="-1" role="dialog" aria-labelledby="myExtraLargeModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="myExtraLargeModalLabel">Litado de Clientes</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-lg-12">
-
-                        <div class="table-responsive">
-
-                            <table id="datatablesx" class="table table-bordered dt-responsive">
-                                <thead>
-                                    <tr>
-
-                                        <th>Dni</th>
-                                        <th>Cliente</th>
-                                        <th>Dirección</th>
-                                        <th width="20">Acciones</th>
-                                    </tr>
-                                </thead>
-
-
-                                <tbody id="listaclientes">
-
-
-                                </tbody>
-                            </table>
-
-
-                        </div>
-
-
-
-                    </div>
-
-                </div>
-
-
-
-
-
-            </div>
-        </div><!-- /.modal-content -->
-    </div><!-- /.modal-dialog -->
-</div><!-- /.modal -->
 
 @endsection
 
@@ -460,6 +422,9 @@ traslado | nuevo
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
 
 <script src="{{ asset('assets/libs/choices.js/public/assets/scripts/choices.min.js') }}"></script>
+
+<!-- Select2 -->
+<script src="{{ asset('assets/libs/select2/select2.min.js') }}"></script>
 
 <script src="{{ asset('js/crear_guia.js') }}">
 </script>

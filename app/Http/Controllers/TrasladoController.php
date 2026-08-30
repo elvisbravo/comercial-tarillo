@@ -52,7 +52,7 @@ class TrasladoController extends Controller
         $origen = DB::table('stock_location as sl')
             ->join('almacenes as a', 'a.id', 'sl.almacen_id')
             ->join('sedes as s', 's.id', '=', 'a.sede_id')
-            ->select('a.id as id_almacen', 'sl.id', 'a.abreviatura', 'sl.name as ubicacion')
+            ->select('a.id as id_almacen', 'sl.id', DB::raw("COALESCE(NULLIF(a.abreviatura, ''), a.nombre) as abreviatura"), 'sl.name as ubicacion')
             ->where('a.estado', 1)
             ->where('s.estado', 1)
             ->get();
@@ -60,7 +60,7 @@ class TrasladoController extends Controller
         $destinos = DB::table('stock_location as sl')
             ->join('almacenes as a', 'a.id', 'sl.almacen_id')
             ->join('sedes as s', 's.id', '=', 'a.sede_id')
-            ->select('a.id as id_almacen', 'sl.id', 'a.abreviatura', 'sl.name as ubicacion')
+            ->select('a.id as id_almacen', 'sl.id', DB::raw("COALESCE(NULLIF(a.abreviatura, ''), a.nombre) as abreviatura"), 'sl.name as ubicacion')
             ->where('a.estado', 1)
             ->where('s.estado', 1)
             ->get();
@@ -75,13 +75,36 @@ class TrasladoController extends Controller
         return view('traslado.create', compact('origen', 'sedes', 'destinos'));
     }
 
+    //METODO PARA BUSCAR CLIENTES POR NOMBRE O DOCUMENTO (usado por el select2 de "Selecciona un Cliente")
+    public function buscarClientes(Request $request)
+    {
+        $q = trim((string) $request->input('q', ''));
+
+        if (strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        $clientes = Clientes::where('estado_per', '=', '1')
+            ->where(function ($qq) use ($q) {
+                $qq->where('razon_social', 'ilike', "%{$q}%")
+                   ->orWhere('nomb_per', 'ilike', "%{$q}%")
+                   ->orWhere('documento', 'ilike', "%{$q}%");
+            })
+            ->select('id', 'razon_social', 'documento')
+            ->orderBy('razon_social')
+            ->limit(20)
+            ->get();
+
+        return response()->json($clientes);
+    }
+
     //TRAER LOS UBICACIONES SEGUN EL STOCK
     public function ubicaciones_stock_sede($sede_id)
     {
 
         $destinos = DB::table('stock_location as sl')
             ->join('almacenes as a', 'a.id', 'sl.almacen_id')
-            ->select('a.id as id_almacen', 'sl.id', 'a.abreviatura', 'sl.name as ubicacion')
+            ->select('a.id as id_almacen', 'sl.id', DB::raw("COALESCE(NULLIF(a.abreviatura, ''), a.nombre) as abreviatura"), 'sl.name as ubicacion')
             ->where('a.sede_id', '=', $sede_id)
             ->get();
 
