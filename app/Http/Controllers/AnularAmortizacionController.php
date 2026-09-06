@@ -30,10 +30,10 @@ class AnularAmortizacionController extends Controller
         return view('anular-amortizaciones.index');
     }
 
-    public function recibo($id){
+    public function recibo($num_recibo){
 
         $recibo=Recibos::with('Amortizaciones')
-        ->where('id','=',$id)
+        ->where('num_recibo','=',$num_recibo)
         ->where('esta_rec','=','EMITIDO')
         ->get();
 

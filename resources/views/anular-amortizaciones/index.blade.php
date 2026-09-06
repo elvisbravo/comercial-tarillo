@@ -54,7 +54,7 @@ Anular Amortización
                                     <form class="app-search d-lg-block">
 
                                         <div class="position-relative">
-                                            <input type="number" class="form-control" placeholder="Ingrese el codigo del recibo" id="nombresdata">
+                                            <input type="number" class="form-control" placeholder="Ingrese el número de recibo" id="nombresdata">
                                             <button class="btn btn-primary" type="button"><i class="bx bx-search-alt align-middle"></i></button>
                                         </div>
 
