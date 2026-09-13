@@ -116,7 +116,7 @@
                     <i class="mdi mdi-package-variant-remove me-2"></i> Recojo de Mercadería por Crédito Incobrable
                 </h4>
             </div>
-            <p class="text-muted mb-0">Registre la recuperación de productos cuando un cliente no podrá seguir pagando su crédito. La mercadería recuperada reingresa al almacén principal y el crédito se cierra.</p>
+            <p class="text-muted mb-0">Registre la recuperación de productos cuando un cliente no podrá seguir pagando su crédito. La mercadería recuperada reingresa al almacén principal. Si lo recuperado cubre todo el saldo pendiente (o usted marca "Cerrar crédito"), el crédito se cierra; si no, el crédito continúa activo por el saldo restante y podrá procesar otro recojo más adelante.</p>
         </div>
     </div>
 
@@ -205,12 +205,14 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th>Producto</th>
-                                        <th class="text-center" style="width: 100px;">Vendido</th>
+                                        <th class="text-center" style="width: 90px;">Precio</th>
+                                        <th class="text-center" style="width: 90px;">Vendido</th>
+                                        <th class="text-center" style="width: 90px;">Disponible</th>
                                         <th class="text-center" style="width: 150px;">Cant. a Recuperar</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr><td colspan="3" class="text-center text-muted py-3">Seleccione un cliente y un crédito primero.</td></tr>
+                                    <tr><td colspan="5" class="text-center text-muted py-3">Seleccione un cliente y un crédito primero.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -230,7 +232,17 @@
                                 <label class="form-label font-weight-bold text-dark mb-1" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Motivo / Observación</label>
                                 <textarea name="observacion" id="input_observacion" class="form-control" rows="2" placeholder="Ej: Cliente no ubicable, se recoge mercadería restante..."></textarea>
                             </div>
+                            <div class="col-md-12">
+                                <div class="form-check">
+                                    <input type="checkbox" name="cerrar_credito" value="1" id="input_cerrar_credito" class="form-check-input">
+                                    <label class="form-check-label" for="input_cerrar_credito">
+                                        Cerrar crédito y condonar el saldo restante como incobrable (cliente ilocalizable / no pagará el resto)
+                                    </label>
+                                </div>
+                            </div>
                         </div>
+
+                        <div id="resumen_resultado_box" class="alert alert-light border mt-3 mb-0 d-none" style="border-radius: 10px; font-size: 13px;"></div>
 
                         <div class="text-end mt-4">
                             <button type="submit" class="btn btn-danger btn-action px-4 py-2" id="btn_confirmar_recojo" disabled>
@@ -287,7 +299,9 @@
                                         <th>Cliente</th>
                                         <th>Recogido por</th>
                                         <th>Registrado por</th>
-                                        <th class="text-end">Saldo dado de baja</th>
+                                        <th class="text-end">Recuperado</th>
+                                        <th class="text-end">Saldo condonado</th>
+                                        <th class="text-center">Estado</th>
                                         <th class="text-center" style="width: 100px;">Acciones</th>
                                     </tr>
                                 </thead>
@@ -300,7 +314,15 @@
                                         </td>
                                         <td>{{ optional($r->vendedorRecojo)->name ?? '—' }}</td>
                                         <td>{{ optional($r->usuario)->name ?? '—' }}</td>
+                                        <td class="text-end font-weight-bold text-success">S/ {{ number_format($r->valor_recuperado, 2) }}</td>
                                         <td class="text-end font-weight-bold text-danger">S/ {{ number_format($r->saldo_incobrable, 2) }}</td>
+                                        <td class="text-center">
+                                            @if($r->credito_cerrado)
+                                                <span class="badge bg-secondary">Cerrado</span>
+                                            @else
+                                                <span class="badge bg-success">Activo (reducido)</span>
+                                            @endif
+                                        </td>
                                         <td class="text-center">
                                             <button type="button" class="btn btn-outline-primary btn-sm btn-ver-recojo" data-id="{{ $r->id }}">
                                                 <i class="mdi mdi-eye-outline me-1"></i> Ver
@@ -349,7 +371,9 @@
                     <div class="d-flex gap-2 flex-wrap mb-3">
                         <div class="info-chip">Recogido por<br><span id="modal_recojo_vendedor">—</span></div>
                         <div class="info-chip">Registrado por<br><span id="modal_recojo_usuario">—</span></div>
-                        <div class="info-chip">Saldo dado de baja<br><span class="text-danger" id="modal_recojo_saldo">S/ 0.00</span></div>
+                        <div class="info-chip">Recuperado<br><span class="text-success" id="modal_recojo_recuperado">S/ 0.00</span></div>
+                        <div class="info-chip">Saldo condonado<br><span class="text-danger" id="modal_recojo_saldo">S/ 0.00</span></div>
+                        <div class="info-chip">Estado del crédito<br><span id="modal_recojo_estado">—</span></div>
                     </div>
                     <div class="mb-3" id="modal_recojo_obs_box">
                         <strong class="font-size-12 text-muted text-uppercase">Observación</strong>
@@ -392,6 +416,7 @@
     const urlRecojoDatos = "{{ route('admin.recojo.datos') }}";
 
     let creditoSeleccionadoId = null;
+    let saldoPendienteActual = 0;
 
     function fmtMoney(n) {
         return 'S/ ' + (parseFloat(n) || 0).toFixed(2);
@@ -399,28 +424,59 @@
 
     function resetFormulario() {
         creditoSeleccionadoId = null;
+        saldoPendienteActual = 0;
         $('#form_credito_id').val('');
         $('#cliente_seleccionado_box').addClass('d-none');
         $('#sin_cliente_msg').removeClass('d-none');
         $('#credito_resumen_box').addClass('d-none');
         $('#select_credito').html('');
-        $('#tabla_productos_recojo tbody').html('<tr><td colspan="3" class="text-center text-muted py-3">Seleccione un cliente y un crédito primero.</td></tr>');
+        $('#tabla_productos_recojo tbody').html('<tr><td colspan="5" class="text-center text-muted py-3">Seleccione un cliente y un crédito primero.</td></tr>');
         $('#btn_confirmar_recojo').prop('disabled', true);
         $('#buscar_cliente').val('');
         $('#resultados_cliente').hide().html('');
+        $('#resumen_resultado_box').addClass('d-none').html('');
+        $('#input_cerrar_credito').prop('checked', false);
+    }
+
+    function calcularValorRecuperadoEstimado() {
+        let total = 0;
+        $('.input-recuperar').each(function() {
+            const cantidad = parseFloat($(this).val()) || 0;
+            const precio = parseFloat($(this).data('precio')) || 0;
+            total += cantidad * precio;
+        });
+        return total;
+    }
+
+    function actualizarResumenResultado() {
+        const valorRecuperado = calcularValorRecuperadoEstimado();
+        const cerrarManual = $('#input_cerrar_credito').is(':checked');
+        const nuevoSaldo = Math.max(0, saldoPendienteActual - valorRecuperado);
+
+        let mensaje = '';
+        if (cerrarManual) {
+            mensaje = '<i class="mdi mdi-lock-outline me-1"></i> El crédito se <strong>cerrará</strong> y se condonará el saldo restante (' + fmtMoney(nuevoSaldo) + ') como incobrable.';
+        } else if (nuevoSaldo <= 0.009) {
+            mensaje = '<i class="mdi mdi-check-circle-outline me-1"></i> Lo recuperado cubre todo el saldo pendiente: el crédito se <strong>cerrará</strong> automáticamente, sin nada que condonar.';
+        } else {
+            mensaje = '<i class="mdi mdi-progress-check me-1"></i> El crédito quedará <strong>activo</strong>, con un saldo estimado de ' + fmtMoney(nuevoSaldo) + ' repartido en las cuotas pendientes.';
+        }
+        $('#resumen_resultado_box').removeClass('d-none').html(mensaje);
     }
 
     function cargarProductosYResumenCredito(creditoId) {
         creditoSeleccionadoId = creditoId;
         $('#form_credito_id').val(creditoId);
-        $('#tabla_productos_recojo tbody').html('<tr><td colspan="3" class="text-center text-muted py-3">Cargando productos...</td></tr>');
+        $('#tabla_productos_recojo tbody').html('<tr><td colspan="5" class="text-center text-muted py-3">Cargando productos...</td></tr>');
         $('#btn_confirmar_recojo').prop('disabled', true);
+        $('#resumen_resultado_box').addClass('d-none').html('');
 
         fetch(urlDetalleCreditoBase + '/' + creditoId, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
             .then(function(res) { return res.json(); })
             .then(function(data) {
+                saldoPendienteActual = parseFloat(data.saldo_pendiente) || 0;
                 $('#resumen_saldo').text(fmtMoney(data.saldo_pendiente));
                 $('#resumen_cuotas').text(data.cuotas_pendientes);
                 $('#credito_resumen_box').removeClass('d-none');
@@ -428,24 +484,30 @@
                 let html = '';
                 if (data.productos && data.productos.length > 0) {
                     data.productos.forEach(function(p, i) {
+                        const disponible = parseFloat(p.cantidad_disponible) || 0;
                         html += '<tr>';
                         html += '<td class="font-weight-bold text-dark">' + p.nomb_pro + '</td>';
+                        html += '<td class="text-center">' + fmtMoney(p.precio) + '</td>';
                         html += '<td class="text-center">' + p.cantidad_vendida + '</td>';
+                        html += '<td class="text-center">' + disponible + '</td>';
                         html += '<td class="text-center">';
                         html += '<input type="hidden" name="productos[' + i + '][producto_id]" value="' + p.producto_id + '">';
-                        html += '<input type="number" step="0.01" min="0" max="' + p.cantidad_vendida + '" value="0" ';
-                        html += 'name="productos[' + i + '][cantidad]" class="form-control input-recuperar" data-producto-id="' + p.producto_id + '">';
+                        html += '<input type="number" step="0.01" min="0" max="' + disponible + '" value="0" ';
+                        html += 'name="productos[' + i + '][cantidad]" class="form-control input-recuperar" data-producto-id="' + p.producto_id + '" data-precio="' + (p.precio || 0) + '"';
+                        html += disponible <= 0 ? ' readonly' : '';
+                        html += '>';
                         html += '</td>';
                         html += '</tr>';
                     });
                 } else {
-                    html = '<tr><td colspan="3" class="text-center text-muted py-3">No se encontraron productos para este crédito.</td></tr>';
+                    html = '<tr><td colspan="5" class="text-center text-muted py-3">No se encontraron productos para este crédito.</td></tr>';
                 }
                 $('#tabla_productos_recojo tbody').html(html);
                 $('#btn_confirmar_recojo').prop('disabled', false);
+                actualizarResumenResultado();
             })
             .catch(function() {
-                $('#tabla_productos_recojo tbody').html('<tr><td colspan="3" class="text-center text-danger py-3">Error al cargar los productos del crédito.</td></tr>');
+                $('#tabla_productos_recojo tbody').html('<tr><td colspan="5" class="text-center text-danger py-3">Error al cargar los productos del crédito.</td></tr>');
             });
     }
 
@@ -539,6 +601,9 @@
             resetFormulario();
         });
 
+        $(document).on('input', '.input-recuperar', actualizarResumenResultado);
+        $('#input_cerrar_credito').on('change', actualizarResumenResultado);
+
         $('#select_credito').on('change', function() {
             const id = $(this).val();
             if (id) {
@@ -554,14 +619,18 @@
                 return false;
             }
 
-            let hayRecuperados = false;
-            $('.input-recuperar').each(function() {
-                if ((parseFloat($(this).val()) || 0) > 0) hayRecuperados = true;
-            });
+            const valorRecuperado = calcularValorRecuperadoEstimado();
+            const cerrarManual = $('#input_cerrar_credito').is(':checked');
+            const nuevoSaldo = Math.max(0, saldoPendienteActual - valorRecuperado);
+            const seCierra = cerrarManual || nuevoSaldo <= 0.009;
 
-            const mensajeConfirm = hayRecuperados
-                ? '¿Está seguro de procesar este recojo de mercadería? Los productos recuperados ingresarán al almacén principal y el crédito quedará cerrado.'
-                : '¿Está seguro de cerrar este crédito como incobrable SIN recuperar ningún producto?';
+            let mensajeConfirm;
+            if (seCierra) {
+                mensajeConfirm = '¿Está seguro de procesar este recojo? Los productos recuperados ingresarán al almacén principal y el crédito quedará CERRADO'
+                    + (nuevoSaldo > 0.009 ? (', condonando ' + fmtMoney(nuevoSaldo) + ' como incobrable.') : '.');
+            } else {
+                mensajeConfirm = '¿Está seguro de procesar este recojo? Los productos recuperados ingresarán al almacén principal y el crédito quedará ACTIVO con un saldo estimado de ' + fmtMoney(nuevoSaldo) + '.';
+            }
 
             if (!confirm(mensajeConfirm)) {
                 e.preventDefault();
@@ -624,7 +693,11 @@
                     $('#modal_recojo_subtitulo').text(data.cliente_nombre + ' — ' + data.fecha);
                     $('#modal_recojo_vendedor').text(data.vendedor_recojo_nombre || '—');
                     $('#modal_recojo_usuario').text(data.usuario_nombre || '—');
+                    $('#modal_recojo_recuperado').text(fmtMoney(data.valor_recuperado));
                     $('#modal_recojo_saldo').text(fmtMoney(data.saldo_incobrable));
+                    $('#modal_recojo_estado').html(data.credito_cerrado
+                        ? '<span class="badge bg-secondary">Cerrado</span>'
+                        : '<span class="badge bg-success">Activo (reducido)</span>');
                     $('#modal_recojo_observacion').text(data.observacion || 'Sin observación.');
 
                     let html = '';

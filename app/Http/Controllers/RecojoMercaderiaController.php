@@ -108,6 +108,16 @@ class RecojoMercaderiaController extends Controller
         return response()->json($creditos);
     }
 
+    // Cantidad ya recuperada de un producto en recojos anteriores del mismo crédito
+    private function cantidadYaRecuperada($creditoId, $productoId)
+    {
+        return (float) DB::table('recojos_mercaderia as rm')
+            ->join('detalle_traslado as dt', 'dt.traslado_id', '=', 'rm.traslado_id')
+            ->where('rm.credito_id', $creditoId)
+            ->where('dt.producto_id', $productoId)
+            ->sum('dt.cantidad');
+    }
+
     // Detalle de un crédito: productos vendidos (para elegir cuáles se recuperan) y cuotas pendientes
     public function detalleCredito($creditoId)
     {
@@ -121,8 +131,13 @@ class RecojoMercaderiaController extends Controller
         $productos = DB::table('detalle_venta as dv')
             ->join('productos as p', 'p.id', '=', 'dv.producto_id')
             ->where('dv.venta_id', $credito->id_venta)
-            ->select('p.id as producto_id', 'p.nomb_pro', 'dv.cantidad as cantidad_vendida')
-            ->get();
+            ->select('p.id as producto_id', 'p.nomb_pro', 'dv.cantidad as cantidad_vendida', 'dv.precio')
+            ->get()
+            ->map(function ($p) use ($creditoId) {
+                $yaRecuperada = $this->cantidadYaRecuperada($creditoId, $p->producto_id);
+                $p->cantidad_disponible = max(0, (float) $p->cantidad_vendida - $yaRecuperada);
+                return $p;
+            });
 
         $cuotasPendientes = Cuotas::where('credito_id', $credito->id)->where('esta_cuo', 'PENDIENTE')->get();
 
@@ -163,6 +178,8 @@ class RecojoMercaderiaController extends Controller
             'vendedor_recojo_nombre' => optional($recojo->vendedorRecojo)->name,
             'usuario_nombre' => optional($recojo->usuario)->name,
             'saldo_incobrable' => (float) $recojo->saldo_incobrable,
+            'valor_recuperado' => (float) $recojo->valor_recuperado,
+            'credito_cerrado' => (bool) $recojo->credito_cerrado,
             'observacion' => $recojo->observacion,
             'productos' => $productos,
         ]);
@@ -177,6 +194,7 @@ class RecojoMercaderiaController extends Controller
             'productos.*.producto_id' => 'required_with:productos|exists:productos,id',
             'productos.*.cantidad' => 'required_with:productos|numeric|min:0',
             'observacion' => 'nullable|string',
+            'cerrar_credito' => 'nullable|boolean',
         ]);
 
         $idsede = session('key')->sede_id;
@@ -201,6 +219,25 @@ class RecojoMercaderiaController extends Controller
                 return (float) ($p['cantidad'] ?? 0) > 0;
             })
             ->values();
+
+        // Validar server-side que no se recupere más de lo realmente disponible (evita doble recojo del mismo producto)
+        // y valorizar lo recuperado al precio de venta registrado en esta venta
+        $valorRecuperado = 0.0;
+        foreach ($productosRecuperados as $item) {
+            $ventaLinea = DB::table('detalle_venta')
+                ->where('venta_id', $credito->id_venta)
+                ->where('producto_id', $item['producto_id'])
+                ->first();
+            if (!$ventaLinea) {
+                return redirect()->back()->with('error', 'Uno de los productos no pertenece a la venta de este crédito.');
+            }
+            $yaRecuperada = $this->cantidadYaRecuperada($credito->id, $item['producto_id']);
+            $disponible = max(0, (float) $ventaLinea->cantidad - $yaRecuperada);
+            if ((float) $item['cantidad'] > $disponible) {
+                return redirect()->back()->with('error', 'La cantidad a recuperar de "' . $item['producto_id'] . '" excede lo disponible. Recargue la página e intente de nuevo.');
+            }
+            $valorRecuperado += (float) $item['cantidad'] * (float) $ventaLinea->precio;
+        }
 
         DB::beginTransaction();
 
@@ -281,20 +318,64 @@ class RecojoMercaderiaController extends Controller
                 $trasladoId = $traslado->id;
             }
 
-            // Cerrar cuotas pendientes como incobrables (las ya cobradas no se tocan)
-            $cuotasPendientes = Cuotas::where('credito_id', $credito->id)->where('esta_cuo', 'PENDIENTE')->get();
-            $saldoIncobrable = (float) $cuotasPendientes->sum('saldo_cuo');
-            foreach ($cuotasPendientes as $cuota) {
-                $cuota->esta_cuo = 'INCOBRABLE';
-                $cuota->save();
-            }
+            // (las cuotas ya cobradas nunca se tocan en ninguno de los dos casos siguientes)
+            $cuotasPendientes = Cuotas::where('credito_id', $credito->id)->where('esta_cuo', 'PENDIENTE')->orderBy('fven_cuo')->get();
+            $saldoPendienteActual = (float) $cuotasPendientes->sum('saldo_cuo');
+            $cerrarManual = $request->boolean('cerrar_credito');
+            $nuevoSaldo = round(max(0, $saldoPendienteActual - $valorRecuperado), 2);
 
-            // Cerrar el crédito (2 = cerrado por recojo de mercadería, distinto de 0 = anulado)
             $observacionTexto = trim((string) $request->input('observacion', ''));
             $credito->obse_cre = 'RECOJO DE MERCADERIA. ' . $observacionTexto
                 . ' Fecha: ' . date('Y-m-d') . ' Usuario: ' . Auth::user()->name . ' Codigo Sede' . $idsede;
-            $credito->esta_cre = 2;
-            $credito->save();
+
+            if ($nuevoSaldo <= 0 || $cerrarManual) {
+                // Lo recuperado cubre todo el saldo, o el staff decidió cerrar y condonar el resto: mismo cierre de siempre.
+                foreach ($cuotasPendientes as $cuota) {
+                    $cuota->esta_cuo = 'INCOBRABLE';
+                    $cuota->save();
+                }
+
+                $credito->esta_cre = 2; // 2 = cerrado por recojo de mercadería, distinto de 0 = anulado
+                $credito->save();
+
+                $saldoIncobrable = $nuevoSaldo;
+                $creditoCerrado = true;
+            } else {
+                // Queda saldo y no se pidió cerrar: se reemplazan las cuotas pendientes por un cronograma
+                // nuevo sobre el saldo restante y el crédito sigue activo (mismo patrón que ReprogramacionCredito).
+                $cantidadCuotas = $cuotasPendientes->count();
+                $ultimaNumero = (int) Cuotas::where('credito_id', $credito->id)->max('numero_cuo');
+                $montoBase = floor(($nuevoSaldo / $cantidadCuotas) * 100) / 100;
+
+                foreach ($cuotasPendientes as $index => $cuota) {
+                    $monto = ($index === $cantidadCuotas - 1)
+                        ? round($nuevoSaldo - ($montoBase * ($cantidadCuotas - 1)), 2)
+                        : $montoBase;
+
+                    $nueva = new Cuotas;
+                    $nueva->credito_id = $credito->id;
+                    $nueva->fven_cuo = $cuota->fven_cuo;
+                    $nueva->numero_cuo = $ultimaNumero + $index + 1;
+                    $nueva->mont_cuo = $monto;
+                    $nueva->saldo_cuo = $monto;
+                    $nueva->capi_cuo = $monto;
+                    $nueva->sald_cap = $monto;
+                    $nueva->esta_cuo = 'PENDIENTE';
+                    $nueva->version = 1;
+                    $nueva->save();
+
+                    $cuota->esta_cuo = 'REPROGRAMADA';
+                    $cuota->saldo_cuo = 0;
+                    $cuota->capi_cuo = 0;
+                    $cuota->save();
+                }
+
+                // El crédito permanece esta_cre = 1 (activo) para permitir un futuro recojo parcial.
+                $credito->save();
+
+                $saldoIncobrable = 0;
+                $creditoCerrado = false;
+            }
 
             RecojoMercaderia::create([
                 'credito_id' => $credito->id,
@@ -305,6 +386,8 @@ class RecojoMercaderiaController extends Controller
                 'sede_id' => $idsede,
                 'fecha' => date('Y-m-d'),
                 'saldo_incobrable' => $saldoIncobrable,
+                'valor_recuperado' => $valorRecuperado,
+                'credito_cerrado' => $creditoCerrado,
                 'observacion' => $observacionTexto ?: null,
             ]);
 

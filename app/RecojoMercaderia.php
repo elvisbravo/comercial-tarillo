@@ -19,6 +19,8 @@ class RecojoMercaderia extends Model
         'sede_id',
         'fecha',
         'saldo_incobrable',
+        'valor_recuperado',
+        'credito_cerrado',
         'observacion',
     ];
 
