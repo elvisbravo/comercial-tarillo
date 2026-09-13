@@ -5,40 +5,43 @@ window.addEventListener("load", function (event) {
    // listar();
 });
 
-//METODO PARA CARGAR LOS DATOS DE LOS CLIENTES
-
-$.get(urlgeeneral+"/creditos-pendientes/listadoclientes",function(data){
-
-    var contenido = "";
-    for (var i = 0; i < data.length; i++) {
-        contenido += "<tr>";
-
-        contenido += "<td style='padding:1px;text-align:center' id='documento"+data[i].id+"'>" + data[i].documento + "</td>";
-        contenido += "<td style='padding:1px;text-align:center' id='nombre"+data[i].id+"'>" + data[i].nomb_per + "</td>";
-        contenido += "<td style='padding:1px;text-align:center'>" + data[i].dire_per + "</td>";
-        contenido += "<td style='padding:1px;text-align:center'>";
-        contenido +='<a href="#" onclick="seleccionar(\''+data[i].id+'\')" type="button" class="btn btn-success"><i class="fas fa-check"></i> </a>'
-        contenido +="</td>";
-
-        contenido += "</tr>";
+//METODO PARA BUSCAR CLIENTES POR NOMBRE O DNI (select2 con ajax)
+$('#cliente_select').select2({
+    placeholder: 'Buscar cliente por nombre o DNI...',
+    minimumInputLength: 2,
+    ajax: {
+        url: urlgeeneral + '/creditos-pendientes/buscar-clientes',
+        dataType: 'json',
+        delay: 300,
+        data: function (params) {
+            return { q: params.term };
+        },
+        processResults: function (data) {
+            return {
+                results: data.map(function (c) {
+                    return { id: c.id, text: c.razon_social + ' - ' + c.documento, documento: c.documento };
+                })
+            };
+        },
+        cache: true
+    },
+    language: {
+        inputTooShort: function () { return 'Escribe al menos 2 caracteres'; },
+        searching: function () { return 'Buscando...'; },
+        noResults: function () { return 'No se encontraron clientes'; }
     }
-
-    document.getElementById("listaclientes").innerHTML = contenido;
-    $("#datatables").DataTable();
-
-
 });
 
-//METODO PARA ASIGAR LOS DATOS
-function seleccionar(id){
+$('#cliente_select').on('select2:select', function (e) {
+    var data = e.params.data;
+    $("#documento").val(data.documento);
+    $("#id_persona_tempe").val(data.id);
+    cargarCreditos(data.id);
+});
 
-     $("#documento").val($("#documento"+id).text());
-     $("#nombresdata").val($("#nombre"+id).text());
+//METODO PARA CARGAR LOS CREDITOS DEL CLIENTE SELECCIONADO
+function cargarCreditos(id){
 
-
-     console.log("hola "+ $("#id_persona_tempe").val(id));
-
-     $(".bs-example-modal-xl").modal('hide');
      let codigo=1;
 
      $.get(urlgeeneral+"/creditos-pendientes/creditos/"+id+'/'+codigo,function(data){

@@ -10,6 +10,28 @@ Anular Credito
 
 <!-- DataTables -->
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" type="text/css" />
+
+<!-- Select2 -->
+<link href="{{ asset('assets/libs/select2/select2.min.css') }}" rel="stylesheet" type="text/css" />
+
+<style>
+    /* Corregir el alto del Select2 para que coincida con los inputs de Bootstrap */
+    .select2-container .select2-selection--single {
+        height: 38px !important;
+        border: 1px solid #ced4da !important;
+        border-radius: 0.25rem !important;
+        padding: 5px 12px;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+        right: 8px !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 26px !important;
+        padding-left: 0 !important;
+        color: #495057 !important;
+    }
+</style>
 @endsection
 @section('contenido')
 
@@ -39,27 +61,19 @@ Anular Credito
                         <div class="col-lg-12 col-xs-12">
                             <div class="row">
                                 <div class="col-lg-6 col-xs-12">
-                                    <label for="">Buscar Cliente</label>
-                                    <form class="app-search d-lg-block">
-
-                                        <div class="position-relative">
-                                            <input type="text" class="form-control" placeholder="Search..." disabled id="nombresdata">
-                                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target=".bs-example-modal-xl" type="button"><i class="bx bx-search-alt align-middle"></i></button>
-                                        </div>
-
-                                    </form>
+                                    <label for="cliente_select">Buscar Cliente</label>
+                                    <select id="cliente_select" class="form-select" style="width:100%"></select>
                                     <input type="hidden" id="id_persona_tempe">
 
                                 </div>
                                 <div class="col-lg-6 col-xs-12">
-                                    <label for="">Documento de Identidad</label> <br><br>
+                                    <label for="documento">Documento de Identidad</label>
                                     <input type="text" disabled class="form-control" id="documento">
 
                                 </div>
 
 
-                                <div class="col-lg-12 col-xs-12">
-                                    <i data-feather="star"></i>
+                                <div class="col-lg-12 col-xs-12 mt-3">
                                     <div class="table-responsive">
 
                                         <table id="datatable" class="table table-bordered dt-responsive  nowrap w-100">
@@ -105,57 +119,6 @@ Anular Credito
 
 
 
-<!--  Extra Large modal example -->
-<div class="modal fade bs-example-modal-xl" tabindex="-1" role="dialog" aria-labelledby="myExtraLargeModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="myExtraLargeModalLabel">Litado de Clientes</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-lg-12">
-
-                        <div class="table-responsive">
-
-                            <table id="datatables" class="table table-bordered dt-responsive">
-                                <thead>
-                                    <tr>
-
-                                        <th>Dni</th>
-                                        <th>Cliente</th>
-                                        <th>Dirección</th>
-                                        <th width="20">Acciones</th>
-                                    </tr>
-                                </thead>
-
-
-                                <tbody id="listaclientes">
-
-
-                                </tbody>
-                            </table>
-
-
-                        </div>
-
-
-
-                    </div>
-
-                </div>
-
-
-
-
-
-            </div>
-        </div><!-- /.modal-content -->
-    </div><!-- /.modal-dialog -->
-</div><!-- /.modal -->
-
-
 <div class="modal fade bs-example-modal-xl-y" tabindex="-1" role="dialog" aria-labelledby="myExtraLargeModalLabel" aria-hidden="true">
     <div class="modal-dialog  modal-lg">
         <div class="modal-content">
@@ -166,7 +129,7 @@ Anular Credito
             <div class="modal-body">
                 <input type="hidden" id="codigo_credito">
 
-                <label for="">Ingrese el porque se esta anulado el Credito? <strong style="color:red">Campo obligatorio</strong></label>
+                <label for="observacion">Ingrese el porque se esta anulado el Credito? <strong style="color:red">Campo obligatorio</strong></label>
 
                 <textarea name="" id="observacion" cols="5" rows="5" class="form-control obligatorio">
                                                             </textarea>
@@ -199,6 +162,8 @@ Anular Credito
 <!-- Required datatable js -->
 <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+<!-- Select2 -->
+<script src="{{ asset('assets/libs/select2/select2.min.js') }}"></script>
 
 <script src="{{ asset('js/anular-creditos-activos.js') }}">
 </script>
