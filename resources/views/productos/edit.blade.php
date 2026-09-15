@@ -114,7 +114,7 @@ Editar Producto
 
                                     <label for="example-text-input" class="form-label">Unidad Medida: </label>
                                     <input type="hidden" value="" id="tipobloque">
-                                    <select name="unidad_medida_id" id="unidad_medida_id" class="form-control obligatorio selector ">
+                                    <select name="unidad_medida_id" id="unidad_medida_id" class="form-control obligatorio selector" required>
                                         <option value="">--Seleccionar--</option>
 
                                         @foreach($unidadmedida as $unidad)

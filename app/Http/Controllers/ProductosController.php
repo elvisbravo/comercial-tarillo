@@ -307,8 +307,9 @@ class ProductosController extends Controller
     {
         //
         $this->validate($request, [
-            'nomb_pro' => 'required',
-            'codigo_barras' => 'nullable|unique:productos'
+            'nomb_pro'         => 'required',
+            'unidad_medida_id' => 'required',
+            'codigo_barras'    => 'nullable|unique:productos'
         ]);
 
            $name = session('key')->name;
@@ -541,7 +542,8 @@ class ProductosController extends Controller
     {
         //
         $this->validate($request, [
-            'nomb_pro' => 'required',
+            'nomb_pro'         => 'required',
+            'unidad_medida_id' => 'required',
             //'prec_compra' => 'required'
         ]);
 
