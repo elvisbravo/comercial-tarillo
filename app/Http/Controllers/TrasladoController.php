@@ -640,7 +640,9 @@ class TrasladoController extends Controller
             $serviciodetallealmacen = new FuncionesController;
             $data = Traslado::find($id);
 
-            if ($data->estado == 1) {
+            $estadoOriginal = $data->estado;
+
+            if ($estadoOriginal == 1 || $estadoOriginal == 2) {
 
                 $data_traslado = DB::table('traslados as t')
                     ->join('detalle_traslado as dt', 'dt.traslado_id', '=', 't.id')
@@ -650,19 +652,12 @@ class TrasladoController extends Controller
                 $data->estado = 3;
                 $data->save();
 
-                //print_r($data );exit();
-
-
-                $fecha = date('Y-m-d');
                 $idsede = session('key')->sede_id;
                 $tipo = DB::table('sedes as s')->select('s.tipo_envio')->where('s.id', '=', $idsede)->first();
 
-
-
                 foreach ($data_traslado as $key => $value) {
 
-
-                    $descontar = $serviciodetallealmacen->aumentar_descontar_stock(1, $data->id_ubicacion_origen, $value->producto_id, $value->cantidad, $tipo->tipo_envio);
+                    $serviciodetallealmacen->aumentar_descontar_stock(1, $data->id_ubicacion_origen, $value->producto_id, $value->cantidad, $tipo->tipo_envio);
 
                     $serviciodetallealmacen->movimiento_kardex_producto(
                         $data->id_ubicacion_origen,
@@ -677,11 +672,30 @@ class TrasladoController extends Controller
                         date('Y-m-d'),
                         date('Y-m-d')
                     );
+
+                    if ($estadoOriginal == 2 && $value->cantidad_recibido > 0) {
+
+                        $serviciodetallealmacen->aumentar_descontar_stock(0, $data->id_ubicacion_destino, $value->producto_id, $value->cantidad_recibido, $tipo->tipo_envio);
+
+                        $serviciodetallealmacen->movimiento_kardex_producto(
+                            $data->id_ubicacion_destino,
+                            $value->producto_id,
+                            $value->cantidad_recibido,
+                            2,
+                            "ANULACION RECEPCION " . $data->serie . "-" . $data->correlativo,
+                            $data->serie,
+                            $data->correlativo,
+                            $this->validar_soles($value->producto_id),
+                            $data->tipo_traslado_id,
+                            date('Y-m-d'),
+                            date('Y-m-d')
+                        );
+                    }
                 }
 
                 $json = array(
                     "respuesta" => "ok",
-                    "mensaje" => "Se guardo correctamente el traslado"
+                    "mensaje" => "Se anuló correctamente el traslado"
                 );
 
                 DB::commit();
@@ -691,7 +705,7 @@ class TrasladoController extends Controller
 
                 $json = array(
                     "respuesta" => "error",
-                    "mensaje" => "No podemos Anular el traslado porque ya se detecto movimientos!!"
+                    "mensaje" => "No podemos Anular el traslado porque ya fue recepcionado en su totalidad"
                 );
 
                 return response()->json($json);

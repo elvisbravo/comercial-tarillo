@@ -42,8 +42,8 @@ window.addEventListener("load", function (event) {
 
                botones += "<li><a class='dropdown-item' href='/traslado/generar_guia/" + datos[i].id + "' target='_blank'>PDF</a></li>";
 
-               if (typeof canDelete !== 'undefined' && canDelete) {
-                   botones += "<li><a class='dropdown-item' href='#' id='enviar-" + datos[i].id + "'>Anular Guia</a></li>";
+               if (typeof canDelete !== 'undefined' && canDelete && (datos[i].estado == 1 || datos[i].estado == 2)) {
+                   botones += "<li><a class='dropdown-item' href='#' onclick='eliminarsector(" + datos[i].id + ")'>Anular Guia</a></li>";
                }
 
                botones += "</ul></div>";
@@ -75,3 +75,33 @@ window.addEventListener("load", function (event) {
            initDataTable("#dataTableExample");
        });
    }
+
+function eliminarsector(id) {
+    Swal.fire({
+        title: '¿Desea anular la Guía?',
+        text: "No podrás revertir esto!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Si, anular!',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            var csrf = document.querySelector('meta[name="csrf-token"]').content;
+            $.ajax({
+                type: "POST",
+                url: urlgeneral + "/traslados/eliminar/" + id,
+                data: { "_method": "delete", '_token': csrf },
+                success: function (data) {
+                    if (data.respuesta == 'ok') {
+                        lista();
+                        Swal.fire('Anulado!', data.mensaje, 'success');
+                    } else {
+                        Swal.fire({ icon: 'error', title: 'Oops...', text: data.mensaje });
+                    }
+                }
+            });
+        }
+    });
+}
